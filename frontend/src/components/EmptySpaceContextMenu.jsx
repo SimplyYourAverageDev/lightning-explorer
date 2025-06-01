@@ -39,4 +39,5 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell }
     );
 });
 
+export { EmptySpaceContextMenu };
 export default EmptySpaceContextMenu; 

@@ -2,7 +2,7 @@ import { useRef, useEffect } from "preact/hooks";
 import { memo } from "preact/compat";
 
 // Memoized Context Menu Component
-const ContextMenu = memo(({ visible, x, y, files, onClose, onRecycleBinDelete, onPermanentDelete, onCopy, onCut, onRename }) => {
+const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, onCopy, onCut, onRename, onHide }) => {
     const menuRef = useRef(null);
     
     useEffect(() => {
@@ -47,9 +47,9 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onRecycleBinDelete, o
                 </div>
             )}
             <div className="context-menu-separator"></div>
-            <div className="context-menu-item" onClick={onRecycleBinDelete} style={{ color: 'var(--blueprint-warning)' }}>
-                <span className="context-menu-icon">[R]</span>
-                <span className="context-menu-text">Recycle ({files.length})</span>
+            <div className="context-menu-item" onClick={onHide} style={{ color: 'var(--blueprint-text-secondary)' }}>
+                <span className="context-menu-icon">[H]</span>
+                <span className="context-menu-text">Hide ({files.length})</span>
             </div>
             <div className="context-menu-item" onClick={onPermanentDelete} style={{ color: 'var(--blueprint-error)' }}>
                 <span className="context-menu-icon">[!]</span>
@@ -59,4 +59,5 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onRecycleBinDelete, o
     );
 });
 
+export { ContextMenu };
 export default ContextMenu; 

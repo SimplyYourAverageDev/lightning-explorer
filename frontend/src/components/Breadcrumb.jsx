@@ -60,4 +60,5 @@ const Breadcrumb = memo(({ currentPath, onNavigate }) => {
     );
 });
 
+export { Breadcrumb };
 export default Breadcrumb; 

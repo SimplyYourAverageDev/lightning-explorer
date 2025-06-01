@@ -7,8 +7,9 @@ import {
     RenameFile,
     OpenFile,
     OpenInSystemExplorer,
-    OpenPowerShellHere
-} from "../../wailsjs/go/main/App";
+    OpenPowerShellHere,
+    HideFiles
+} from "../../wailsjs/go/backend/App";
 
 export const useFileOperations = (currentPath, setError, clearSelection, handleRefresh, showDialog) => {
     const handleFileOpen = useCallback((file) => {
@@ -203,6 +204,35 @@ export const useFileOperations = (currentPath, setError, clearSelection, handleR
         }
     }, [currentPath, setError]);
 
+    const handleHideFiles = useCallback(async (filePaths) => {
+        try {
+            console.log('👁️ Hiding files:', filePaths);
+            
+            const success = await HideFiles(filePaths);
+            
+            if (success) {
+                console.log('✅ Hide files operation successful');
+                clearSelection();
+                setTimeout(() => {
+                    console.log('🔄 Refreshing directory after hide operation');
+                    handleRefresh();
+                }, 50);
+                return true;
+            } else {
+                console.error('❌ Hide files operation failed');
+                setError(`Failed to hide files. This may be due to:
+• Insufficient permissions (try running as administrator)
+• Files are in use by another application
+• Files are on a network drive or external storage`);
+                return false;
+            }
+        } catch (err) {
+            console.error('❌ Error during hide files operation:', err);
+            setError('Failed to hide files: ' + err.message);
+            return false;
+        }
+    }, [setError, clearSelection, handleRefresh]);
+
     return {
         handleFileOpen,
         handleCopyFiles,
@@ -210,6 +240,7 @@ export const useFileOperations = (currentPath, setError, clearSelection, handleR
         handleRecycleBinDelete,
         handlePermanentDelete,
         handleRename,
-        handleOpenPowerShell
+        handleOpenPowerShell,
+        handleHideFiles
     };
 }; 

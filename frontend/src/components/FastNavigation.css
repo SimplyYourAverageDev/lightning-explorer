@@ -1,0 +1,190 @@
+/* Fast Navigation CSS Optimizations */
+
+.file-list-container {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    contain: layout style paint;
+}
+
+.file-list {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    /* Optimize scrolling performance */
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+    
+    /* GPU acceleration */
+    transform: translateZ(0);
+    will-change: scroll-position;
+}
+
+/* Instant loading feedback */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(20, 30, 50, 0.8);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    
+    /* Instant appearance */
+    animation: fadeInFast 0.1s ease-out;
+}
+
+@keyframes fadeInFast {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Responsive header elements */
+.app-header {
+    transition: background-color 0.1s ease;
+}
+
+.app-header.loading {
+    background-color: rgba(30, 40, 60, 0.9);
+}
+
+/* Fast loading spinner */
+.loading-spinner {
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-top: 2px solid var(--blueprint-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    
+    /* Smooth animation */
+    transform-origin: center;
+    will-change: transform;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Instant visual feedback for navigation */
+.nav-segment, .sidebar-item {
+    transition: all 0.1s ease;
+    cursor: pointer;
+}
+
+.nav-segment:hover, .sidebar-item:hover {
+    background-color: rgba(100, 150, 200, 0.1);
+    transform: translateY(-1px);
+}
+
+.nav-segment:active, .sidebar-item:active {
+    transform: translateY(0);
+    background-color: rgba(100, 150, 200, 0.2);
+}
+
+/* File item hover effects for instant feedback */
+.file-item {
+    transition: all 0.1s ease-out;
+    cursor: pointer;
+}
+
+.file-item:hover {
+    background-color: rgba(100, 150, 200, 0.05);
+    transform: translateX(2px);
+}
+
+.file-item:active {
+    background-color: rgba(100, 150, 200, 0.1);
+    transform: translateX(0);
+}
+
+/* Selected state with instant feedback */
+.file-item.selected {
+    background-color: rgba(100, 150, 200, 0.2);
+    border-left: 3px solid var(--blueprint-accent);
+}
+
+/* Optimized breadcrumb transitions */
+.nav-breadcrumb {
+    /* Smooth scrolling for long paths */
+    scroll-behavior: smooth;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+}
+
+/* Toolbar button responsiveness */
+.toolbar-btn {
+    transition: all 0.1s ease;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+    background-color: rgba(100, 150, 200, 0.1);
+    transform: translateY(-1px);
+}
+
+.toolbar-btn:active:not(:disabled) {
+    transform: translateY(0);
+    background-color: rgba(100, 150, 200, 0.2);
+}
+
+.toolbar-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Context menu instant appearance */
+.context-menu {
+    animation: contextMenuAppear 0.1s ease-out;
+    transform-origin: top left;
+}
+
+@keyframes contextMenuAppear {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Optimized status bar */
+.status-bar {
+    transition: all 0.1s ease;
+}
+
+/* Responsive error messages */
+.error-message {
+    animation: slideInFromTop 0.2s ease-out;
+}
+
+@keyframes slideInFromTop {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Optimized for reduced motion users */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .loading-spinner {
+        animation: none;
+        border: 2px solid var(--blueprint-accent);
+    }
+} 

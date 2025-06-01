@@ -1,0 +1,94 @@
+/* Virtualized File List Performance Optimizations */
+
+.virtualized-file-list {
+    /* Use GPU acceleration for smooth scrolling */
+    transform: translateZ(0);
+    will-change: scroll-position;
+    
+    /* Optimize rendering */
+    contain: layout style paint;
+    
+    /* Prevent layout thrashing */
+    overflow-anchor: none;
+}
+
+.virtualized-file-list .file-item {
+    /* Optimize positioning for virtual scrolling */
+    contain: layout style paint;
+    
+    /* Prevent unnecessary reflows */
+    box-sizing: border-box;
+    
+    /* Use transform instead of top/left for better performance */
+    will-change: transform;
+}
+
+/* Optimize scrollbar for Windows */
+.virtualized-file-list::-webkit-scrollbar {
+    width: 12px;
+    background-color: var(--blueprint-bg-dark);
+}
+
+.virtualized-file-list::-webkit-scrollbar-track {
+    background-color: var(--blueprint-bg-darker);
+    border-radius: 2px;
+}
+
+.virtualized-file-list::-webkit-scrollbar-thumb {
+    background-color: var(--blueprint-accent);
+    border-radius: 2px;
+    border: 2px solid var(--blueprint-bg-darker);
+}
+
+.virtualized-file-list::-webkit-scrollbar-thumb:hover {
+    background-color: var(--blueprint-accent-hover);
+}
+
+/* Optimize file items for virtual scrolling */
+.virtual-file-item {
+    position: absolute;
+    width: 100%;
+    
+    /* Prevent text selection during fast scrolling */
+    user-select: none;
+    
+    /* Optimize for frequent updates */
+    contain: layout style paint;
+    
+    /* Prevent subpixel rendering issues */
+    transform: translateZ(0);
+}
+
+/* Loading state optimizations */
+.virtualized-file-list .loading-overlay {
+    /* Use backdrop-filter for better performance */
+    backdrop-filter: blur(2px);
+    
+    /* Optimize positioning */
+    position: absolute;
+    inset: 0;
+    
+    /* Prevent interaction during loading */
+    pointer-events: none;
+    
+    /* Use transform for centering instead of flexbox */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Memory-efficient animations */
+@media (prefers-reduced-motion: no-preference) {
+    .virtual-file-item {
+        transition: opacity 0.1s ease-out;
+    }
+}
+
+/* High DPI optimizations */
+@media (-webkit-min-device-pixel-ratio: 2) {
+    .virtualized-file-list {
+        /* Optimize for high DPI displays */
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+} 

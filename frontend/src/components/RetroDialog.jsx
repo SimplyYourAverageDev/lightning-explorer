@@ -143,4 +143,5 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
     );
 });
 
+export { RetroDialog };
 export default RetroDialog; 

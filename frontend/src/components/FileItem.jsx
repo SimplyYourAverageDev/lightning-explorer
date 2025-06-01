@@ -162,4 +162,5 @@ const FileItem = memo(({
     );
 });
 
+export { FileItem };
 export default FileItem; 

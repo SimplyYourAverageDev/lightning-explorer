@@ -1,12 +1,14 @@
 import './style.css';
-import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
+import './components/FastNavigation.css';
+import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks";
 import { 
     GetHomeDirectory, 
     NavigateToPath, 
     NavigateUp, 
     GetDriveInfo,
-    OpenInSystemExplorer
-} from "../wailsjs/go/main/App";
+    OpenInSystemExplorer,
+    GetCacheStats
+} from "../wailsjs/go/backend/App";
 
 // Import our custom components
 import {
@@ -15,26 +17,155 @@ import {
     FileItem,
     ContextMenu,
     EmptySpaceContextMenu,
-    RetroDialog
+    RetroDialog,
+    VirtualizedFileList
 } from "./components";
 
 // Import our custom hooks
 import { useFileOperations } from "./hooks/useFileOperations";
 import { useSelection } from "./hooks/useSelection";
 import { useClipboard } from "./hooks/useClipboard";
+import { useOptimizedState } from "./hooks/useOptimizedState";
 
 // Import our utilities
 import { filterFiles } from "./utils/fileUtils";
+import { debounce, throttle } from "./utils/debounce";
+
+// Frontend cache for ultra-fast navigation
+class NavigationCache {
+    constructor(maxSize = 100, ttl = 10000) { // 10 second TTL, 100 entries max
+        this.cache = new Map();
+        this.accessOrder = new Map();
+        this.maxSize = maxSize;
+        this.ttl = ttl;
+        this.hitCount = 0;
+        this.missCount = 0;
+    }
+
+    get(path) {
+        const entry = this.cache.get(path);
+        if (!entry) {
+            this.missCount++;
+            return null;
+        }
+
+        // Check TTL
+        if (Date.now() - entry.timestamp > this.ttl) {
+            this.cache.delete(path);
+            this.accessOrder.delete(path);
+            this.missCount++;
+            return null;
+        }
+
+        // Update access order for LRU
+        this.accessOrder.set(path, Date.now());
+        this.hitCount++;
+        console.log(`⚡ Frontend cache HIT for: ${path} (${this.hitCount}/${this.hitCount + this.missCount} hit rate: ${(this.hitCount / (this.hitCount + this.missCount) * 100).toFixed(1)}%)`);
+        return entry.data;
+    }
+
+    set(path, data) {
+        // Remove oldest entries if cache is full
+        if (this.cache.size >= this.maxSize) {
+            const oldestPath = [...this.accessOrder.entries()]
+                .sort(([,a], [,b]) => a - b)[0][0];
+            this.cache.delete(oldestPath);
+            this.accessOrder.delete(oldestPath);
+        }
+
+        this.cache.set(path, {
+            data,
+            timestamp: Date.now()
+        });
+        this.accessOrder.set(path, Date.now());
+        console.log(`💾 Frontend cached: ${path} (${this.cache.size}/${this.maxSize} entries)`);
+    }
+
+    clear() {
+        this.cache.clear();
+        this.accessOrder.clear();
+        console.log('🧹 Frontend cache cleared');
+    }
+
+    getStats() {
+        return {
+            entries: this.cache.size,
+            hitRate: this.hitCount / (this.hitCount + this.missCount) * 100,
+            hits: this.hitCount,
+            misses: this.missCount
+        };
+    }
+}
+
+// Create global cache instance
+const navCache = new NavigationCache();
+
+// Smart prefetching for likely navigation targets
+class NavigationPrefetcher {
+    constructor() {
+        this.prefetchQueue = new Set();
+        this.isRunning = false;
+    }
+
+    async prefetch(paths) {
+        if (this.isRunning) return;
+        
+        for (const path of paths) {
+            if (navCache.get(path)) continue; // Already cached
+            
+            this.prefetchQueue.add(path);
+        }
+
+        if (this.prefetchQueue.size > 0) {
+            this.processPrefetchQueue();
+        }
+    }
+
+    async processPrefetchQueue() {
+        if (this.isRunning || this.prefetchQueue.size === 0) return;
+        
+        this.isRunning = true;
+        const path = [...this.prefetchQueue][0];
+        this.prefetchQueue.delete(path);
+
+        try {
+            console.log(`🔮 Prefetching: ${path}`);
+            const response = await NavigateToPath(path);
+            if (response && response.success) {
+                navCache.set(path, response.data);
+            }
+        } catch (err) {
+            console.log(`❌ Prefetch failed for ${path}:`, err);
+        }
+
+        this.isRunning = false;
+        
+        // Process next item with a small delay
+        if (this.prefetchQueue.size > 0) {
+            setTimeout(() => this.processPrefetchQueue(), 100);
+        }
+    }
+}
+
+const prefetcher = new NavigationPrefetcher();
 
 // Main App component
 export function App() {
     // Basic state
     const [currentPath, setCurrentPath] = useState('');
     const [directoryContents, setDirectoryContents] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isActuallyLoading, setIsActuallyLoading] = useState(true); // True loading state
+    const [showLoadingIndicator, setShowLoadingIndicator] = useState(false); // UI loading state
     const [error, setError] = useState('');
     const [drives, setDrives] = useState([]);
     const [showHiddenFiles, setShowHiddenFiles] = useState(false);
+    
+    // Performance monitoring
+    const [navigationStats, setNavigationStats] = useState({
+        totalNavigations: 0,
+        cacheHits: 0,
+        averageTime: 0
+    });
     
     // Context menu states
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, files: [] });
@@ -54,6 +185,10 @@ export function App() {
         onConfirm: () => {},
         onCancel: () => {}
     });
+
+    // Performance tracking refs
+    const navigationStartTime = useRef(null);
+    const loadingTimeout = useRef(null);
 
     // Custom hooks
     const {
@@ -105,6 +240,29 @@ export function App() {
         showDialog
     );
 
+    // Smart loading indicator management
+    const showSmartLoadingIndicator = useCallback(() => {
+        // Clear any existing timeout
+        if (loadingTimeout.current) {
+            clearTimeout(loadingTimeout.current);
+        }
+        
+        // Only show loading after 150ms delay for perceived speed
+        loadingTimeout.current = setTimeout(() => {
+            if (isActuallyLoading) {
+                setShowLoadingIndicator(true);
+            }
+        }, 150);
+    }, [isActuallyLoading]);
+
+    const hideLoadingIndicator = useCallback(() => {
+        if (loadingTimeout.current) {
+            clearTimeout(loadingTimeout.current);
+            loadingTimeout.current = null;
+        }
+        setShowLoadingIndicator(false);
+    }, []);
+
     // Computed values
     const filteredDirectories = useMemo(() => 
         directoryContents ? filterFiles(directoryContents.directories, showHiddenFiles) : [], 
@@ -121,88 +279,153 @@ export function App() {
         [filteredDirectories, filteredFiles]
     );
 
-    // Navigation functions
-    const navigateToPath = useCallback(async (path) => {
+    // Ultra-fast navigation with intelligent caching and prefetching
+    const navigateToPath = useCallback(async (path, source = 'user') => {
+        console.log(`🧭 Navigation request: ${path} (${source})`);
+        navigationStartTime.current = Date.now();
+        
         try {
             setError('');
-            console.log('🧭 Navigating to:', path);
             
-            const loadingTimeout = setTimeout(() => {
-                setIsLoading(true);
-            }, 150);
+            // Check frontend cache first - INSTANT response
+            const cached = navCache.get(path);
+            if (cached) {
+                setCurrentPath(cached.currentPath);
+                setDirectoryContents(cached);
+                hideLoadingIndicator();
+                
+                // Update stats
+                setNavigationStats(prev => ({
+                    totalNavigations: prev.totalNavigations + 1,
+                    cacheHits: prev.cacheHits + 1,
+                    averagedTime: (prev.averageTime * prev.totalNavigations + (Date.now() - navigationStartTime.current)) / (prev.totalNavigations + 1)
+                }));
+
+                // Prefetch sibling directories and common navigation targets
+                if (source === 'user') {
+                    prefetchSiblingDirectories(path);
+                }
+                
+                return;
+            }
+
+            // Show loading indicator with smart delay
+            setIsActuallyLoading(true);
+            showSmartLoadingIndicator();
             
+            // Backend call with optimized timeout
             const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Navigation timeout')), 10000);
+                setTimeout(() => reject(new Error('Navigation timeout')), 5000);
             });
             
             const navigationPromise = NavigateToPath(path);
             const response = await Promise.race([navigationPromise, timeoutPromise]);
             
-            clearTimeout(loadingTimeout);
-            
             if (response && response.success) {
+                // Cache the result for future use
+                navCache.set(path, response.data);
+                
                 setCurrentPath(response.data.currentPath);
                 setDirectoryContents(response.data);
-                console.log('✅ Successfully navigated to:', response.data.currentPath);
+                
+                // Update performance stats
+                const navigationTime = Date.now() - navigationStartTime.current;
+                setNavigationStats(prev => ({
+                    totalNavigations: prev.totalNavigations + 1,
+                    cacheHits: prev.cacheHits,
+                    averageTime: (prev.averageTime * prev.totalNavigations + navigationTime) / (prev.totalNavigations + 1)
+                }));
+                
+                console.log(`✅ Navigation completed in ${navigationTime}ms: ${response.data.currentPath}`);
+                
+                // Prefetch likely navigation targets
+                if (source === 'user') {
+                    prefetchNavigationTargets(response.data);
+                }
             } else {
                 const errorMsg = response?.message || 'Unknown navigation error';
                 setError(errorMsg);
+                console.error('❌ Navigation failed:', errorMsg);
             }
         } catch (err) {
             console.error('❌ Navigation error:', err);
             setError('Failed to navigate: ' + err.message);
         } finally {
-            setIsLoading(false);
+            setIsActuallyLoading(false);
+            hideLoadingIndicator();
+        }
+    }, [showSmartLoadingIndicator, hideLoadingIndicator]);
+
+    // Prefetch sibling directories for fast navigation
+    const prefetchSiblingDirectories = useCallback(async (path) => {
+        try {
+            const parentPath = path.includes('\\') ? path.split('\\').slice(0, -1).join('\\') : path.split('/').slice(0, -1).join('/');
+            if (parentPath && parentPath !== path) {
+                const cached = navCache.get(parentPath);
+                if (cached) {
+                    // Prefetch up to 5 sibling directories
+                    const siblings = cached.directories.slice(0, 5).map(dir => dir.path);
+                    prefetcher.prefetch(siblings);
+                }
+            }
+        } catch (err) {
+            console.log('Prefetch siblings failed:', err);
         }
     }, []);
 
+    // Prefetch common navigation targets
+    const prefetchNavigationTargets = useCallback(async (directoryData) => {
+        try {
+            const prefetchTargets = [];
+            
+            // Prefetch parent directory
+            if (directoryData.parentPath) {
+                prefetchTargets.push(directoryData.parentPath);
+            }
+            
+            // Prefetch first few subdirectories (most likely to be accessed)
+            const subDirs = directoryData.directories.slice(0, 3).map(dir => dir.path);
+            prefetchTargets.push(...subDirs);
+            
+            prefetcher.prefetch(prefetchTargets);
+        } catch (err) {
+            console.log('Prefetch targets failed:', err);
+        }
+    }, []);
+
+    // Optimized navigate up
     const handleNavigateUp = useCallback(async () => {
         if (!currentPath) return;
         
         try {
-            setError('');
-            console.log('⬆️ Navigating up from:', currentPath);
-            
-            const loadingTimeout = setTimeout(() => {
-                setIsLoading(true);
-            }, 150);
-            
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Navigate up timeout')), 10000);
-            });
-            
-            const navigationPromise = NavigateUp(currentPath);
-            const response = await Promise.race([navigationPromise, timeoutPromise]);
-            
-            clearTimeout(loadingTimeout);
-            
-            if (response && response.success) {
-                setCurrentPath(response.data.currentPath);
-                setDirectoryContents(response.data);
-                console.log('✅ Successfully navigated up to:', response.data.currentPath);
-            } else {
-                const errorMsg = response?.message || 'Unknown navigate up error';
-                setError(errorMsg);
+            // For navigate up, we can often predict the parent path instantly
+            const parentPath = currentPath.includes('\\') 
+                ? currentPath.split('\\').slice(0, -1).join('\\')
+                : currentPath.split('/').slice(0, -1).join('/');
+                
+            if (parentPath && parentPath !== currentPath) {
+                await navigateToPath(parentPath, 'navigate-up');
             }
         } catch (err) {
             console.error('❌ Navigate up error:', err);
             setError('Failed to navigate up: ' + err.message);
-        } finally {
-            setIsLoading(false);
         }
-    }, [currentPath]);
+    }, [currentPath, navigateToPath]);
 
     // File operation handlers
     const handleFileOpen = useCallback((file) => {
         const result = fileOperations.handleFileOpen(file);
         if (result && result.type === 'navigate') {
-            navigateToPath(result.path);
+            // Use direct navigation for file opens (immediate response)
+            navigateToPath(result.path, 'file-open');
         }
     }, [fileOperations, navigateToPath]);
 
     const handleRefresh = useCallback(() => {
         if (currentPath) {
-            navigateToPath(currentPath);
+            // Clear cache for current path to force refresh
+            navCache.cache.delete(currentPath);
+            navigateToPath(currentPath, 'refresh');
         }
     }, [currentPath, navigateToPath]);
 
@@ -243,6 +466,9 @@ export function App() {
             
             if (!success) {
                 setError('Paste operation failed');
+            } else {
+                // Clear cache for current directory to show changes
+                navCache.cache.delete(currentPath);
             }
         } catch (err) {
             console.error('❌ Error during paste operation:', err);
@@ -312,11 +538,32 @@ export function App() {
             file.name,
             (newName) => {
                 if (newName && newName !== file.name && newName.trim() !== '') {
-                    fileOperations.handleRename(file.path, newName.trim());
+                    fileOperations.handleRename(file.path, newName.trim()).then(() => {
+                        // Clear cache to show renamed file
+                        navCache.cache.delete(currentPath);
+                    });
                 }
             }
         );
-    }, [contextMenu.files, closeContextMenu, showDialog, fileOperations]);
+    }, [contextMenu.files, closeContextMenu, showDialog, fileOperations, currentPath]);
+
+    const handleContextHide = useCallback(() => {
+        const filePaths = contextMenu.files.map(file => file.path);
+        closeContextMenu();
+        
+        showDialog(
+            'confirm',
+            'HIDE FILES',
+            `HIDE ${filePaths.length} ITEM${filePaths.length === 1 ? '' : 'S'}?\n\nHidden files will not be visible unless "Show Hidden Files" is enabled.`,
+            '',
+            () => {
+                fileOperations.handleHideFiles(filePaths).then(() => {
+                    // Clear cache to hide files
+                    navCache.cache.delete(currentPath);
+                });
+            }
+        );
+    }, [contextMenu.files, closeContextMenu, showDialog, fileOperations, currentPath]);
 
     // Initialize app
     useEffect(() => {
@@ -326,12 +573,13 @@ export function App() {
 
     const initializeApp = async () => {
         try {
-            setIsLoading(true);
+            setIsActuallyLoading(true);
+            showSmartLoadingIndicator();
             setError('');
             
             const homeDir = await GetHomeDirectory();
             if (homeDir) {
-                await navigateToPath(homeDir);
+                await navigateToPath(homeDir, 'init');
             } else {
                 setError('Unable to determine starting directory');
             }
@@ -339,7 +587,8 @@ export function App() {
             console.error('❌ Error initializing app:', err);
             setError('Failed to initialize file explorer: ' + err.message);
         } finally {
-            setIsLoading(false);
+            setIsActuallyLoading(false);
+            hideLoadingIndicator();
         }
     };
 
@@ -356,9 +605,30 @@ export function App() {
         setContextMenu({ visible: false, x: 0, y: 0, files: [] });
     }, [currentPath, clearSelection]);
 
-    // Keyboard shortcuts
+    // Performance monitoring
     useEffect(() => {
-        const handleKeyDown = (event) => {
+        const interval = setInterval(async () => {
+            try {
+                const [frontendStats, backendStats] = await Promise.all([
+                    Promise.resolve(navCache.getStats()),
+                    GetCacheStats()
+                ]);
+                console.log('📊 Performance Stats:', {
+                    frontend: frontendStats,
+                    backend: backendStats,
+                    navigation: navigationStats
+                });
+            } catch (err) {
+                console.log('Stats collection failed:', err);
+            }
+        }, 30000); // Every 30 seconds
+
+        return () => clearInterval(interval);
+    }, [navigationStats]);
+
+    // Optimized keyboard shortcuts
+    const keyboardHandler = useMemo(
+        () => throttle((event) => {
             if (event.key === 'F5') {
                 event.preventDefault();
                 handleRefresh();
@@ -392,12 +662,30 @@ export function App() {
                 clearSelection();
                 closeContextMenu();
                 closeEmptySpaceContextMenu();
+            } else if (event.ctrlKey && event.shiftKey && event.key === 'C') {
+                // Clear both frontend and backend cache
+                event.preventDefault();
+                navCache.clear();
+                console.log('🧹 Manual cache clear requested');
+            }
+        }, 50), // Faster response for keyboard
+        [currentPath, selectedFiles, allFiles, handleRefresh, handleNavigateUp, handleFileOpen, selectAll, handleCopySelected, handleCutSelected, handlePaste, isPasteAvailable, handleArrowNavigation, clearSelection, closeContextMenu, closeEmptySpaceContextMenu]
+    );
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        window.addEventListener('keydown', keyboardHandler);
+        return () => window.removeEventListener('keydown', keyboardHandler);
+    }, [keyboardHandler]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (loadingTimeout.current) {
+                clearTimeout(loadingTimeout.current);
             }
         };
-        
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentPath, selectedFiles, allFiles, handleRefresh, handleNavigateUp, handleFileOpen, selectAll, handleCopySelected, handleCutSelected, handlePaste, isPasteAvailable, handleArrowNavigation, clearSelection, closeContextMenu, closeEmptySpaceContextMenu]);
+    }, []);
 
     return (
         <div className="file-explorer blueprint-bg">
@@ -405,13 +693,25 @@ export function App() {
             <header className="app-header">
                 <div className="app-title">Files</div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {isLoading && <div className="loading-spinner"></div>}
+                    {showLoadingIndicator && <div className="loading-spinner"></div>}
                     <span className="text-technical">
                         {directoryContents ? 
                             `${filteredDirectories.length} dirs • ${filteredFiles.length} files${!showHiddenFiles ? ' (hidden filtered)' : ''}${selectedFiles.size > 0 ? ` • ${selectedFiles.size} selected` : ''}` : 
                             'Ready'
                         }
                     </span>
+                    {/* Performance indicator */}
+                    {navigationStats.totalNavigations > 0 && (
+                        <span className="text-technical" style={{ fontSize: '10px', opacity: 0.6 }}>
+                            Cache: {Math.round(navigationStats.cacheHits / navigationStats.totalNavigations * 100)}% • {Math.round(navigationStats.averageTime)}ms avg
+                        </span>
+                    )}
+                    {/* Show current path for instant feedback */}
+                    {currentPath && (
+                        <span className="text-technical" style={{ fontSize: '11px', opacity: 0.7, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {currentPath}
+                        </span>
+                    )}
                 </div>
             </header>
             
@@ -429,26 +729,25 @@ export function App() {
             <div className="main-content">
                 <Sidebar 
                     currentPath={currentPath}
-                    onNavigate={navigateToPath}
+                    onNavigate={(path) => navigateToPath(path, 'sidebar')}
                     drives={drives}
                 />
                 
                 <div className="content-area">
                     {/* Toolbar */}
                     <div className="toolbar">
-                        <button className="toolbar-btn" onClick={handleNavigateUp} disabled={!currentPath || isLoading}>
+                        <button className="toolbar-btn" onClick={handleNavigateUp} disabled={!currentPath}>
                             ⬆️ Up
                         </button>
-                        <button className="toolbar-btn" onClick={handleRefresh} disabled={!currentPath || isLoading}>
+                        <button className="toolbar-btn" onClick={handleRefresh} disabled={!currentPath}>
                             🔄 Refresh
                         </button>
-                        <button className="toolbar-btn" onClick={handleOpenInExplorer} disabled={!currentPath || isLoading}>
+                        <button className="toolbar-btn" onClick={handleOpenInExplorer} disabled={!currentPath}>
                             🖥️ Open in Explorer
                         </button>
                         <button 
                             className={`toolbar-btn ${showHiddenFiles ? 'active' : ''}`}
                             onClick={() => setShowHiddenFiles(!showHiddenFiles)}
-                            disabled={isLoading}
                         >
                             {showHiddenFiles ? '👁️' : '🙈'} Hidden
                         </button>
@@ -458,13 +757,13 @@ export function App() {
                     {currentPath && (
                         <Breadcrumb 
                             currentPath={currentPath}
-                            onNavigate={navigateToPath}
+                            onNavigate={(path) => navigateToPath(path, 'breadcrumb')}
                         />
                     )}
                     
-                    {/* File list */}
+                    {/* File list - Use virtual scrolling for better performance */}
                     <div 
-                        className="file-list custom-scrollbar"
+                        className="file-list-container"
                         onClick={(e) => {
                             if (e.target === e.currentTarget) {
                                 clearSelection();
@@ -481,7 +780,7 @@ export function App() {
                             }
                         }}
                     >
-                        {isLoading ? (
+                        {showLoadingIndicator ? (
                             <div className="loading-overlay">
                                 <div style={{ textAlign: 'center' }}>
                                     <div className="loading-spinner" style={{ width: '32px', height: '32px', marginBottom: '16px' }}></div>
@@ -489,29 +788,45 @@ export function App() {
                                 </div>
                             </div>
                         ) : directoryContents ? (
-                            <>
-                                {allFiles.map((file, index) => (
-                                    <FileItem
-                                        key={file.path}
-                                        file={file}
-                                        fileIndex={index}
-                                        onSelect={handleFileSelect}
-                                        onOpen={handleFileOpen}
-                                        onContextMenu={handleContextMenu}
-                                        isLoading={isLoading}
-                                        isSelected={selectedFiles.has(index)}
-                                        isCut={clipboardOperation === 'cut' && clipboardFiles.includes(file.path)}
-                                        isDragOver={dragOverFolder === file.path}
-                                    />
-                                ))}
-                                
-                                {allFiles.length === 0 && (
-                                    <div style={{ textAlign: 'center', padding: '64px 32px', color: 'var(--blueprint-text-muted)' }}>
-                                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📁</div>
-                                        <div className="text-technical">Directory is empty</div>
-                                    </div>
-                                )}
-                            </>
+                            allFiles.length > 20 ? (
+                                // Use virtual scrolling for large directories
+                                <VirtualizedFileList
+                                    files={allFiles}
+                                    selectedFiles={selectedFiles}
+                                    onFileSelect={handleFileSelect}
+                                    onFileOpen={handleFileOpen}
+                                    onContextMenu={handleContextMenu}
+                                    isLoading={false} // Never show loading in file items
+                                    clipboardFiles={clipboardFiles}
+                                    clipboardOperation={clipboardOperation}
+                                    containerHeight={500}
+                                />
+                            ) : (
+                                // Use normal rendering for small directories
+                                <div className="file-list custom-scrollbar">
+                                    {allFiles.map((file, index) => (
+                                        <FileItem
+                                            key={file.path}
+                                            file={file}
+                                            fileIndex={index}
+                                            onSelect={handleFileSelect}
+                                            onOpen={handleFileOpen}
+                                            onContextMenu={handleContextMenu}
+                                            isLoading={false} // Never show loading in file items
+                                            isSelected={selectedFiles.has(index)}
+                                            isCut={clipboardOperation === 'cut' && clipboardFiles.includes(file.path)}
+                                            isDragOver={dragOverFolder === file.path}
+                                        />
+                                    ))}
+                                    
+                                    {allFiles.length === 0 && (
+                                        <div style={{ textAlign: 'center', padding: '64px 32px', color: 'var(--blueprint-text-muted)' }}>
+                                            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📁</div>
+                                            <div className="text-technical">Directory is empty</div>
+                                        </div>
+                                    )}
+                                </div>
+                            )
                         ) : (
                             <div style={{ textAlign: 'center', padding: '64px 32px', color: 'var(--blueprint-text-muted)' }}>
                                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>📁</div>
@@ -532,17 +847,17 @@ export function App() {
                 onCopy={handleContextCopy}
                 onCut={handleContextCut}
                 onRename={handleContextRename}
-                onRecycleBinDelete={() => {
-                    const filePaths = contextMenu.files.map(file => file.path);
-                    closeContextMenu();
-                    showDialog('delete', 'MOVE TO RECYCLE BIN', `Move ${filePaths.length} items to recycle bin?`, '', 
-                        () => fileOperations.handleRecycleBinDelete(filePaths));
-                }}
+                onHide={handleContextHide}
                 onPermanentDelete={() => {
                     const filePaths = contextMenu.files.map(file => file.path);
                     closeContextMenu();
                     showDialog('delete', '⚠️ PERMANENT DELETE WARNING', `Permanently delete ${filePaths.length} items? This cannot be undone!`, '', 
-                        () => fileOperations.handlePermanentDelete(filePaths));
+                        () => {
+                            fileOperations.handlePermanentDelete(filePaths).then(() => {
+                                // Clear cache to reflect changes
+                                navCache.cache.delete(currentPath);
+                            });
+                        });
                 }}
             />
             
@@ -577,7 +892,7 @@ export function App() {
                     {isDragging && ' • Dragging files (Hold Ctrl to copy)'}
                 </span>
                 <span style={{ marginLeft: 'auto' }}>
-                    File Explorer
+                    File Explorer • Ctrl+Shift+C: Clear Cache
                 </span>
             </div>
         </div>

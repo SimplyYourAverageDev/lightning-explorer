@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { memo } from "preact/compat";
-import { GetHomeDirectory } from "../../wailsjs/go/main/App";
+import { GetHomeDirectory } from "../../wailsjs/go/backend/App";
 
 // Memoized Sidebar component
 const Sidebar = memo(({ currentPath, onNavigate, drives = [] }) => {
@@ -63,4 +63,5 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [] }) => {
     );
 });
 
+export { Sidebar };
 export default Sidebar; 
