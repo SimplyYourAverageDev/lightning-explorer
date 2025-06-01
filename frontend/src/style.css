@@ -121,6 +121,10 @@ body {
   transition: all 0.15s ease;
   font-size: 13px;
   border: 1px solid transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .file-item:hover {
@@ -132,6 +136,19 @@ body {
 .file-item.selected {
   background: var(--blueprint-primary);
   color: white;
+  border-color: var(--blueprint-accent);
+  box-shadow: 0 2px 8px var(--blueprint-shadow);
+}
+
+.file-item.selected:hover {
+  background: var(--blueprint-accent);
+  transform: translateX(2px);
+}
+
+.file-item.cut {
+  opacity: 0.5;
+  filter: grayscale(50%);
+  border-style: dashed;
 }
 
 .file-icon {
@@ -448,7 +465,6 @@ body {
   background: var(--blueprint-surface);
   border: 1px solid var(--blueprint-border);
   border-radius: 6px;
-  box-shadow: 0 8px 32px var(--blueprint-shadow-strong);
   z-index: 1000;
   min-width: 160px;
   overflow: hidden;

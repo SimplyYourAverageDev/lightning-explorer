@@ -315,6 +315,430 @@ func (a *App) OpenInSystemExplorer(path string) bool {
 	return err == nil
 }
 
+// OpenFile opens a file with its default application and brings it to foreground
+func (a *App) OpenFile(filePath string) bool {
+	log.Printf("Opening file with default application: %s", filePath)
+
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		// Use cmd /c start to open file and bring application to foreground
+		cmd = exec.Command("cmd", "/c", "start", "", filePath)
+	case "darwin":
+		// macOS open command brings app to foreground by default
+		cmd = exec.Command("open", filePath)
+	case "linux":
+		// Use xdg-open for Linux
+		cmd = exec.Command("xdg-open", filePath)
+	default:
+		log.Printf("Unsupported operating system: %s", runtime.GOOS)
+		return false
+	}
+
+	err := cmd.Start()
+	if err != nil {
+		log.Printf("Error opening file: %v", err)
+		return false
+	}
+
+	log.Printf("Successfully opened file: %s", filePath)
+	return true
+}
+
+// CopyFiles copies files from source paths to destination directory
+func (a *App) CopyFiles(sourcePaths []string, destDir string) bool {
+	log.Printf("Copying %d files to: %s", len(sourcePaths), destDir)
+
+	for _, srcPath := range sourcePaths {
+		srcInfo, err := os.Stat(srcPath)
+		if err != nil {
+			log.Printf("Error getting source file info: %v", err)
+			return false
+		}
+
+		destPath := filepath.Join(destDir, filepath.Base(srcPath))
+
+		if srcInfo.IsDir() {
+			err = a.copyDir(srcPath, destPath)
+		} else {
+			err = a.copyFile(srcPath, destPath)
+		}
+
+		if err != nil {
+			log.Printf("Error copying %s: %v", srcPath, err)
+			return false
+		}
+
+		// Verify the copy was successful by checking if destination exists
+		if _, err := os.Stat(destPath); err != nil {
+			log.Printf("Copy verification failed for %s: %v", destPath, err)
+			return false
+		}
+	}
+
+	log.Printf("Successfully copied %d files to %s", len(sourcePaths), destDir)
+	return true
+}
+
+// MoveFiles moves files from source paths to destination directory
+func (a *App) MoveFiles(sourcePaths []string, destDir string) bool {
+	log.Printf("Moving %d files to: %s", len(sourcePaths), destDir)
+
+	for _, srcPath := range sourcePaths {
+		destPath := filepath.Join(destDir, filepath.Base(srcPath))
+
+		err := os.Rename(srcPath, destPath)
+		if err != nil {
+			log.Printf("Error moving %s: %v", srcPath, err)
+			return false
+		}
+
+		// Verify the move was successful
+		if _, err := os.Stat(destPath); err != nil {
+			log.Printf("Move verification failed for %s: %v", destPath, err)
+			return false
+		}
+	}
+
+	log.Printf("Successfully moved %d files to %s", len(sourcePaths), destDir)
+	return true
+}
+
+// DeleteFiles permanently deletes the specified files and directories
+func (a *App) DeleteFiles(filePaths []string) bool {
+	log.Printf("Permanently deleting %d files", len(filePaths))
+
+	for _, filePath := range filePaths {
+		err := os.RemoveAll(filePath)
+		if err != nil {
+			log.Printf("Error permanently deleting %s: %v", filePath, err)
+			return false
+		}
+	}
+
+	return true
+}
+
+// MoveFilesToRecycleBin moves files to the system recycle bin/trash
+func (a *App) MoveFilesToRecycleBin(filePaths []string) bool {
+	log.Printf("Moving %d files to recycle bin", len(filePaths))
+
+	for _, filePath := range filePaths {
+		success := a.moveToRecycleBin(filePath)
+		if !success {
+			log.Printf("Error moving %s to recycle bin", filePath)
+			return false
+		}
+	}
+
+	return true
+}
+
+// moveToRecycleBin moves a single file to the recycle bin using OS-specific methods
+func (a *App) moveToRecycleBin(filePath string) bool {
+	switch runtime.GOOS {
+	case "windows":
+		return a.moveToWindowsRecycleBin(filePath)
+	case "darwin":
+		return a.moveToMacTrash(filePath)
+	case "linux":
+		return a.moveToLinuxTrash(filePath)
+	default:
+		log.Printf("Recycle bin not supported on %s, falling back to permanent delete", runtime.GOOS)
+		return os.RemoveAll(filePath) == nil
+	}
+}
+
+// moveToWindowsRecycleBin moves file to Windows Recycle Bin using pure Go
+func (a *App) moveToWindowsRecycleBin(filePath string) bool {
+	log.Printf("Moving to Windows Recycle Bin: %s", filePath)
+
+	// Get current user SID - lightweight method
+	userSID, err := a.getCurrentUserSID()
+	if err != nil {
+		log.Printf("Failed to get user SID: %v", err)
+		return false
+	}
+
+	// Get the drive letter from the file path
+	if len(filePath) < 2 || filePath[1] != ':' {
+		log.Printf("Invalid file path format: %s", filePath)
+		return false
+	}
+
+	driveLetter := strings.ToUpper(string(filePath[0]))
+	recycleBinPath := fmt.Sprintf("%s:\\$Recycle.Bin\\%s", driveLetter, userSID)
+
+	log.Printf("Recycle bin path: %s", recycleBinPath)
+
+	// Create recycle bin directory if it doesn't exist
+	err = os.MkdirAll(recycleBinPath, 0755)
+	if err != nil {
+		log.Printf("Failed to create recycle bin directory: %v", err)
+		return false
+	}
+
+	// Generate unique filename in recycle bin
+	originalName := filepath.Base(filePath)
+	recycleBinFile := filepath.Join(recycleBinPath, originalName)
+
+	// Handle filename conflicts
+	if a.fileExists(recycleBinFile) {
+		recycleBinFile = a.generateUniqueRecycleBinPath(recycleBinPath, originalName)
+	}
+
+	// Move file to recycle bin using pure Go
+	err = os.Rename(filePath, recycleBinFile)
+	if err != nil {
+		// If rename fails, try copy + delete (for cross-drive moves)
+		err = a.copyAndDelete(filePath, recycleBinFile)
+		if err != nil {
+			log.Printf("Failed to move file to recycle bin: %v", err)
+			return false
+		}
+	}
+
+	log.Printf("Successfully moved to recycle bin: %s -> %s", filePath, recycleBinFile)
+	return true
+}
+
+// getCurrentUserSID gets the current user's SID using minimal system calls
+func (a *App) getCurrentUserSID() (string, error) {
+	// Use whoami which is lightweight and always available
+	cmd := exec.Command("whoami", "/user", "/fo", "csv", "/nh")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("whoami failed: %v", err)
+	}
+
+	// Parse CSV output: "DOMAIN\username","S-1-5-..."
+	csvLine := strings.TrimSpace(string(output))
+	if len(csvLine) < 10 {
+		return "", fmt.Errorf("invalid whoami output: %s", csvLine)
+	}
+
+	// Extract SID from CSV (second column)
+	parts := strings.Split(csvLine, ",")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("could not parse SID from: %s", csvLine)
+	}
+
+	sid := strings.Trim(parts[1], `"`)
+	if !strings.HasPrefix(sid, "S-1-5-") {
+		return "", fmt.Errorf("invalid SID format: %s", sid)
+	}
+
+	return sid, nil
+}
+
+// fileExists checks if a file exists
+func (a *App) fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
+}
+
+// generateUniqueRecycleBinPath creates a unique filename for the recycle bin
+func (a *App) generateUniqueRecycleBinPath(recycleBinDir, originalName string) string {
+	ext := filepath.Ext(originalName)
+	nameWithoutExt := strings.TrimSuffix(originalName, ext)
+
+	for counter := 1; counter < 1000; counter++ {
+		newName := fmt.Sprintf("%s (%d)%s", nameWithoutExt, counter, ext)
+		newPath := filepath.Join(recycleBinDir, newName)
+
+		if !a.fileExists(newPath) {
+			return newPath
+		}
+	}
+
+	// Fallback with timestamp if we somehow hit 1000 conflicts
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	newName := fmt.Sprintf("%s_%s%s", nameWithoutExt, timestamp, ext)
+	return filepath.Join(recycleBinDir, newName)
+}
+
+// copyAndDelete copies a file then deletes the original (for cross-drive moves)
+func (a *App) copyAndDelete(src, dst string) error {
+	// Check if source is a directory
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	if srcInfo.IsDir() {
+		return a.copyDirAndDelete(src, dst)
+	}
+
+	return a.copyFileAndDelete(src, dst)
+}
+
+// copyFileAndDelete copies a file and then deletes the original
+func (a *App) copyFileAndDelete(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = sourceFile.WriteTo(destFile)
+	if err != nil {
+		os.Remove(dst) // Clean up partial copy
+		return err
+	}
+
+	// Copy file permissions
+	srcInfo, err := os.Stat(src)
+	if err == nil {
+		os.Chmod(dst, srcInfo.Mode())
+	}
+
+	// Delete original
+	return os.Remove(src)
+}
+
+// copyDirAndDelete recursively copies a directory and then deletes the original
+func (a *App) copyDirAndDelete(src, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	err = os.MkdirAll(dst, srcInfo.Mode())
+	if err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			err = a.copyDirAndDelete(srcPath, dstPath)
+		} else {
+			err = a.copyFileAndDelete(srcPath, dstPath)
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete the now-empty source directory
+	return os.Remove(src)
+}
+
+// moveToMacTrash moves file to macOS Trash
+func (a *App) moveToMacTrash(filePath string) bool {
+	cmd := exec.Command("osascript", "-e", fmt.Sprintf(`tell app "Finder" to delete POSIX file "%s"`, filePath))
+	err := cmd.Run()
+	return err == nil
+}
+
+// moveToLinuxTrash moves file to Linux trash (freedesktop.org standard)
+func (a *App) moveToLinuxTrash(filePath string) bool {
+	// Try using gio trash (modern method)
+	cmd := exec.Command("gio", "trash", filePath)
+	err := cmd.Run()
+
+	if err != nil {
+		// Fallback to gvfs-trash
+		cmd = exec.Command("gvfs-trash", filePath)
+		err = cmd.Run()
+
+		if err != nil {
+			// Final fallback: move to ~/.local/share/Trash
+			homeDir, _ := os.UserHomeDir()
+			trashDir := filepath.Join(homeDir, ".local", "share", "Trash", "files")
+
+			// Create trash directory if it doesn't exist
+			os.MkdirAll(trashDir, 0755)
+
+			// Move file to trash
+			fileName := filepath.Base(filePath)
+			trashPath := filepath.Join(trashDir, fileName)
+
+			return os.Rename(filePath, trashPath) == nil
+		}
+	}
+
+	return true
+}
+
+// copyFile copies a single file
+func (a *App) copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = sourceFile.WriteTo(destFile)
+	if err != nil {
+		return err
+	}
+
+	// Copy file permissions
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	return os.Chmod(dst, srcInfo.Mode())
+}
+
+// copyDir recursively copies a directory
+func (a *App) copyDir(src, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	err = os.MkdirAll(dst, srcInfo.Mode())
+	if err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			err = a.copyDir(srcPath, dstPath)
+		} else {
+			err = a.copyFile(srcPath, dstPath)
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // GetDriveInfo returns information about available drives (Windows specific)
 func (a *App) GetDriveInfo() []map[string]interface{} {
 	var drives []map[string]interface{}
