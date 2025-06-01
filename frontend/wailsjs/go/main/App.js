@@ -69,3 +69,11 @@ export function OpenFile(arg1) {
 export function OpenInSystemExplorer(arg1) {
   return window['go']['main']['App']['OpenInSystemExplorer'](arg1);
 }
+
+export function OpenPowerShellHere(arg1) {
+  return window['go']['main']['App']['OpenPowerShellHere'](arg1);
+}
+
+export function RenameFile(arg1, arg2) {
+  return window['go']['main']['App']['RenameFile'](arg1, arg2);
+}

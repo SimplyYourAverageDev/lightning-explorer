@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -323,8 +324,11 @@ func (a *App) OpenFile(filePath string) bool {
 
 	switch runtime.GOOS {
 	case "windows":
-		// Use cmd /c start to open file and bring application to foreground
-		cmd = exec.Command("cmd", "/c", "start", "", filePath)
+		// Use rundll32 with shell32.dll to open file without showing command prompt
+		// This is equivalent to double-clicking the file in Windows Explorer
+		cmd = exec.Command("rundll32.exe", "shell32.dll,ShellExec_RunDLL", filePath)
+		// Hide the command window to prevent flash
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	case "darwin":
 		// macOS open command brings app to foreground by default
 		cmd = exec.Command("open", filePath)
@@ -794,4 +798,131 @@ func (a *App) DeletePath(path string) NavigationResponse {
 		Success: true,
 		Message: "Item deleted successfully",
 	}
+}
+
+// RenameFile renames a file or directory
+func (a *App) RenameFile(oldPath, newName string) bool {
+	log.Printf("Renaming %s to %s", oldPath, newName)
+
+	// Validate inputs
+	if oldPath == "" || newName == "" {
+		log.Printf("Error: Empty path or new name provided")
+		return false
+	}
+
+	// Get the directory containing the file
+	dir := filepath.Dir(oldPath)
+
+	// Construct new path
+	newPath := filepath.Join(dir, newName)
+
+	// Check if old path exists
+	if _, err := os.Stat(oldPath); os.IsNotExist(err) {
+		log.Printf("Error: Source file does not exist: %s", oldPath)
+		return false
+	}
+
+	// Check if new path already exists
+	if _, err := os.Stat(newPath); err == nil {
+		log.Printf("Error: Destination already exists: %s", newPath)
+		return false
+	}
+
+	// Perform the rename
+	err := os.Rename(oldPath, newPath)
+	if err != nil {
+		log.Printf("Error renaming file: %v", err)
+		return false
+	}
+
+	log.Printf("Successfully renamed %s to %s", oldPath, newPath)
+	return true
+}
+
+// OpenPowerShellHere opens PowerShell 7 in the specified directory
+func (a *App) OpenPowerShellHere(directoryPath string) bool {
+	log.Printf("Opening PowerShell 7 in directory: %s", directoryPath)
+
+	// Validate the directory path
+	if directoryPath == "" {
+		log.Printf("Error: Empty directory path provided")
+		return false
+	}
+
+	// Check if directory exists
+	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
+		log.Printf("Error: Directory does not exist: %s", directoryPath)
+		return false
+	}
+
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		// PowerShell 7 executable path
+		pwshPath := "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+
+		// Check if PowerShell 7 exists, fallback to Windows PowerShell if not
+		if _, err := os.Stat(pwshPath); os.IsNotExist(err) {
+			log.Printf("PowerShell 7 not found, falling back to Windows PowerShell")
+			pwshPath = "powershell.exe"
+		}
+
+		log.Printf("Using PowerShell executable: %s", pwshPath)
+
+		// Use the most reliable method: -NoExit without -Command, just set working directory
+		// This approach ensures PowerShell stays open and starts in the correct directory
+		cmd = exec.Command(pwshPath, "-NoExit")
+
+		// Set the working directory for the process - this is the key!
+		cmd.Dir = directoryPath
+
+		// Create new console window that stays open
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow:    false,      // We want to show PowerShell window
+			CreationFlags: 0x00000010, // CREATE_NEW_CONSOLE - create new console window
+		}
+
+		log.Printf("PowerShell command: %s %v in directory: %s", pwshPath, cmd.Args[1:], directoryPath)
+
+	case "darwin":
+		// macOS: Open Terminal with the specified directory
+		cmd = exec.Command("osascript", "-e", fmt.Sprintf(`tell app "Terminal" to do script "cd '%s'"`, directoryPath))
+
+	case "linux":
+		// Linux: Try to open terminal in the directory
+		// Try different terminal emulators in order of preference
+		terminals := [][]string{
+			{"gnome-terminal", "--working-directory", directoryPath},
+			{"konsole", "--workdir", directoryPath},
+			{"xfce4-terminal", "--working-directory", directoryPath},
+			{"xterm", "-e", fmt.Sprintf("cd '%s' && bash", directoryPath)},
+		}
+
+		for _, terminalCmd := range terminals {
+			if _, err := exec.LookPath(terminalCmd[0]); err == nil {
+				cmd = exec.Command(terminalCmd[0], terminalCmd[1:]...)
+				break
+			}
+		}
+
+		if cmd == nil {
+			log.Printf("No suitable terminal emulator found")
+			return false
+		}
+
+	default:
+		log.Printf("Unsupported operating system: %s", runtime.GOOS)
+		return false
+	}
+
+	// Start the command
+	err := cmd.Start()
+	if err != nil {
+		log.Printf("Error opening PowerShell/Terminal: %v", err)
+		return false
+	}
+
+	log.Printf("Successfully opened PowerShell/Terminal in directory: %s", directoryPath)
+	return true
 }

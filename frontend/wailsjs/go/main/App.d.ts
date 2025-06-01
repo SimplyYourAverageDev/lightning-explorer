@@ -35,3 +35,7 @@ export function NavigateUp(arg1:string):Promise<main.NavigationResponse>;
 export function OpenFile(arg1:string):Promise<boolean>;
 
 export function OpenInSystemExplorer(arg1:string):Promise<boolean>;
+
+export function OpenPowerShellHere(arg1:string):Promise<boolean>;
+
+export function RenameFile(arg1:string,arg2:string):Promise<boolean>;
