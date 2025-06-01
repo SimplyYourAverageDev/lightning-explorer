@@ -1,0 +1,510 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Blueprint Technical Theme */
+:root {
+  --blueprint-bg: #0a0e1a;
+  --blueprint-surface: #1a2332;
+  --blueprint-surface-hover: #2a3442;
+  --blueprint-primary: #3b82f6;
+  --blueprint-secondary: #1e40af;
+  --blueprint-accent: #60a5fa;
+  --blueprint-grid: #1e3a8a;
+  --blueprint-border: #374151;
+  --blueprint-text: #f8fafc;
+  --blueprint-text-muted: #94a3b8;
+  --blueprint-text-dim: #64748b;
+  
+  /* Status colors */
+  --blueprint-success: #10b981;
+  --blueprint-warning: #f59e0b;
+  --blueprint-error: #ef4444;
+  --blueprint-info: #06b6d4;
+  
+  /* Shadows */
+  --blueprint-shadow: rgba(59, 130, 246, 0.15);
+  --blueprint-shadow-strong: rgba(59, 130, 246, 0.25);
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--blueprint-bg);
+  color: var(--blueprint-text);
+  overflow: hidden;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+/* Minimalist background */
+.blueprint-bg {
+  background: var(--blueprint-bg);
+  position: relative;
+}
+
+/* Panel system */
+.blueprint-panel {
+  background: var(--blueprint-surface);
+  border: 1px solid var(--blueprint-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 20px var(--blueprint-shadow);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.blueprint-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--blueprint-accent), transparent);
+  opacity: 0.5;
+}
+
+.blueprint-panel-header {
+  background: linear-gradient(135deg, var(--blueprint-secondary), var(--blueprint-primary));
+  color: var(--blueprint-text);
+  padding: 12px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--blueprint-border);
+  position: relative;
+}
+
+.blueprint-panel-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--blueprint-accent), transparent);
+}
+
+/* File explorer specific styles */
+.file-explorer {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+
+.file-item:hover {
+  background: var(--blueprint-surface-hover);
+  border-color: var(--blueprint-primary);
+  transform: translateX(2px);
+}
+
+.file-item.selected {
+  background: var(--blueprint-primary);
+  color: white;
+}
+
+.file-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.file-icon.folder {
+  background: var(--blueprint-primary);
+  color: white;
+}
+
+.file-icon.file {
+  background: var(--blueprint-text-muted);
+  color: var(--blueprint-bg);
+}
+
+.file-icon.code {
+  background: var(--blueprint-success);
+  color: white;
+}
+
+.file-icon.image {
+  background: #e91e63;
+  color: white;
+}
+
+.file-icon.document {
+  background: var(--blueprint-info);
+  color: white;
+}
+
+.file-icon.archive {
+  background: var(--blueprint-warning);
+  color: white;
+}
+
+.file-icon.executable {
+  background: var(--blueprint-error);
+  color: white;
+}
+
+.file-details {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  overflow: hidden;
+}
+
+.file-name {
+  font-weight: 500;
+  truncate: true;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--blueprint-text-muted);
+  display: flex;
+  gap: 16px;
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+
+/* Navigation */
+.nav-breadcrumb {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--blueprint-surface);
+  border-bottom: 1px solid var(--blueprint-border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.nav-breadcrumb .separator {
+  margin: 0 8px;
+  color: var(--blueprint-text-muted);
+}
+
+.nav-segment {
+  color: var(--blueprint-text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.nav-segment:hover {
+  background: var(--blueprint-surface-hover);
+  color: var(--blueprint-accent);
+}
+
+.nav-segment.current {
+  color: var(--blueprint-accent);
+  font-weight: 600;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--blueprint-surface);
+  border-bottom: 1px solid var(--blueprint-border);
+  gap: 8px;
+}
+
+.toolbar-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--blueprint-border);
+  color: var(--blueprint-text);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.toolbar-btn:hover {
+  background: var(--blueprint-primary);
+  border-color: var(--blueprint-primary);
+  color: white;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-btn:disabled:hover {
+  background: transparent;
+  border-color: var(--blueprint-border);
+  color: var(--blueprint-text);
+}
+
+.toolbar-btn.active {
+  background: var(--blueprint-primary);
+  color: white;
+  border-color: var(--blueprint-accent);
+}
+
+/* Sidebar */
+.sidebar {
+  width: 250px;
+  background: var(--blueprint-surface);
+  border-right: 1px solid var(--blueprint-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-section {
+  margin: 16px 12px;
+}
+
+.sidebar-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--blueprint-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  padding: 0 8px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  color: var(--blueprint-text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+  margin: 2px 0;
+  transition: all 0.15s ease;
+}
+
+.sidebar-item:hover {
+  background: var(--blueprint-surface-hover);
+  color: var(--blueprint-text);
+}
+
+.sidebar-item.active {
+  background: var(--blueprint-primary);
+  color: white;
+}
+
+.sidebar-icon {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+/* Status bar */
+.status-bar {
+  height: 28px;
+  background: var(--blueprint-surface);
+  border-top: 1px solid var(--blueprint-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--blueprint-text-muted);
+}
+
+/* Loading states */
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--blueprint-border);
+  border-top: 2px solid var(--blueprint-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(26, 35, 50, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--blueprint-surface);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--blueprint-border);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--blueprint-primary);
+}
+
+/* Utilities */
+.text-technical {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.glow {
+  box-shadow: 0 0 20px var(--blueprint-shadow-strong);
+}
+
+.border-glow {
+  border-color: var(--blueprint-accent);
+  box-shadow: 0 0 10px var(--blueprint-shadow);
+}
+
+/* Error states */
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--blueprint-error);
+  color: var(--blueprint-error);
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin: 8px;
+  font-size: 13px;
+}
+
+.success-message {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid var(--blueprint-success);
+  color: var(--blueprint-success);
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin: 8px;
+  font-size: 13px;
+}
+
+/* Context menu */
+.context-menu {
+  position: fixed;
+  background: var(--blueprint-surface);
+  border: 1px solid var(--blueprint-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px var(--blueprint-shadow-strong);
+  z-index: 1000;
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.context-menu-item {
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.context-menu-item:hover {
+  background: var(--blueprint-primary);
+  color: white;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--blueprint-border);
+  margin: 4px 0;
+}
+
+/* Header system */
+.app-header {
+  height: 48px;
+  background: linear-gradient(135deg, var(--blueprint-secondary), var(--blueprint-primary));
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--blueprint-border);
+}
+
+.app-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.app-subtitle {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-left: 8px;
+}
+
+/* Main layout */
+.main-content {
+  display: flex;
+  height: calc(100vh - 48px - 28px); /* minus header and status bar */
+}
+
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
