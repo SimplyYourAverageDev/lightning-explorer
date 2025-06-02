@@ -25,23 +25,27 @@
 
 /* Optimize scrollbar for Windows */
 .virtualized-file-list::-webkit-scrollbar {
-    width: 12px;
-    background-color: var(--blueprint-bg-dark);
+    width: 8px;
+    background-color: var(--blueprint-surface);
 }
 
 .virtualized-file-list::-webkit-scrollbar-track {
-    background-color: var(--blueprint-bg-darker);
+    background-color: var(--blueprint-surface);
     border-radius: 2px;
 }
 
 .virtualized-file-list::-webkit-scrollbar-thumb {
-    background-color: var(--blueprint-accent);
+    background-color: var(--blueprint-border);
     border-radius: 2px;
-    border: 2px solid var(--blueprint-bg-darker);
 }
 
 .virtualized-file-list::-webkit-scrollbar-thumb:hover {
-    background-color: var(--blueprint-accent-hover);
+    background-color: var(--blueprint-primary);
+}
+
+/* Prevent horizontal scrollbar from appearing */
+.virtualized-file-list::-webkit-scrollbar-horizontal {
+    display: none;
 }
 
 /* Optimize file items for virtual scrolling */

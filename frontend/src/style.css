@@ -95,7 +95,10 @@ body {
 .file-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px;
+  min-height: 0; /* Fix flex height calculation */
+  max-width: 100%; /* Prevent horizontal overflow */
 }
 
 .file-item {
@@ -114,7 +117,7 @@ body {
   -ms-user-select: none;
 }
 
-.file-item:hover {
+.file-item:hover:not(.selected) {
   background: var(--blueprint-surface-hover);
   border-color: var(--blueprint-border);
   transform: translateY(-1px);
@@ -129,7 +132,11 @@ body {
 
 .file-item.selected:hover {
   background: var(--blueprint-primary);
+  color: white;
+  border-color: var(--blueprint-primary);
   transform: translateY(-2px);
+  /* Enhanced selected hover state for better feedback */
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
 .file-item:active {
@@ -349,19 +356,33 @@ body {
   transition: all 0.06s ease;
 }
 
-.sidebar-item:hover {
+.sidebar-item:hover:not(.active) {
   background: var(--blueprint-surface-hover);
   color: var(--blueprint-text);
   transform: translateX(2px);
 }
 
-.sidebar-item:active {
+.sidebar-item:active:not(.active) {
   transform: translateX(1px) scale(0.98);
 }
 
 .sidebar-item.active {
   background: var(--blueprint-primary);
   color: white;
+}
+
+.sidebar-item.active:hover {
+  background: var(--blueprint-primary);
+  color: white;
+  transform: translateX(1px);
+  /* Enhanced active hover state for better feedback */
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.sidebar-item.active:active {
+  background: var(--blueprint-primary);
+  color: white;
+  transform: translateX(0px) scale(0.98);
 }
 
 .sidebar-icon {
@@ -491,12 +512,15 @@ body {
 .main-content {
   display: flex;
   height: calc(100vh - 48px - 28px); /* minus header and status bar */
+  min-height: 0; /* Fix flex height calculation */
 }
 
 .content-area {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0; /* Fix flex height calculation */
+  overflow: hidden; /* Prevent content overflow */
 }
 
 /* 8-bit Context Menu */
@@ -819,6 +843,13 @@ body {
   animation: none !important;
 }
 
+/* Minimalist trash can icon for delete operations - remove shadows and effects */
+.retro-dialog.delete-type .retro-dialog-icon {
+  filter: none !important;
+  animation: none !important;
+  text-shadow: none !important;
+}
+
 @keyframes iconPulse {
   0%, 100% {
     transform: scale(1);
@@ -1011,6 +1042,8 @@ body {
   color: white !important;
   transform: translateY(-2px) scale(1.02);
   will-change: transform;
+  /* Ensure drag-over styling works with selected items */
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
 }
 
 /* Drag feedback for files being dragged */

@@ -5,6 +5,8 @@
     flex: 1;
     overflow: hidden;
     contain: layout style paint;
+    /* Fix height calculation issues */
+    min-height: 0;
 }
 
 .file-list {
@@ -19,6 +21,9 @@
     /* GPU acceleration */
     transform: translateZ(0);
     will-change: scroll-position;
+    
+    /* Prevent horizontal scrollbar issues */
+    max-width: 100%;
 }
 
 /* Instant loading feedback */
@@ -76,14 +81,25 @@
     cursor: pointer;
 }
 
-.nav-segment:hover, .sidebar-item:hover {
+.nav-segment:hover, .sidebar-item:hover:not(.active) {
     background-color: rgba(100, 150, 200, 0.1);
     transform: translateY(-1px);
 }
 
-.nav-segment:active, .sidebar-item:active {
+.nav-segment:active, .sidebar-item:active:not(.active) {
     transform: translateY(0);
     background-color: rgba(100, 150, 200, 0.2);
+}
+
+/* Enhanced active sidebar item hover feedback */
+.sidebar-item.active:hover {
+    background-color: rgba(59, 130, 246, 1);
+    transform: translateY(-1px);
+}
+
+.sidebar-item.active:active {
+    background-color: rgba(59, 130, 246, 0.9);
+    transform: translateY(0);
 }
 
 /* File item hover effects for instant feedback */
@@ -92,12 +108,12 @@
     cursor: pointer;
 }
 
-.file-item:hover {
+.file-item:hover:not(.selected) {
     background-color: rgba(100, 150, 200, 0.05);
     transform: translateX(2px);
 }
 
-.file-item:active {
+.file-item:active:not(.selected) {
     background-color: rgba(100, 150, 200, 0.1);
     transform: translateX(0);
 }
@@ -106,6 +122,20 @@
 .file-item.selected {
     background-color: rgba(100, 150, 200, 0.2);
     border-left: 3px solid var(--blueprint-accent);
+}
+
+/* Enhanced selected state hover feedback */
+.file-item.selected:hover {
+    /* Maintain selection styling but add subtle enhancement */
+    background-color: rgba(100, 150, 200, 0.3);
+    border-left: 3px solid var(--blueprint-accent);
+    transform: translateX(1px);
+}
+
+.file-item.selected:active {
+    background-color: rgba(100, 150, 200, 0.2);
+    border-left: 3px solid var(--blueprint-accent);
+    transform: translateX(0);
 }
 
 /* Optimized breadcrumb transitions */

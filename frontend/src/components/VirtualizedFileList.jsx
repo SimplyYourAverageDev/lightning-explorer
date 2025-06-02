@@ -16,17 +16,18 @@ const VirtualizedFileList = memo(({
     isLoading,
     clipboardFiles,
     clipboardOperation,
-    containerHeight = CONTAINER_HEIGHT
+    containerHeight
 }) => {
     const [scrollTop, setScrollTop] = useState(0);
     const containerRef = useRef(null);
     
     // Calculate visible range
     const visibleRange = useMemo(() => {
+        const effectiveHeight = containerHeight || CONTAINER_HEIGHT;
         const visibleStart = Math.floor(scrollTop / ITEM_HEIGHT);
         const visibleEnd = Math.min(
             files.length - 1,
-            Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT)
+            Math.ceil((scrollTop + effectiveHeight) / ITEM_HEIGHT)
         );
         
         // Add buffer for smooth scrolling
@@ -55,15 +56,16 @@ const VirtualizedFileList = memo(({
     // Scroll to item (for keyboard navigation)
     const scrollToItem = useCallback((index) => {
         if (containerRef.current) {
+            const effectiveHeight = containerHeight || CONTAINER_HEIGHT;
             const targetScrollTop = index * ITEM_HEIGHT;
             const containerScrollTop = containerRef.current.scrollTop;
-            const containerBottom = containerScrollTop + containerHeight;
+            const containerBottom = containerScrollTop + effectiveHeight;
             
             // Only scroll if item is not visible
             if (targetScrollTop < containerScrollTop) {
                 containerRef.current.scrollTop = targetScrollTop;
             } else if (targetScrollTop + ITEM_HEIGHT > containerBottom) {
-                containerRef.current.scrollTop = targetScrollTop - containerHeight + ITEM_HEIGHT;
+                containerRef.current.scrollTop = targetScrollTop - effectiveHeight + ITEM_HEIGHT;
             }
         }
     }, [containerHeight]);
@@ -94,8 +96,9 @@ const VirtualizedFileList = memo(({
             ref={containerRef}
             className="virtualized-file-list custom-scrollbar"
             style={{ 
-                height: containerHeight, 
+                height: containerHeight || '100%', 
                 overflowY: 'auto',
+                overflowX: 'hidden',
                 position: 'relative'
             }}
             onScroll={handleScroll}

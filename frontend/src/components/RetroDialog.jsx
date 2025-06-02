@@ -54,7 +54,7 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
     
     return (
         <div className="retro-dialog-overlay">
-            <div className={`retro-dialog ${type === 'prompt' ? 'prompt-type' : ''}`}>
+            <div className={`retro-dialog ${type === 'prompt' ? 'prompt-type' : ''} ${type === 'delete' ? 'delete-type' : ''}`}>
                 {/* Dialog header */}
                 <div className="retro-dialog-header">
                     <div className="retro-dialog-title">{title || 'SYSTEM MESSAGE'}</div>
