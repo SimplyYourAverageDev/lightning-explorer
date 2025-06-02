@@ -2,6 +2,7 @@ import { useMemo, useCallback, useRef, useEffect } from "preact/hooks";
 import { memo } from "preact/compat";
 import { getFileIcon, getFileType } from "../utils/fileUtils.js";
 import { formatDate, formatFileSize } from "../utils/formatUtils.js";
+import { log, error } from "../utils/logger";
 
 // Memoized File item component
 const FileItem = memo(({ 
@@ -36,7 +37,7 @@ const FileItem = memo(({
     
     const handleClick = useCallback((event) => {
         const clickStartTime = PERFORMANCE_LOGGING ? performance.now() : 0;
-        console.log('📋 File clicked:', file.name, 'Path:', file.path, 'IsDir:', file.isDir, 'IsSelected:', isSelected);
+        log('📋 File clicked:', file.name, 'Path:', file.path, 'IsDir:', file.isDir, 'IsSelected:', isSelected);
         
         if (isLoading) return;
         
@@ -51,16 +52,16 @@ const FileItem = memo(({
         
         // Check if this is too soon after last open (cooldown protection)
         if (now - lastOpenTimeRef.current < OPEN_COOLDOWN) {
-            console.log('🛡️ Open cooldown active, ignoring click');
+            log('🛡️ Open cooldown active, ignoring click');
             clickCountRef.current = 0;
             return;
         }
         
         // Handle immediate actions (with modifier keys or unselected files)
         if (event.shiftKey || event.ctrlKey || event.metaKey || !isSelected) {
-            console.log('🖱️ Processing selection for:', file.name);
+            log('🖱️ Processing selection for:', file.name);
             if (PERFORMANCE_LOGGING) {
-                console.log(`⚡ Immediate response: ${(performance.now() - clickStartTime).toFixed(2)}ms`);
+                log(`⚡ Immediate response: ${(performance.now() - clickStartTime).toFixed(2)}ms`);
             }
             onSelect(fileIndex, event.shiftKey, event.ctrlKey || event.metaKey);
             clickCountRef.current = 0;
@@ -69,15 +70,15 @@ const FileItem = memo(({
         
         // For selected files without modifier keys, wait to see if it's a double-click
         if (PERFORMANCE_LOGGING) {
-            console.log(`⏱️ Delaying open by ${DOUBLE_CLICK_DELAY}ms to detect double-click`);
+            log(`⏱️ Delaying open by ${DOUBLE_CLICK_DELAY}ms to detect double-click`);
         }
         
         clickTimeoutRef.current = setTimeout(() => {
             if (clickCountRef.current === 1) {
                 // Single click on selected file - open it
-                console.log('🚀 Single click confirmed, opening:', file.name);
+                log('🚀 Single click confirmed, opening:', file.name);
                 if (PERFORMANCE_LOGGING) {
-                    console.log(`⚡ Delayed open executed: ${(performance.now() - clickStartTime).toFixed(2)}ms total`);
+                    log(`⚡ Delayed open executed: ${(performance.now() - clickStartTime).toFixed(2)}ms total`);
                 }
                 lastOpenTimeRef.current = Date.now();
                 onOpen(file);
@@ -87,7 +88,7 @@ const FileItem = memo(({
     }, [file, isLoading, isSelected, fileIndex, onOpen, onSelect]);
     
     const handleDoubleClick = useCallback((event) => {
-        console.log('🔍 File double-clicked:', file.name, 'Path:', file.path, 'IsDir:', file.isDir);
+        log('🔍 File double-clicked:', file.name, 'Path:', file.path, 'IsDir:', file.isDir);
         
         if (isLoading) return;
         
@@ -101,13 +102,13 @@ const FileItem = memo(({
         
         // Check cooldown
         if (now - lastOpenTimeRef.current < OPEN_COOLDOWN) {
-            console.log('🛡️ Open cooldown active, ignoring double-click');
+            log('🛡️ Open cooldown active, ignoring double-click');
             clickCountRef.current = 0;
             return;
         }
         
         // Double click always opens, regardless of selection state
-        console.log('🚀 Double-click confirmed, opening:', file.name);
+        log('🚀 Double-click confirmed, opening:', file.name);
         lastOpenTimeRef.current = now;
         clickCountRef.current = 0;
         onOpen(file);
@@ -124,7 +125,7 @@ const FileItem = memo(({
     
     const handleRightClick = useCallback((event) => {
         event.preventDefault();
-        console.log('🖱️ Right-click on:', file.name, 'IsSelected:', isSelected);
+        log('🖱️ Right-click on:', file.name, 'IsSelected:', isSelected);
         
         if (!isLoading) {
             // If file is not selected, select it first
@@ -188,13 +189,13 @@ const FileItem = memo(({
         
         try {
             const dragData = JSON.parse(event.dataTransfer.getData('application/json'));
-            console.log('📂 Drop on folder:', file.name, 'Items:', dragData.files?.length, 'Operation:', dragData.operation);
+            log('📂 Drop on folder:', file.name, 'Items:', dragData.files?.length, 'Operation:', dragData.operation);
             
             if (onDrop) {
                 onDrop(event, file, dragData);
             }
         } catch (err) {
-            console.error('❌ Error parsing drag data:', err);
+            error('❌ Error parsing drag data:', err);
         }
     }, [file, isLoading, onDrop]);
     

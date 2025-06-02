@@ -8,15 +8,13 @@ import (
 // NewApp creates a new App application struct with dependency injection
 func NewApp() *App {
 	// Create all manager instances
-	cache := NewCacheManager()
 	platform := NewPlatformManager()
-	filesystem := NewFileSystemManager(cache, platform)
-	fileOps := NewFileOperationsManager(cache, platform)
+	filesystem := NewFileSystemManager(platform)
+	fileOps := NewFileOperationsManager(platform)
 	drives := NewDriveManager()
 	terminal := NewTerminalManager()
 
 	return &App{
-		cache:      cache,
 		filesystem: filesystem,
 		fileOps:    fileOps,
 		platform:   platform,
@@ -189,20 +187,6 @@ func (a *App) GetAvailableTerminals() []string {
 	return a.terminal.GetAvailableTerminals()
 }
 
-// GetCacheStats returns cache statistics for debugging/monitoring
-func (a *App) GetCacheStats() map[string]interface{} {
-	if cacheManager, ok := a.cache.(*CacheManager); ok {
-		return cacheManager.GetCacheStats()
-	}
-	return map[string]interface{}{"error": "Cache manager not available"}
-}
-
-// ClearCache clears the directory cache
-func (a *App) ClearCache() {
-	a.cache.Clear()
-	log.Println("🧹 Directory cache cleared manually")
-}
-
 // ValidatePath checks if a path is valid and accessible
 func (a *App) ValidatePath(path string) bool {
 	err := a.filesystem.ValidatePath(path)
@@ -229,7 +213,6 @@ func (a *App) ExecuteCommand(command string, workingDir string) bool {
 func (a *App) HealthCheck() map[string]interface{} {
 	return map[string]interface{}{
 		"status":  "healthy",
-		"cache":   a.GetCacheStats(),
-		"modules": []string{"cache", "filesystem", "fileops", "platform", "drives", "terminal"},
+		"modules": []string{"filesystem", "fileops", "platform", "drives", "terminal"},
 	}
 }

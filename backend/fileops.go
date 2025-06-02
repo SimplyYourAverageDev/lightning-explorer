@@ -13,9 +13,8 @@ import (
 )
 
 // NewFileOperationsManager creates a new file operations manager instance
-func NewFileOperationsManager(cache CacheManagerInterface, platform PlatformManagerInterface) *FileOperationsManager {
+func NewFileOperationsManager(platform PlatformManagerInterface) *FileOperationsManager {
 	return &FileOperationsManager{
-		cache:    cache,
 		platform: platform,
 	}
 }
@@ -52,7 +51,6 @@ func (fo *FileOperationsManager) CopyFiles(sourcePaths []string, destDir string)
 	}
 
 	log.Printf("Successfully copied %d files to %s", len(sourcePaths), destDir)
-	fo.cache.Clear() // Clear cache to ensure fresh data
 	return true
 }
 
@@ -80,7 +78,6 @@ func (fo *FileOperationsManager) MoveFiles(sourcePaths []string, destDir string)
 	}
 
 	log.Printf("Successfully moved %d files to %s", len(sourcePaths), destDir)
-	fo.cache.Clear() // Clear cache to ensure fresh data
 	return true
 }
 
@@ -96,7 +93,6 @@ func (fo *FileOperationsManager) DeleteFiles(filePaths []string) bool {
 		}
 	}
 
-	fo.cache.Clear() // Clear cache to ensure fresh data
 	return true
 }
 
@@ -112,7 +108,6 @@ func (fo *FileOperationsManager) MoveFilesToRecycleBin(filePaths []string) bool 
 		}
 	}
 
-	fo.cache.Clear() // Clear cache to ensure fresh data
 	return true
 }
 
@@ -150,7 +145,6 @@ func (fo *FileOperationsManager) RenameFile(oldPath, newName string) bool {
 	}
 
 	log.Printf("Successfully renamed %s to %s", oldPath, newPath)
-	fo.cache.Clear() // Clear cache to ensure fresh data
 	return true
 }
 
@@ -167,7 +161,6 @@ func (fo *FileOperationsManager) HideFiles(filePaths []string) bool {
 	}
 
 	log.Printf("Successfully hid %d files", len(filePaths))
-	fo.cache.Clear() // Clear cache to ensure fresh data
 	return true
 }
 

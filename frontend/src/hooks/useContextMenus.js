@@ -1,6 +1,6 @@
 import { useState, useCallback } from "preact/hooks";
 
-export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, showDialog, fileOperations, currentPath, navCache) {
+export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, showDialog, fileOperations, currentPath, onCreateFolder) {
     // Context menu states
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, files: [] });
     const [emptySpaceContextMenu, setEmptySpaceContextMenu] = useState({ visible: false, x: 0, y: 0 });
@@ -67,14 +67,11 @@ export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, 
             file.name,
             (newName) => {
                 if (newName && newName !== file.name && newName.trim() !== '') {
-                    fileOperations.handleRename(file.path, newName.trim()).then(() => {
-                        // Clear cache to show renamed file
-                        navCache.cache.delete(currentPath);
-                    });
+                    fileOperations.handleRename(file.path, newName.trim());
                 }
             }
         );
-    }, [contextMenu.files, closeContextMenu, showDialog, fileOperations, currentPath, navCache]);
+    }, [contextMenu.files, closeContextMenu, showDialog, fileOperations]);
 
     const handleContextHide = useCallback(() => {
         const filePaths = contextMenu.files.map(file => file.path);
@@ -86,30 +83,31 @@ export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, 
             `HIDE ${filePaths.length} ITEM${filePaths.length === 1 ? '' : 'S'}?\n\nHidden files will not be visible unless "Show Hidden Files" is enabled.`,
             '',
             () => {
-                fileOperations.handleHideFiles(filePaths).then(() => {
-                    // Clear cache to hide files
-                    navCache.cache.delete(currentPath);
-                });
+                fileOperations.handleHideFiles(filePaths);
             }
         );
-    }, [contextMenu.files, closeContextMenu, showDialog, fileOperations, currentPath, navCache]);
+    }, [contextMenu.files, closeContextMenu, showDialog, fileOperations]);
 
     const handlePermanentDelete = useCallback(() => {
         const filePaths = contextMenu.files.map(file => file.path);
         closeContextMenu();
         showDialog('delete', '⚠️ PERMANENT DELETE WARNING', `Permanently delete ${filePaths.length} items? This cannot be undone!`, '', 
             () => {
-                fileOperations.handlePermanentDelete(filePaths).then(() => {
-                    // Clear cache to reflect changes
-                    navCache.cache.delete(currentPath);
-                });
+                fileOperations.handlePermanentDelete(filePaths);
             });
-    }, [contextMenu.files, closeContextMenu, showDialog, fileOperations, currentPath, navCache]);
+    }, [contextMenu.files, closeContextMenu, showDialog, fileOperations]);
 
     const handleOpenPowerShell = useCallback(() => {
         closeEmptySpaceContextMenu();
         fileOperations.handleOpenPowerShell();
     }, [closeEmptySpaceContextMenu, fileOperations]);
+
+    const handleCreateFolder = useCallback(() => {
+        closeEmptySpaceContextMenu();
+        if (onCreateFolder) {
+            onCreateFolder();
+        }
+    }, [closeEmptySpaceContextMenu, onCreateFolder]);
 
     return {
         contextMenu,
@@ -123,6 +121,7 @@ export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, 
         handleContextRename,
         handleContextHide,
         handlePermanentDelete,
-        handleOpenPowerShell
+        handleOpenPowerShell,
+        handleCreateFolder
     };
 } 

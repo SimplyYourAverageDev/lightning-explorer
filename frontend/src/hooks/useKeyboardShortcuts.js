@@ -15,8 +15,7 @@ export function useKeyboardShortcuts({
     handleArrowNavigation,
     clearSelection,
     closeContextMenu,
-    closeEmptySpaceContextMenu,
-    clearCache
+    closeEmptySpaceContextMenu
 }) {
     // Optimized keyboard shortcuts
     const keyboardHandler = useMemo(
@@ -54,10 +53,6 @@ export function useKeyboardShortcuts({
                 clearSelection();
                 closeContextMenu();
                 closeEmptySpaceContextMenu();
-            } else if (event.ctrlKey && event.shiftKey && event.key === 'C') {
-                // Clear both frontend and backend cache
-                event.preventDefault();
-                clearCache();
             }
         }, 50), // Faster response for keyboard
         [
@@ -74,8 +69,7 @@ export function useKeyboardShortcuts({
             handleArrowNavigation, 
             clearSelection, 
             closeContextMenu, 
-            closeEmptySpaceContextMenu,
-            clearCache
+            closeEmptySpaceContextMenu
         ]
     );
 

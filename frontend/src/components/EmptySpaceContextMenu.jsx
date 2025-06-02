@@ -2,7 +2,7 @@ import { useRef, useEffect } from "preact/hooks";
 import { memo } from "preact/compat";
 
 // Memoized Empty Space Context Menu Component  
-const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell }) => {
+const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, onCreateFolder }) => {
     const menuRef = useRef(null);
     
     useEffect(() => {
@@ -32,6 +32,11 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell }
                 zIndex: 1000 
             }}
         >
+            <div className="context-menu-item" onClick={onCreateFolder}>
+                <span className="context-menu-icon">[+]</span>
+                <span className="context-menu-text">New Folder</span>
+            </div>
+            <div className="context-menu-separator"></div>
             <div className="context-menu-item" onClick={onOpenPowerShell}>
                 <span className="context-menu-icon">[{'>'}_]</span>
                 <span className="context-menu-text">Open PowerShell 7 Here</span>

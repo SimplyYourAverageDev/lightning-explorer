@@ -2,7 +2,6 @@ package backend
 
 import (
 	"context"
-	"sync"
 	"time"
 )
 
@@ -35,13 +34,6 @@ type NavigationResponse struct {
 	Data    DirectoryContents `json:"data"`
 }
 
-// CacheEntry represents a cached directory entry for performance optimization
-type CacheEntry struct {
-	Contents  DirectoryContents `json:"contents"`
-	Timestamp time.Time         `json:"timestamp"`
-	ModTime   time.Time         `json:"modTime"`
-}
-
 // DriveInfo represents information about a system drive
 type DriveInfo struct {
 	Path   string `json:"path"`
@@ -50,14 +42,6 @@ type DriveInfo struct {
 }
 
 // Interfaces for dependency injection and better testability
-
-// CacheManagerInterface defines the cache management contract
-type CacheManagerInterface interface {
-	Get(path string) (*CacheEntry, bool)
-	Set(path string, entry *CacheEntry)
-	Clear()
-	CleanOldEntries()
-}
 
 // FileSystemManagerInterface defines the file system operations contract
 type FileSystemManagerInterface interface {
@@ -117,7 +101,6 @@ type TerminalManagerInterface interface {
 // App struct - Main application structure with dependency injection
 type App struct {
 	ctx        context.Context
-	cache      CacheManagerInterface
 	filesystem FileSystemManagerInterface
 	fileOps    FileOperationsManagerInterface
 	platform   PlatformManagerInterface
@@ -125,22 +108,13 @@ type App struct {
 	terminal   TerminalManagerInterface
 }
 
-// CacheManager implementation
-type CacheManager struct {
-	dirCache   map[string]*CacheEntry
-	lastAccess map[string]time.Time
-	cacheMutex sync.RWMutex
-}
-
 // FileSystemManager implementation
 type FileSystemManager struct {
-	cache    CacheManagerInterface
 	platform PlatformManagerInterface
 }
 
 // FileOperationsManager implementation
 type FileOperationsManager struct {
-	cache    CacheManagerInterface
 	platform PlatformManagerInterface
 }
 

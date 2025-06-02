@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "preact/hooks";
 import { NavigateToPath } from "../../wailsjs/go/backend/App";
-import { navCache, prefetcher } from "../services/NavigationService";
+import { log, error } from "../utils/logger";
 
 export function useNavigation(setError, setNavigationStats) {
     const [currentPath, setCurrentPath] = useState('');
@@ -35,74 +35,15 @@ export function useNavigation(setError, setNavigationStats) {
         setShowLoadingIndicator(false);
     }, []);
 
-    // Prefetch sibling directories for fast navigation
-    const prefetchSiblingDirectories = useCallback(async (path) => {
-        try {
-            const parentPath = path.includes('\\') ? path.split('\\').slice(0, -1).join('\\') : path.split('/').slice(0, -1).join('/');
-            if (parentPath && parentPath !== path) {
-                const cached = navCache.get(parentPath);
-                if (cached) {
-                    // Prefetch up to 5 sibling directories
-                    const siblings = cached.directories.slice(0, 5).map(dir => dir.path);
-                    prefetcher.prefetch(siblings);
-                }
-            }
-        } catch (err) {
-            console.log('Prefetch siblings failed:', err);
-        }
-    }, []);
-
-    // Prefetch common navigation targets
-    const prefetchNavigationTargets = useCallback(async (directoryData) => {
-        try {
-            const prefetchTargets = [];
-            
-            // Prefetch parent directory
-            if (directoryData.parentPath) {
-                prefetchTargets.push(directoryData.parentPath);
-            }
-            
-            // Prefetch first few subdirectories (most likely to be accessed)
-            const subDirs = directoryData.directories.slice(0, 3).map(dir => dir.path);
-            prefetchTargets.push(...subDirs);
-            
-            prefetcher.prefetch(prefetchTargets);
-        } catch (err) {
-            console.log('Prefetch targets failed:', err);
-        }
-    }, []);
-
-    // Ultra-fast navigation with intelligent caching and prefetching
+    // Navigate to path - always loads from backend
     const navigateToPath = useCallback(async (path, source = 'user') => {
-        console.log(`🧭 Navigation request: ${path} (${source})`);
+        log(`🧭 Navigation request: ${path} (${source})`);
         navigationStartTime.current = Date.now();
         
         try {
             setError('');
             
-            // Check frontend cache first - INSTANT response
-            const cached = navCache.get(path);
-            if (cached) {
-                setCurrentPath(cached.currentPath);
-                setDirectoryContents(cached);
-                hideLoadingIndicator();
-                
-                // Update stats
-                setNavigationStats(prev => ({
-                    totalNavigations: prev.totalNavigations + 1,
-                    cacheHits: prev.cacheHits + 1,
-                    averageTime: (prev.averageTime * prev.totalNavigations + (Date.now() - navigationStartTime.current)) / (prev.totalNavigations + 1)
-                }));
-
-                // Prefetch sibling directories and common navigation targets
-                if (source === 'user') {
-                    prefetchSiblingDirectories(path);
-                }
-                
-                return;
-            }
-
-            // Show loading indicator with smart delay
+            // Show loading indicator
             setIsActuallyLoading(true);
             showSmartLoadingIndicator();
             
@@ -115,9 +56,6 @@ export function useNavigation(setError, setNavigationStats) {
             const response = await Promise.race([navigationPromise, timeoutPromise]);
             
             if (response && response.success) {
-                // Cache the result for future use
-                navCache.set(path, response.data);
-                
                 setCurrentPath(response.data.currentPath);
                 setDirectoryContents(response.data);
                 
@@ -126,35 +64,31 @@ export function useNavigation(setError, setNavigationStats) {
                 setNavigationStats(prev => ({
                     totalNavigations: prev.totalNavigations + 1,
                     cacheHits: prev.cacheHits,
-                    averageTime: (prev.averageTime * prev.totalNavigations + navigationTime) / (prev.totalNavigations + 1)
+                    averageTime: (prev.averageTime * prev.totalNavigations + navigationTime) / (prev.totalNavigations + 1),
+                    lastNavigationTime: Date.now() - navigationStartTime.current
                 }));
                 
-                console.log(`✅ Navigation completed in ${navigationTime}ms: ${response.data.currentPath}`);
-                
-                // Prefetch likely navigation targets
-                if (source === 'user') {
-                    prefetchNavigationTargets(response.data);
-                }
+                log(`✅ Navigation completed in ${navigationTime}ms: ${response.data.currentPath}`);
             } else {
                 const errorMsg = response?.message || 'Unknown navigation error';
                 setError(errorMsg);
-                console.error('❌ Navigation failed:', errorMsg);
+                error('❌ Navigation failed:', errorMsg);
             }
         } catch (err) {
-            console.error('❌ Navigation error:', err);
+            error('❌ Navigation error:', err);
             setError('Failed to navigate: ' + err.message);
         } finally {
             setIsActuallyLoading(false);
             hideLoadingIndicator();
         }
-    }, [setError, setNavigationStats, showSmartLoadingIndicator, hideLoadingIndicator, prefetchSiblingDirectories, prefetchNavigationTargets]);
+    }, [setError, setNavigationStats, showSmartLoadingIndicator, hideLoadingIndicator]);
 
-    // Optimized navigate up
+    // Navigate up
     const handleNavigateUp = useCallback(async () => {
         if (!currentPath) return;
         
         try {
-            // For navigate up, we can often predict the parent path instantly
+            // Calculate parent path
             const parentPath = currentPath.includes('\\') 
                 ? currentPath.split('\\').slice(0, -1).join('\\')
                 : currentPath.split('/').slice(0, -1).join('/');
@@ -163,23 +97,16 @@ export function useNavigation(setError, setNavigationStats) {
                 await navigateToPath(parentPath, 'navigate-up');
             }
         } catch (err) {
-            console.error('❌ Navigate up error:', err);
+            error('❌ Navigate up error:', err);
             setError('Failed to navigate up: ' + err.message);
         }
     }, [currentPath, navigateToPath, setError]);
 
     const handleRefresh = useCallback(() => {
         if (currentPath) {
-            // Clear cache for current path to force refresh
-            navCache.cache.delete(currentPath);
             navigateToPath(currentPath, 'refresh');
         }
     }, [currentPath, navigateToPath]);
-
-    const clearCache = useCallback(() => {
-        navCache.clear();
-        console.log('🧹 Manual cache clear requested');
-    }, []);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -197,7 +124,6 @@ export function useNavigation(setError, setNavigationStats) {
         showLoadingIndicator,
         navigateToPath,
         handleNavigateUp,
-        handleRefresh,
-        clearCache
+        handleRefresh
     };
 } 

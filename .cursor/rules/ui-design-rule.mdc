@@ -1,6 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: true
----
-In the frontend, all UI components—including context menus—should adopt an 8-bit retro style while retaining a minimalist, zen aesthetic. Use bold, blocky visuals consistent with classic 8-bit design, keep layouts clean and uncluttered, avoid using bright neon "hacker" green (#00ff00); choose alternative retro colors instead.

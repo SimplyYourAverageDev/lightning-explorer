@@ -5,4 +5,5 @@ export { FileItem } from './FileItem';
 export { ContextMenu } from './ContextMenu';
 export { EmptySpaceContextMenu } from './EmptySpaceContextMenu';
 export { RetroDialog } from './RetroDialog';
-export { VirtualizedFileList } from './VirtualizedFileList'; 
+export { VirtualizedFileList } from './VirtualizedFileList';
+export { InlineFolderEditor } from './InlineFolderEditor'; 

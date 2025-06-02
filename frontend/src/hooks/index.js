@@ -5,6 +5,7 @@ export { useContextMenus } from './useContextMenus';
 export { usePerformanceMonitoring } from './usePerformanceMonitoring';
 export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { useDragAndDrop } from './useDragAndDrop';
+export { useFolderCreation } from './useFolderCreation';
 
 // Re-export existing hooks
 export { useFileOperations } from './useFileOperations';

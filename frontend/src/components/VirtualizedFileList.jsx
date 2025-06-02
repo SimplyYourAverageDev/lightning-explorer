@@ -1,11 +1,45 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks";
+import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from "preact/hooks";
 import { memo } from "preact/compat";
 import { FileItem } from "./FileItem";
+import { InlineFolderEditor } from "./InlineFolderEditor";
+import { rafThrottle } from "../utils/debounce";
+import { log } from "../utils/logger";
+import { 
+    EMPTY_DIRECTORY_STYLE, 
+    LARGE_ICON_STYLE,
+    FLEX_COLUMN_STYLE,
+    FLEX_CENTER_STYLE
+} from "../utils/styleConstants";
 
 // Virtual scrolling configuration
 const ITEM_HEIGHT = 48; // Height of each file item in pixels
 const BUFFER_SIZE = 5; // Number of items to render outside visible area
 const CONTAINER_HEIGHT = 400; // Default container height
+
+// Pre-compiled styles for optimal performance
+const CONTAINER_STYLE = {
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    position: 'relative'
+};
+
+const VIRTUAL_CONTAINER_STYLE = {
+    position: 'relative'
+};
+
+const VIRTUAL_ITEM_STYLE_BASE = {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: ITEM_HEIGHT
+};
+
+const EMPTY_STATE_CONTAINER_STYLE = {
+    ...FLEX_COLUMN_STYLE,
+    ...FLEX_CENTER_STYLE,
+    height: '100%',
+    color: 'var(--blueprint-text-muted)'
+};
 
 const VirtualizedFileList = memo(({ 
     files, 
@@ -22,14 +56,35 @@ const VirtualizedFileList = memo(({
     onDragOver,
     onDragEnter,
     onDragLeave,
-    onDrop
+    onDrop,
+    // Folder creation props
+    creatingFolder,
+    tempFolderName,
+    editInputRef,
+    onFolderKeyDown,
+    onFolderInputChange,
+    onFolderInputBlur,
+    // Empty space context menu props
+    onEmptySpaceContextMenu
 }) => {
     const [scrollTop, setScrollTop] = useState(0);
+    const [measuredHeight, setMeasuredHeight] = useState(CONTAINER_HEIGHT);
     const containerRef = useRef(null);
     
-    // Calculate visible range
+    // Measure container height once with useLayoutEffect
+    useLayoutEffect(() => {
+        if (containerRef.current) {
+            const height = containerRef.current.clientHeight;
+            if (height !== measuredHeight) {
+                setMeasuredHeight(height);
+                log('📏 VirtualizedFileList: Measured container height:', height);
+            }
+        }
+    }, [measuredHeight]);
+    
+    // Calculate visible range - memoized for performance
     const visibleRange = useMemo(() => {
-        const effectiveHeight = containerHeight || CONTAINER_HEIGHT;
+        const effectiveHeight = containerHeight || measuredHeight;
         const visibleStart = Math.floor(scrollTop / ITEM_HEIGHT);
         const visibleEnd = Math.min(
             files.length - 1,
@@ -41,7 +96,7 @@ const VirtualizedFileList = memo(({
         const endIndex = Math.min(files.length - 1, visibleEnd + BUFFER_SIZE);
         
         return { startIndex, endIndex, visibleStart, visibleEnd };
-    }, [scrollTop, containerHeight, files.length]);
+    }, [scrollTop, containerHeight, measuredHeight, files.length]);
     
     // Get visible items
     const visibleItems = useMemo(() => {
@@ -53,16 +108,19 @@ const VirtualizedFileList = memo(({
         }));
     }, [files, visibleRange]);
     
-    // Handle scroll
-    const handleScroll = useCallback((event) => {
-        const newScrollTop = event.target.scrollTop;
-        setScrollTop(newScrollTop);
-    }, []);
+    // RAF-throttled scroll handler for smooth performance
+    const handleScroll = useCallback(rafThrottle((event) => {
+        // Use requestAnimationFrame to batch layout reads
+        requestAnimationFrame(() => {
+            const newScrollTop = event.target.scrollTop;
+            setScrollTop(newScrollTop);
+        });
+    }), []);
     
-    // Scroll to item (for keyboard navigation)
+    // Scroll to item (for keyboard navigation) - optimized with measured height
     const scrollToItem = useCallback((index) => {
         if (containerRef.current) {
-            const effectiveHeight = containerHeight || CONTAINER_HEIGHT;
+            const effectiveHeight = containerHeight || measuredHeight;
             const targetScrollTop = index * ITEM_HEIGHT;
             const containerScrollTop = containerRef.current.scrollTop;
             const containerBottom = containerScrollTop + effectiveHeight;
@@ -74,10 +132,10 @@ const VirtualizedFileList = memo(({
                 containerRef.current.scrollTop = targetScrollTop - effectiveHeight + ITEM_HEIGHT;
             }
         }
-    }, [containerHeight]);
+    }, [containerHeight, measuredHeight]);
     
-    // Total height for scrollbar
-    const totalHeight = files.length * ITEM_HEIGHT;
+    // Total height for scrollbar (including inline folder editor if creating)
+    const totalHeight = (files.length + (creatingFolder ? 1 : 0)) * ITEM_HEIGHT;
     
         // Optimize file item click handlers - Fixed to prevent double-opens
     const handleFileClick = useCallback((fileIndex, event) => {
@@ -98,63 +156,93 @@ const VirtualizedFileList = memo(({
         onContextMenu(event, file);
     }, [onContextMenu]);
     
+    // Compute container style once
+    const containerStyle = useMemo(() => ({
+        ...CONTAINER_STYLE,
+        height: containerHeight || '100%'
+    }), [containerHeight]);
+    
+    // Compute virtual container style once
+    const virtualContainerStyle = useMemo(() => ({
+        ...VIRTUAL_CONTAINER_STYLE,
+        height: totalHeight
+    }), [totalHeight]);
+
     return (
         <div 
             ref={containerRef}
             className="virtualized-file-list custom-scrollbar"
-            style={{ 
-                height: containerHeight || '100%', 
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                position: 'relative'
-            }}
+            style={containerStyle}
             onScroll={handleScroll}
+            onContextMenu={(e) => {
+                // Check if right-clicking on empty space in virtual list
+                if (e.target === e.currentTarget || !e.target.closest('.file-item')) {
+                    e.preventDefault();
+                    if (onEmptySpaceContextMenu) {
+                        onEmptySpaceContextMenu(e);
+                    }
+                }
+            }}
         >
             {/* Virtual container with total height */}
-            <div style={{ height: totalHeight, position: 'relative' }}>
-                {/* Render only visible items */}
-                {visibleItems.map(({ file, index, offsetTop }) => (
-                    <div
-                        key={`${file.path}-${index}`}
-                        style={{
-                            position: 'absolute',
-                            top: offsetTop,
-                            left: 0,
-                            right: 0,
-                            height: ITEM_HEIGHT
-                        }}
-                    >
-                        <FileItem
-                            file={file}
-                            fileIndex={index}
-                            onSelect={handleFileClick}
-                            onOpen={handleFileDoubleClick}
-                            onContextMenu={handleFileContextMenu}
-                            isLoading={isLoading}
-                            isSelected={selectedFiles.has(index)}
-                            isCut={clipboardOperation === 'cut' && clipboardFiles.includes(file.path)}
-                            isDragOver={dragState?.dragOverFolder === file.path}
-                            onDragStart={onDragStart}
-                            onDragOver={onDragOver}
-                            onDragEnter={onDragEnter}
-                            onDragLeave={onDragLeave}
-                            onDrop={onDrop}
+            <div style={virtualContainerStyle}>
+                {/* Show inline folder editor if creating folder */}
+                {creatingFolder && (
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: ITEM_HEIGHT
+                    }}>
+                        <InlineFolderEditor
+                            tempFolderName={tempFolderName}
+                            editInputRef={editInputRef}
+                            onKeyDown={onFolderKeyDown}
+                            onChange={onFolderInputChange}
+                            onBlur={onFolderInputBlur}
                         />
                     </div>
-                ))}
+                )}
+                
+                {/* Render only visible items */}
+                {visibleItems.map(({ file, index, offsetTop }) => {
+                    // Compute item style once per item (offset by folder editor if creating)
+                    const itemStyle = useMemo(() => ({
+                        ...VIRTUAL_ITEM_STYLE_BASE,
+                        top: offsetTop + (creatingFolder ? ITEM_HEIGHT : 0)
+                    }), [offsetTop, creatingFolder]);
+                    
+                    return (
+                        <div
+                            key={`${file.path}-${index}`}
+                            style={itemStyle}
+                        >
+                            <FileItem
+                                file={file}
+                                fileIndex={index}
+                                onSelect={handleFileClick}
+                                onOpen={handleFileDoubleClick}
+                                onContextMenu={handleFileContextMenu}
+                                isLoading={isLoading}
+                                isSelected={selectedFiles.has(index)}
+                                isCut={clipboardOperation === 'cut' && clipboardFiles.includes(file.path)}
+                                isDragOver={dragState?.dragOverFolder === file.path}
+                                onDragStart={onDragStart}
+                                onDragOver={onDragOver}
+                                onDragEnter={onDragEnter}
+                                onDragLeave={onDragLeave}
+                                onDrop={onDrop}
+                            />
+                        </div>
+                    );
+                })}
             </div>
             
             {/* Empty state */}
-            {files.length === 0 && (
-                <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    height: '100%',
-                    color: 'var(--blueprint-text-muted)' 
-                }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📁</div>
+            {files.length === 0 && !creatingFolder && (
+                <div style={EMPTY_STATE_CONTAINER_STYLE}>
+                    <div style={LARGE_ICON_STYLE}>📁</div>
                     <div className="text-technical">Directory is empty</div>
                 </div>
             )}

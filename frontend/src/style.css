@@ -625,6 +625,7 @@ body {
 
 /* Empty space context menu - 8-bit retro styling with no shadows */
 .empty-space-context-menu {
+  position: fixed !important;
   background: #1a1a2e;
   border: 4px solid #5599ff;
   border-radius: 0; /* Blocky, no rounded corners */
@@ -636,7 +637,47 @@ body {
   letter-spacing: 1px;
   /* No box-shadow for 8-bit aesthetic - completely flat */
   animation: emptySpaceContextMenuAppear 0.15s cubic-bezier(0.25, 0.1, 0.25, 1);
-  z-index: 1001;
+  z-index: 1001 !important;
+  pointer-events: auto !important;
+}
+
+/* Inline folder creation styling - 8-bit retro */
+.file-item.creating-folder {
+  background: #2a2a4e;
+  border: 3px solid #77aaff;
+  animation: folderCreatePulse 1s ease-in-out infinite alternate;
+}
+
+.folder-name-input {
+  background: #1a1a2e;
+  border: 2px solid #5599ff;
+  border-radius: 0;
+  color: #ffffff;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 8px;
+  width: 100%;
+  outline: none;
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+
+.folder-name-input:focus {
+  border-color: #77aaff;
+  background: #16213a;
+  box-shadow: inset 0 0 8px rgba(119, 170, 255, 0.2);
+}
+
+@keyframes folderCreatePulse {
+  0% {
+    border-color: #77aaff;
+    background: #2a2a4e;
+  }
+  100% {
+    border-color: #99ccff;
+    background: #2f2f5f;
+  }
 }
 
 @keyframes emptySpaceContextMenuAppear {

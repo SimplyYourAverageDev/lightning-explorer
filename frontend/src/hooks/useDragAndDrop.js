@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "preact/hooks";
 import { CopyFiles, MoveFiles } from "../../wailsjs/go/backend/App";
 
-export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, clearSelection, handleRefresh, navCache) => {
+export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, clearSelection, handleRefresh) => {
     const [dragState, setDragState] = useState({
         isDragging: false,
         draggedFiles: [],
@@ -167,10 +167,6 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
             if (success) {
                 console.log(`✅ ${operation} operation successful`);
                 
-                // Clear cache for both source and destination directories
-                navCache.cache.delete(source);
-                navCache.cache.delete(targetFolder.path);
-                
                 // If we moved files, clear selection
                 if (operation === 'move') {
                     clearSelection();
@@ -189,7 +185,7 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
             console.error(`❌ Error during ${operation} operation:`, err);
             setError(`Failed to ${operation} files: ${err.message}`);
         }
-    }, [setError, clearSelection, handleRefresh, navCache]);
+    }, [setError, clearSelection, handleRefresh]);
 
     // Handle drag end
     const handleDragEnd = useCallback(() => {

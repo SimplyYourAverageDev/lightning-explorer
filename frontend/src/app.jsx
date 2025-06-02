@@ -7,6 +7,20 @@ import {
     OpenInSystemExplorer
 } from "../wailsjs/go/backend/App";
 
+// Import optimized utilities
+import { log, warn, error } from "./utils/logger";
+import { 
+    HEADER_STATS_STYLE,
+    PERFORMANCE_INDICATOR_STYLE,
+    CURRENT_PATH_INDICATOR_STYLE,
+    ERROR_DISMISS_BUTTON_STYLE,
+    STATUS_BAR_RIGHT_STYLE,
+    LOADING_OVERLAY_STYLE,
+    LARGE_ICON_STYLE,
+    LOADING_SPINNER_LARGE_STYLE,
+    EMPTY_DIRECTORY_STYLE
+} from "./utils/styleConstants";
+
 // Import our custom components
 import {
     Breadcrumb,
@@ -15,7 +29,8 @@ import {
     ContextMenu,
     EmptySpaceContextMenu,
     RetroDialog,
-    VirtualizedFileList
+    VirtualizedFileList,
+    InlineFolderEditor
 } from "./components";
 
 // Import our custom hooks
@@ -28,14 +43,14 @@ import {
     useContextMenus,
     usePerformanceMonitoring,
     useKeyboardShortcuts,
-    useDragAndDrop
+    useDragAndDrop,
+    useFolderCreation
 } from "./hooks";
 
 // Import our utilities
 import { filterFiles } from "./utils/fileUtils";
 
-// Import navigation service
-import { navCache } from "./services/NavigationService";
+
 
 // Main App component
 export function App() {
@@ -85,6 +100,19 @@ export function App() {
         showDialog
     );
 
+    // Folder creation hook
+    const {
+        creatingFolder,
+        tempFolderName,
+        editInputRef,
+        startFolderCreation,
+        cancelFolderCreation,
+        confirmFolderCreation,
+        handleKeyDown,
+        handleInputChange,
+        handleInputBlur
+    } = useFolderCreation(currentPath, handleRefresh, setError);
+
     // Computed values
     const filteredDirectories = useMemo(() => 
         directoryContents ? filterFiles(directoryContents.directories, showHiddenFiles) : [], 
@@ -114,7 +142,8 @@ export function App() {
         handleContextRename,
         handleContextHide,
         handlePermanentDelete,
-        handleOpenPowerShell
+        handleOpenPowerShell,
+        handleCreateFolder
     } = useContextMenus(
         selectedFiles, 
         allFiles, 
@@ -123,7 +152,7 @@ export function App() {
         showDialog, 
         fileOperations, 
         currentPath, 
-        navCache
+        startFolderCreation
     );
 
     // Drag and drop hook
@@ -141,8 +170,7 @@ export function App() {
         allFiles,
         setError,
         clearSelection,
-        handleRefresh,
-        navCache
+        handleRefresh
     );
 
     // File operation handlers
@@ -177,7 +205,7 @@ export function App() {
         if (!isPasteAvailable() || !currentPath) return;
         
         try {
-            console.log(`📥 Pasting ${clipboardFiles.length} items to:`, currentPath);
+            log(`📥 Pasting ${clipboardFiles.length} items to:`, currentPath);
             
             let success = false;
             if (clipboardOperation === 'copy') {
@@ -192,13 +220,11 @@ export function App() {
             if (!success) {
                 setError('Paste operation failed');
             } else {
-                // Clear cache for current directory to show changes
-                navCache.cache.delete(currentPath);
                 // Refresh the directory to show the pasted files immediately
                 handleRefresh();
             }
         } catch (err) {
-            console.error('❌ Error during paste operation:', err);
+            error('❌ Error during paste operation:', err);
             setError('Failed to paste files: ' + err.message);
         }
     }, [isPasteAvailable, currentPath, clipboardFiles, clipboardOperation, fileOperations, clearClipboard]);
@@ -218,13 +244,12 @@ export function App() {
         handleArrowNavigation,
         clearSelection,
         closeContextMenu,
-        closeEmptySpaceContextMenu,
-        clearCache
+        closeEmptySpaceContextMenu
     });
 
     // Initialize app
     useEffect(() => {
-        console.log('🚀 Blueprint File Explorer initializing...');
+        log('🚀 Blueprint File Explorer initializing...');
         initializeApp();
     }, []);
 
@@ -239,7 +264,7 @@ export function App() {
                 setError('Unable to determine starting directory');
             }
         } catch (err) {
-            console.error('❌ Error initializing app:', err);
+            error('❌ Error initializing app:', err);
             setError('Failed to initialize file explorer: ' + err.message);
         }
     };
@@ -262,11 +287,17 @@ export function App() {
             className={`file-explorer blueprint-bg ${dragState.isDragging ? 'dragging-active' : ''}`}
             onSelectStart={(e) => e.preventDefault()}
             onDragEnd={handleDragEnd}
+            onContextMenu={(e) => {
+                // Global fallback to prevent browser context menu
+                if (!e.target.closest('.file-item') && !e.target.closest('.context-menu')) {
+                    e.preventDefault();
+                }
+            }}
         >
             {/* Header */}
             <header className="app-header">
                 <div className="app-title">Files</div>
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={HEADER_STATS_STYLE}>
                     {showLoadingIndicator && <div className="loading-spinner"></div>}
                     <span className="text-technical">
                         {directoryContents ? 
@@ -276,14 +307,8 @@ export function App() {
                     </span>
                     {/* Performance indicator */}
                     {navigationStats.totalNavigations > 0 && (
-                        <span className="text-technical" style={{ fontSize: '10px', opacity: 0.6 }}>
-                            Cache: {Math.round(navigationStats.cacheHits / navigationStats.totalNavigations * 100)}% • {Math.round(navigationStats.averageTime)}ms avg
-                        </span>
-                    )}
-                    {/* Show current path for instant feedback */}
-                    {currentPath && (
-                        <span className="text-technical" style={{ fontSize: '11px', opacity: 0.7, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {currentPath}
+                        <span className="text-technical" style={PERFORMANCE_INDICATOR_STYLE}>
+                            {Math.round(navigationStats.lastNavigationTime)}ms last navigation
                         </span>
                     )}
                 </div>
@@ -293,7 +318,7 @@ export function App() {
             {error && (
                 <div className="error-message">
                     <strong>⚠️ Error:</strong> {error}
-                    <button onClick={() => setError('')} style={{ marginLeft: '12px', background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}>
+                    <button onClick={() => setError('')} style={ERROR_DISMISS_BUTTON_STYLE}>
                         Dismiss
                     </button>
                 </div>
@@ -339,15 +364,25 @@ export function App() {
                     <div 
                         className="file-list-container"
                         onClick={(e) => {
-                            if (e.target === e.currentTarget) {
+                            // Check if clicking on empty space (not on a file item)
+                            if (e.target === e.currentTarget || e.target.classList.contains('file-list') || e.target.classList.contains('file-list-container')) {
                                 clearSelection();
                                 closeContextMenu();
                                 closeEmptySpaceContextMenu();
                             }
                         }}
                         onContextMenu={(e) => {
-                            if (e.target === e.currentTarget) {
-                                e.preventDefault();
+                            // Prevent default browser context menu and show our custom one
+                            e.preventDefault();
+                            
+                            // Check if right-clicking on empty space (not on a file item)
+                            const isEmptySpace = e.target === e.currentTarget || 
+                                                e.target.classList.contains('file-list') || 
+                                                e.target.classList.contains('file-list-container') ||
+                                                e.target.classList.contains('virtualized-file-list') ||
+                                                (!e.target.closest('.file-item'));
+                            
+                            if (isEmptySpace) {
                                 closeContextMenu();
                                 closeEmptySpaceContextMenu();
                                 handleEmptySpaceContextMenu(e);
@@ -356,8 +391,8 @@ export function App() {
                     >
                         {showLoadingIndicator ? (
                             <div className="loading-overlay">
-                                <div style={{ textAlign: 'center' }}>
-                                    <div className="loading-spinner" style={{ width: '32px', height: '32px', marginBottom: '16px' }}></div>
+                                <div style={LOADING_OVERLAY_STYLE}>
+                                    <div className="loading-spinner" style={LOADING_SPINNER_LARGE_STYLE}></div>
                                     <div className="text-technical">Loading directory...</div>
                                 </div>
                             </div>
@@ -379,10 +414,39 @@ export function App() {
                                     onDragEnter={handleDragEnter}
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
+                                    creatingFolder={creatingFolder}
+                                    tempFolderName={tempFolderName}
+                                    editInputRef={editInputRef}
+                                    onFolderKeyDown={handleKeyDown}
+                                    onFolderInputChange={handleInputChange}
+                                    onFolderInputBlur={handleInputBlur}
+                                    onEmptySpaceContextMenu={handleEmptySpaceContextMenu}
                                 />
                             ) : (
                                 // Use normal rendering for small directories
-                                <div className="file-list custom-scrollbar">
+                                <div 
+                                    className="file-list custom-scrollbar"
+                                    onContextMenu={(e) => {
+                                        // Check if right-clicking on the file list itself (empty space)
+                                        if (e.target === e.currentTarget || !e.target.closest('.file-item')) {
+                                            e.preventDefault();
+                                            closeContextMenu();
+                                            closeEmptySpaceContextMenu();
+                                            handleEmptySpaceContextMenu(e);
+                                        }
+                                    }}
+                                >
+                                    {/* Show inline folder editor if creating folder */}
+                                    {creatingFolder && (
+                                        <InlineFolderEditor
+                                            tempFolderName={tempFolderName}
+                                            editInputRef={editInputRef}
+                                            onKeyDown={handleKeyDown}
+                                            onChange={handleInputChange}
+                                            onBlur={handleInputBlur}
+                                        />
+                                    )}
+                                    
                                     {allFiles.map((file, index) => (
                                         <FileItem
                                             key={file.path}
@@ -403,17 +467,17 @@ export function App() {
                                         />
                                     ))}
                                     
-                                    {allFiles.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: '64px 32px', color: 'var(--blueprint-text-muted)' }}>
-                                            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📁</div>
+                                    {allFiles.length === 0 && !creatingFolder && (
+                                        <div style={EMPTY_DIRECTORY_STYLE}>
+                                            <div style={LARGE_ICON_STYLE}>📁</div>
                                             <div className="text-technical">Directory is empty</div>
                                         </div>
                                     )}
                                 </div>
                             )
                         ) : (
-                            <div style={{ textAlign: 'center', padding: '64px 32px', color: 'var(--blueprint-text-muted)' }}>
-                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📁</div>
+                            <div style={EMPTY_DIRECTORY_STYLE}>
+                                <div style={LARGE_ICON_STYLE}>📁</div>
                                 <div className="text-technical">Ready</div>
                             </div>
                         )}
@@ -441,6 +505,7 @@ export function App() {
                 y={emptySpaceContextMenu.y}
                 onClose={closeEmptySpaceContextMenu}
                 onOpenPowerShell={handleOpenPowerShell}
+                onCreateFolder={handleCreateFolder}
             />
             
             <RetroDialog
@@ -462,8 +527,8 @@ export function App() {
                     {clipboardFiles.length > 0 && ` • ${clipboardFiles.length} item${clipboardFiles.length === 1 ? '' : 's'} ${clipboardOperation === 'cut' ? 'cut' : 'copied'}`}
                     {dragState.isDragging && ` • Dragging ${dragState.draggedFiles.length} item${dragState.draggedFiles.length === 1 ? '' : 's'} (${dragState.dragOperation === 'copy' ? 'Hold Ctrl to copy' : 'Release Ctrl to move'})`}
                 </span>
-                <span style={{ marginLeft: 'auto' }}>
-                    File Explorer • Drag to folders to move/copy • Ctrl+Shift+C: Clear Cache
+                <span style={STATUS_BAR_RIGHT_STYLE}>
+                    File Explorer • Drag to folders to move/copy
                 </span>
             </div>
         </div>

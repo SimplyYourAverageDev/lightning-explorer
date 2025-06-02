@@ -12,14 +12,13 @@ import (
 )
 
 // NewFileSystemManager creates a new filesystem manager instance
-func NewFileSystemManager(cache CacheManagerInterface, platform PlatformManagerInterface) *FileSystemManager {
+func NewFileSystemManager(platform PlatformManagerInterface) *FileSystemManager {
 	return &FileSystemManager{
-		cache:    cache,
 		platform: platform,
 	}
 }
 
-// ListDirectory lists the contents of a directory with performance optimizations
+// ListDirectory lists the contents of a directory
 func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	startTime := time.Now()
 	log.Printf("📂 Listing directory: %s", path)
@@ -44,23 +43,6 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		return NavigationResponse{
 			Success: false,
 			Message: "Path is not a directory",
-		}
-	}
-
-	// Check cache first with mod time validation
-	cached, exists := fs.cache.Get(path)
-	if exists {
-		// Validate cache against actual mod time for accuracy
-		if cached.ModTime.Equal(info.ModTime()) || cached.ModTime.After(info.ModTime()) {
-			cacheTime := time.Since(startTime)
-			log.Printf("⚡ Cache hit for %s in %v", path, cacheTime)
-			return NavigationResponse{
-				Success: true,
-				Message: fmt.Sprintf("Directory listed successfully (cached in %v)", cacheTime),
-				Data:    cached.Contents,
-			}
-		} else {
-			log.Printf("🔄 Cache invalidated for %s (mod time changed)", path)
 		}
 	}
 
@@ -112,13 +94,6 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		TotalFiles:  len(files),
 		TotalDirs:   len(directories),
 	}
-
-	// Cache the results immediately for future use
-	fs.cache.Set(path, &CacheEntry{
-		Contents:  contents,
-		Timestamp: time.Now(),
-		ModTime:   info.ModTime(),
-	})
 
 	processingTime := time.Since(startTime)
 	log.Printf("✅ Directory listed in %v: %s (%d dirs, %d files)", processingTime, path, len(directories), len(files))
@@ -365,9 +340,6 @@ func (fs *FileSystemManager) CreateDirectory(path, name string) NavigationRespon
 			Message: fmt.Sprintf("Failed to create directory: %v", err),
 		}
 	}
-
-	// Clear cache for the parent directory to refresh the listing
-	fs.cache.Clear()
 
 	log.Printf("📁 Directory created: %s", fullPath)
 	return NavigationResponse{
