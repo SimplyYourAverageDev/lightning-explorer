@@ -38,7 +38,7 @@ const Breadcrumb = memo(({ currentPath, onNavigate }) => {
     }, [segments, onNavigate]);
     
     return (
-        <div className="nav-breadcrumb custom-scrollbar">
+        <div className="nav-breadcrumb custom-scrollbar" onSelectStart={(e) => e.preventDefault()}>
             <span 
                 className="nav-segment" 
                 onClick={() => handleSegmentClick(-1)}

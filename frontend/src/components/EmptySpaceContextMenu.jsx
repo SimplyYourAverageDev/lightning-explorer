@@ -24,6 +24,7 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell }
         <div 
             ref={menuRef}
             className="context-menu empty-space-context-menu"
+            onSelectStart={(e) => e.preventDefault()}
             style={{ 
                 position: 'fixed', 
                 left: x, 

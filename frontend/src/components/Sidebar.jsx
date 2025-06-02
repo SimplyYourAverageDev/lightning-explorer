@@ -29,7 +29,7 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [] }) => {
     }, [onNavigate]);
     
     return (
-        <div className="sidebar">
+        <div className="sidebar" onSelectStart={(e) => e.preventDefault()}>
             <div className="sidebar-section">
                 <div className="sidebar-title">Quick Access</div>
                 {quickAccess.map((item) => (

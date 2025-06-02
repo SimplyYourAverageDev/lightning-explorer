@@ -16,7 +16,13 @@ const VirtualizedFileList = memo(({
     isLoading,
     clipboardFiles,
     clipboardOperation,
-    containerHeight
+    containerHeight,
+    dragState,
+    onDragStart,
+    onDragOver,
+    onDragEnter,
+    onDragLeave,
+    onDrop
 }) => {
     const [scrollTop, setScrollTop] = useState(0);
     const containerRef = useRef(null);
@@ -73,8 +79,9 @@ const VirtualizedFileList = memo(({
     // Total height for scrollbar
     const totalHeight = files.length * ITEM_HEIGHT;
     
-    // Optimize file item click handlers
+        // Optimize file item click handlers - Fixed to prevent double-opens
     const handleFileClick = useCallback((fileIndex, event) => {
+        // Always handle selection for virtualized list - FileItem will handle opening logic
         onFileSelect(fileIndex, event.shiftKey, event.ctrlKey || event.metaKey);
         
         // Scroll to item if needed
@@ -82,7 +89,7 @@ const VirtualizedFileList = memo(({
             scrollToItem(fileIndex);
         }
     }, [onFileSelect, scrollToItem]);
-    
+
     const handleFileDoubleClick = useCallback((file) => {
         onFileOpen(file);
     }, [onFileOpen]);
@@ -126,6 +133,12 @@ const VirtualizedFileList = memo(({
                             isLoading={isLoading}
                             isSelected={selectedFiles.has(index)}
                             isCut={clipboardOperation === 'cut' && clipboardFiles.includes(file.path)}
+                            isDragOver={dragState?.dragOverFolder === file.path}
+                            onDragStart={onDragStart}
+                            onDragOver={onDragOver}
+                            onDragEnter={onDragEnter}
+                            onDragLeave={onDragLeave}
+                            onDrop={onDrop}
                         />
                     </div>
                 ))}

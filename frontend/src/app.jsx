@@ -27,7 +27,8 @@ import {
     useDialogs,
     useContextMenus,
     usePerformanceMonitoring,
-    useKeyboardShortcuts
+    useKeyboardShortcuts,
+    useDragAndDrop
 } from "./hooks";
 
 // Import our utilities
@@ -42,8 +43,6 @@ export function App() {
     const [error, setError] = useState('');
     const [drives, setDrives] = useState([]);
     const [showHiddenFiles, setShowHiddenFiles] = useState(false);
-    const [dragOverFolder, setDragOverFolder] = useState(null);
-    const [isDragging, setIsDragging] = useState(false);
 
     // Custom hooks
     const { navigationStats, setNavigationStats } = usePerformanceMonitoring();
@@ -124,6 +123,25 @@ export function App() {
         showDialog, 
         fileOperations, 
         currentPath, 
+        navCache
+    );
+
+    // Drag and drop hook
+    const {
+        dragState,
+        handleDragStart,
+        handleDragOver,
+        handleDragEnter,
+        handleDragLeave,
+        handleDrop,
+        handleDragEnd
+    } = useDragAndDrop(
+        currentPath,
+        selectedFiles,
+        allFiles,
+        setError,
+        clearSelection,
+        handleRefresh,
         navCache
     );
 
@@ -240,7 +258,11 @@ export function App() {
     }, [currentPath, clearSelection, closeContextMenu]);
 
     return (
-        <div className="file-explorer blueprint-bg">
+        <div 
+            className={`file-explorer blueprint-bg ${dragState.isDragging ? 'dragging-active' : ''}`}
+            onSelectStart={(e) => e.preventDefault()}
+            onDragEnd={handleDragEnd}
+        >
             {/* Header */}
             <header className="app-header">
                 <div className="app-title">Files</div>
@@ -351,6 +373,12 @@ export function App() {
                                     isLoading={false} // Never show loading in file items
                                     clipboardFiles={clipboardFiles}
                                     clipboardOperation={clipboardOperation}
+                                    dragState={dragState}
+                                    onDragStart={handleDragStart}
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={handleDragEnter}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
                                 />
                             ) : (
                                 // Use normal rendering for small directories
@@ -366,7 +394,12 @@ export function App() {
                                             isLoading={false} // Never show loading in file items
                                             isSelected={selectedFiles.has(index)}
                                             isCut={clipboardOperation === 'cut' && clipboardFiles.includes(file.path)}
-                                            isDragOver={dragOverFolder === file.path}
+                                            isDragOver={dragState.dragOverFolder === file.path}
+                                            onDragStart={handleDragStart}
+                                            onDragOver={handleDragOver}
+                                            onDragEnter={handleDragEnter}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={handleDrop}
                                         />
                                     ))}
                                     
@@ -425,12 +458,12 @@ export function App() {
             <div className="status-bar">
                 <span>
                     Path: {currentPath || 'Not selected'} 
-                    {selectedFiles.sizwaie > 0 && ` • ${selectedFiles.size} item${selectedFiles.size === 1 ? '' : 's'} selected`}
+                    {selectedFiles.size > 0 && ` • ${selectedFiles.size} item${selectedFiles.size === 1 ? '' : 's'} selected`}
                     {clipboardFiles.length > 0 && ` • ${clipboardFiles.length} item${clipboardFiles.length === 1 ? '' : 's'} ${clipboardOperation === 'cut' ? 'cut' : 'copied'}`}
-                    {isDragging && ' • Dragging files (Hold Ctrl to copy)'}
+                    {dragState.isDragging && ` • Dragging ${dragState.draggedFiles.length} item${dragState.draggedFiles.length === 1 ? '' : 's'} (${dragState.dragOperation === 'copy' ? 'Hold Ctrl to copy' : 'Release Ctrl to move'})`}
                 </span>
                 <span style={{ marginLeft: 'auto' }}>
-                    File Explorer • Ctrl+Shift+C: Clear Cache
+                    File Explorer • Drag to folders to move/copy • Ctrl+Shift+C: Clear Cache
                 </span>
             </div>
         </div>

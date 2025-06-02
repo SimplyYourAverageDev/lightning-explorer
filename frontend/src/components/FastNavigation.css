@@ -1,5 +1,26 @@
 /* Fast Navigation CSS Optimizations */
 
+/* Disable text selection for all fast navigation elements */
+.file-list-container,
+.file-list,
+.loading-overlay,
+.app-header,
+.loading-spinner,
+.nav-segment,
+.sidebar-item,
+.file-item,
+.toolbar-btn,
+.context-menu,
+.status-bar,
+.error-message {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    -webkit-touch-callout: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
 .file-list-container {
     position: relative;
     flex: 1;

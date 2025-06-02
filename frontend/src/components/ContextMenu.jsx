@@ -24,6 +24,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
         <div 
             ref={menuRef}
             className="context-menu"
+            onSelectStart={(e) => e.preventDefault()}
             style={{ 
                 position: 'fixed', 
                 left: x, 

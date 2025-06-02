@@ -32,6 +32,13 @@
 /* Base styles */
 * {
   box-sizing: border-box;
+  /* Disable text selection globally for the entire UI */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Performance optimizations */
@@ -52,6 +59,12 @@ body {
   background: var(--blueprint-bg);
   color: var(--blueprint-text);
   overflow: hidden;
+  /* Explicitly disable text selection on body */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .mono {
@@ -90,6 +103,11 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  /* Ensure no text selection in the main container */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .file-list {
@@ -890,6 +908,11 @@ body {
   outline: none;
   transition: all 0.2s ease;
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+  /* Re-enable text selection for input fields */
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
 }
 
 .retro-dialog-input:focus {
@@ -1027,7 +1050,7 @@ body {
   }
 }
 
-/* Drag and Drop Styles */
+/* Enhanced Drag and Drop Styles */
 .file-item[draggable="true"]:hover {
   cursor: grab;
 }
@@ -1037,25 +1060,50 @@ body {
 }
 
 .file-item.drag-over {
-  background: var(--blueprint-primary) !important;
-  border-color: var(--blueprint-primary) !important;
+  background: var(--blueprint-success) !important;
+  border-color: var(--blueprint-success) !important;
   color: white !important;
   transform: translateY(-2px) scale(1.02);
   will-change: transform;
-  /* Ensure drag-over styling works with selected items */
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5) !important;
+  animation: dragOverPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes dragOverPulse {
+  from {
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5);
+  }
+  to {
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.7);
+  }
 }
 
 /* Drag feedback for files being dragged */
 .file-item.dragging {
-  opacity: 0.6;
+  opacity: 0.4;
+  transform: scale(0.95);
+  pointer-events: none;
+  border-style: dashed;
 }
 
 /* Drop zone indicator */
 .drop-zone-active {
-  border: 1px dashed var(--blueprint-primary);
-  background: rgba(59, 130, 246, 0.05);
+  border: 2px dashed var(--blueprint-success);
+  background: rgba(16, 185, 129, 0.1);
   border-radius: 4px;
+}
+
+/* Global drag state styles */
+.file-explorer.dragging-active {
+  cursor: grabbing;
+}
+
+.file-explorer.dragging-active .file-item:not(.drag-over):not(.dragging) {
+  opacity: 0.6;
+}
+
+.file-explorer.dragging-active .file-item.drag-over {
+  opacity: 1;
 }
 
 /* Responsive Design for Mobile and Tablet */
@@ -1326,4 +1374,48 @@ body {
     border: 1px solid #ccc;
     page-break-inside: avoid;
   }
+}
+
+/* Comprehensive Text Selection Control */
+/* Re-enable text selection only for input elements where it's needed */
+input, 
+textarea, 
+[contenteditable="true"], 
+.blueprint-input,
+.retro-dialog-input {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+/* Ensure all other UI elements have text selection disabled */
+button,
+.toolbar-btn,
+.context-menu,
+.context-menu-item,
+.sidebar-item,
+.file-item,
+.nav-segment,
+.retro-dialog-btn,
+.app-header,
+.app-title,
+.status-bar,
+.breadcrumb,
+.nav-breadcrumb,
+.file-icon,
+.file-name,
+.file-meta,
+.sidebar,
+.sidebar-title,
+.text-technical,
+.loading-overlay,
+.error-message,
+.success-message {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
