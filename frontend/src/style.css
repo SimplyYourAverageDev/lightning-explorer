@@ -336,7 +336,7 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: var(--zen-space-xl);
-  gap: var(--zen-space-xs);
+  gap: var(--zen-space-sm);
   display: flex;
   flex-direction: column;
 }
@@ -349,35 +349,36 @@ body {
   padding: var(--zen-space-lg);
   border-radius: var(--zen-radius-md);
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
   border: 1px solid transparent;
   min-height: 3.5rem;
   background: transparent;
+  box-sizing: border-box;
 }
 
 .file-item:hover:not(.selected) {
   background: var(--zen-surface-hover);
   border-color: var(--zen-border);
-  transform: translateY(-1px);
-  box-shadow: var(--zen-shadow-sm);
+  /* More prominent but contained visual feedback */
+  background: rgba(79, 70, 229, 0.04);
 }
 
 .file-item.selected {
   background: var(--zen-primary-alpha);
   border-color: var(--zen-primary);
   color: var(--zen-primary);
-  transform: translateY(-1px);
-  box-shadow: var(--zen-shadow);
+  /* Removed transform and box-shadow to prevent expansion over other files */
 }
 
 .file-item.selected:hover {
   background: var(--zen-primary-alpha-hover);
-  transform: translateY(-2px);
-  box-shadow: var(--zen-shadow-md);
+  border-color: var(--zen-primary);
+  /* Pure color-based feedback - no dimension changes */
 }
 
 .file-item:active {
-  transform: scale(0.98);
+  /* Removed scale transform to prevent expansion over other files */
+  opacity: 0.8;
 }
 
 .file-item.cut {
@@ -614,13 +615,13 @@ body {
 .file-item.drag-over {
   background: var(--zen-primary-alpha-hover);
   border-color: var(--zen-primary);
-  transform: scale(1.02);
-  box-shadow: var(--zen-shadow-md);
+  /* Pure color-based feedback - no dimension changes */
 }
 
 .file-item.dragging {
   opacity: 0.6;
-  transform: rotate(-2deg) scale(0.95);
+  /* Removed rotation and scale to prevent expansion over other files */
+  filter: grayscale(50%);
 }
 
 .file-explorer.dragging-active {

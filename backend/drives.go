@@ -30,29 +30,11 @@ func (d *DriveManager) GetDriveInfo() []DriveInfo {
 	return drives
 }
 
-// getWindowsDrives returns Windows drive information
+// getWindowsDrives returns Windows drive information using optimized API calls
 func (d *DriveManager) getWindowsDrives() []DriveInfo {
-	var drives []DriveInfo
-
-	for i := 'A'; i <= 'Z'; i++ {
-		drive := fmt.Sprintf("%c:\\", i)
-		if _, err := os.Stat(drive); err == nil {
-			driveInfo := DriveInfo{
-				Path:   drive,
-				Letter: string(i),
-				Name:   fmt.Sprintf("Drive %c:", i),
-			}
-
-			// Try to get more detailed drive information
-			if driveType := d.getWindowsDriveType(drive); driveType != "" {
-				driveInfo.Name = fmt.Sprintf("%s (%s)", driveInfo.Name, driveType)
-			}
-
-			drives = append(drives, driveInfo)
-		}
-	}
-
-	return drives
+	// Use the optimized platform manager for drive enumeration
+	platformManager := NewPlatformManager()
+	return platformManager.GetWindowsDrivesOptimized()
 }
 
 // getWindowsDriveType gets the type of Windows drive (if possible)
@@ -135,23 +117,9 @@ func (d *DriveManager) getLinuxMountPoints() []DriveInfo {
 
 // GetSystemRoots returns system root paths for quick navigation
 func (d *DriveManager) GetSystemRoots() []string {
-	var roots []string
-
-	switch runtime.GOOS {
-	case "windows":
-		// Get all available drive letters
-		for i := 'A'; i <= 'Z'; i++ {
-			drive := fmt.Sprintf("%c:\\", i)
-			if _, err := os.Stat(drive); err == nil {
-				roots = append(roots, drive)
-			}
-		}
-	default:
-		// Unix-like systems start from root
-		roots = append(roots, "/")
-	}
-
-	return roots
+	// Use the optimized platform manager for system roots
+	platformManager := NewPlatformManager()
+	return platformManager.GetSystemRoots()
 }
 
 // GetQuickAccessPaths returns commonly accessed directories for quick navigation

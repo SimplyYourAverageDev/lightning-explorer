@@ -1,5 +1,7 @@
 /* Virtualized File List Performance Optimizations - Zen Theme */
+/* TEMPORARILY DISABLED - Using normal file list styling instead */
 
+/*
 .virtualized-file-list {
     /* Use GPU acceleration for smooth scrolling */
     transform: translateZ(0);
@@ -13,7 +15,7 @@
     
     /* Enhanced spacing for zen design */
     padding: var(--zen-space-xl);
-    gap: var(--zen-space-xs);
+    gap: var(--zen-space-sm);
 }
 
 .virtualized-file-list .file-item {
@@ -23,41 +25,46 @@
     /* Prevent unnecessary reflows */
     box-sizing: border-box;
     
-    /* Use transform instead of top/left for better performance */
-    will-change: transform;
+    /* Use only essential properties for performance - no transform animations */
+    will-change: background-color, border-color;
     
     /* Zen spacing and design */
-    margin-bottom: var(--zen-space-xs);
+    margin-bottom: var(--zen-space-sm);
     border-radius: var(--zen-radius-md);
     min-height: 3.5rem;
+    
+    /* Ensure consistent hover behavior in virtualized list */
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
 }
+*/
 
-/* Optimize scrollbar for zen theme */
-.virtualized-file-list::-webkit-scrollbar {
+/* Keep scrollbar optimizations */
+.file-list::-webkit-scrollbar {
     width: 6px;
     background-color: transparent;
 }
 
-.virtualized-file-list::-webkit-scrollbar-track {
+.file-list::-webkit-scrollbar-track {
     background-color: transparent;
     border-radius: 3px;
 }
 
-.virtualized-file-list::-webkit-scrollbar-thumb {
+.file-list::-webkit-scrollbar-thumb {
     background-color: var(--zen-border);
     border-radius: 3px;
 }
 
-.virtualized-file-list::-webkit-scrollbar-thumb:hover {
+.file-list::-webkit-scrollbar-thumb:hover {
     background-color: var(--zen-border-focus);
 }
 
 /* Prevent horizontal scrollbar from appearing */
-.virtualized-file-list::-webkit-scrollbar-horizontal {
+.file-list::-webkit-scrollbar-horizontal {
     display: none;
 }
 
-/* Optimize file items for virtual scrolling */
+/* Keep performance optimizations but remove custom positioning */
+/*
 .virtual-file-item {
     position: absolute;
     width: 100%;
@@ -75,9 +82,10 @@
     padding: var(--zen-space-lg);
     border-radius: var(--zen-radius-md);
 }
+*/
 
 /* Loading state optimizations */
-.virtualized-file-list .loading-overlay {
+.file-list .loading-overlay {
     /* Use backdrop-filter for better performance */
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -103,18 +111,14 @@
 
 /* Memory-efficient animations with zen timing */
 @media (prefers-reduced-motion: no-preference) {
-    .virtual-file-item {
-        transition: opacity 150ms ease-out, transform 150ms ease-out;
-    }
-    
-    .virtual-file-item:hover {
-        transform: translateY(-1px) translateZ(0);
+    .file-list .file-item {
+        transition: opacity 150ms ease-out, background-color 150ms ease-out, border-color 150ms ease-out;
     }
 }
 
 /* High DPI optimizations */
 @media (-webkit-min-device-pixel-ratio: 2) {
-    .virtualized-file-list {
+    .file-list {
         /* Optimize for high DPI displays */
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -123,7 +127,10 @@
 
 /* Dark mode support for loading overlay */
 @media (prefers-color-scheme: dark) {
-    .virtualized-file-list .loading-overlay {
+    .file-list .loading-overlay {
         background: rgba(26, 35, 50, 0.8);
     }
-} 
+}
+
+/* Remove all the complex override CSS since we're using normal file list styling now */
+/* All the transform and positioning overrides are no longer needed */ 

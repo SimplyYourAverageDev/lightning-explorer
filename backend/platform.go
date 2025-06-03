@@ -42,18 +42,12 @@ func (p *PlatformManager) GetSystemRoots() []string {
 
 	switch runtime.GOOS {
 	case "windows":
-		// Get all drives on Windows
-		for i := 'A'; i <= 'Z'; i++ {
-			drive := fmt.Sprintf("%c:\\", i)
-			if _, err := os.Stat(drive); err == nil {
-				roots = append(roots, drive)
-			}
-		}
+		// Use the optimized Windows-specific method
+		return p.GetSystemRootsWindows()
 	default:
 		// Unix-like systems start from root
 		roots = append(roots, "/")
 	}
-
 	return roots
 }
 

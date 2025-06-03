@@ -141,25 +141,24 @@
 
 /* File item hover effects for instant feedback */
 .file-item {
-    transition: all 150ms ease;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
     cursor: pointer;
     border-radius: var(--zen-radius-md);
     min-height: 3.5rem;
     padding: var(--zen-space-lg);
     border: 1px solid transparent;
+    box-sizing: border-box;
 }
 
 .file-item:hover:not(.selected) {
-    background-color: var(--zen-surface-hover);
+    background-color: rgba(79, 70, 229, 0.04);
     border-color: var(--zen-border);
-    transform: translateY(-1px);
-    box-shadow: var(--zen-shadow-sm);
+    /* Pure color-based feedback - no transforms to prevent overlapping */
 }
 
 .file-item:active:not(.selected) {
     background-color: var(--zen-surface-active);
-    transform: translateY(0);
-    box-shadow: none;
+    /* Pure color-based feedback - no transforms to prevent overlapping */
 }
 
 /* Selected state with zen styling */
@@ -167,22 +166,21 @@
     background-color: var(--zen-primary-alpha);
     border-color: var(--zen-primary);
     color: var(--zen-primary);
-    transform: translateY(-1px);
-    box-shadow: var(--zen-shadow);
+    /* Pure color-based feedback - no transforms to prevent overlapping */
 }
 
 /* Enhanced selected state hover feedback */
 .file-item.selected:hover {
     background-color: var(--zen-primary-alpha-hover);
     border-color: var(--zen-primary);
-    transform: translateY(-2px);
-    box-shadow: var(--zen-shadow-md);
+    /* Pure color-based feedback - no dimension changes */
 }
 
 .file-item.selected:active {
     background-color: var(--zen-primary-alpha);
     border-color: var(--zen-primary);
-    transform: scale(0.98);
+    opacity: 0.8;
+    /* Pure color-based feedback - no transforms to prevent overlapping */
 }
 
 /* Optimized breadcrumb transitions */
@@ -314,4 +312,21 @@
     .loading-spinner {
         animation: none;
     }
+}
+
+/* Global override to prevent file item hover overlapping */
+.virtualized-file-list .file-item,
+.file-list .file-item {
+    /* Ensure all file items are contained and don't expand */
+    contain: layout style paint !important;
+    overflow: hidden !important;
+}
+
+.virtualized-file-list .file-item:hover,
+.virtualized-file-list .file-item:active,
+.virtualized-file-list .file-item.selected,
+.virtualized-file-list .file-item.selected:hover {
+    /* Absolutely no transforms in virtualized lists */
+    transform: none !important;
+    box-shadow: none !important;
 } 
