@@ -1,8 +1,28 @@
 import { useMemo, useCallback, useRef, useEffect } from "preact/hooks";
 import { memo } from "preact/compat";
 import { getFileIcon, getFileType } from "../utils/fileUtils.js";
-import { formatDate, formatFileSize } from "../utils/formatUtils.js";
 import { log, error } from "../utils/logger";
+
+// Local utility functions (moved from formatUtils)
+const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatFileSize = (size) => {
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let unitIndex = 0;
+    let fileSize = size;
+    
+    while (fileSize >= 1024 && unitIndex < units.length - 1) {
+        fileSize /= 1024;
+        unitIndex++;
+    }
+    
+    return fileSize < 10 && unitIndex > 0 
+        ? `${fileSize.toFixed(1)} ${units[unitIndex]}`
+        : `${Math.round(fileSize)} ${units[unitIndex]}`;
+};
 
 // Memoized File item component
 const FileItem = memo(({ 

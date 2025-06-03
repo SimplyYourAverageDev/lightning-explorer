@@ -1,11 +1,12 @@
 import { useState, useCallback } from "preact/hooks";
+import { log } from "../utils/logger";
 
 export const useSelection = () => {
     const [selectedFiles, setSelectedFiles] = useState(new Set());
     const [lastSelectedIndex, setLastSelectedIndex] = useState(-1);
 
     const handleFileSelect = useCallback((fileIndex, isShiftKey, isCtrlKey) => {
-        console.log('📋 File selection:', fileIndex, 'Shift:', isShiftKey, 'Ctrl:', isCtrlKey);
+        log('📋 File selection:', fileIndex, 'Shift:', isShiftKey, 'Ctrl:', isCtrlKey);
         
         setSelectedFiles(prevSelected => {
             const newSelected = new Set(prevSelected);
@@ -40,7 +41,7 @@ export const useSelection = () => {
     const clearSelection = useCallback(() => {
         setSelectedFiles(new Set());
         setLastSelectedIndex(-1);
-        console.log('📋 Cleared selection');
+        log('📋 Cleared selection');
     }, []);
 
     const selectAll = useCallback((totalFiles) => {
@@ -49,7 +50,7 @@ export const useSelection = () => {
             allIndices.add(i);
         }
         setSelectedFiles(allIndices);
-        console.log('📋 Selected all files:', allIndices.size);
+        log('📋 Selected all files:', allIndices.size);
     }, []);
 
     const handleArrowNavigation = useCallback((direction, allFiles) => {
@@ -75,7 +76,7 @@ export const useSelection = () => {
             }
         }
         
-        console.log(`⬆️⬇️ Arrow navigation ${direction}: moving to index ${targetIndex} (${allFiles[targetIndex]?.name})`);
+        log(`⬆️⬇️ Arrow navigation ${direction}: moving to index ${targetIndex} (${allFiles[targetIndex]?.name})`);
         
         // Select the target file
         setSelectedFiles(new Set([targetIndex]));
