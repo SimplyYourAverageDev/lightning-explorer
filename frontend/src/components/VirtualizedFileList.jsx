@@ -65,7 +65,8 @@ const VirtualizedFileList = memo(({
     onFolderInputChange,
     onFolderInputBlur,
     // Empty space context menu props
-    onEmptySpaceContextMenu
+    onEmptySpaceContextMenu,
+
 }) => {
     const [scrollTop, setScrollTop] = useState(0);
     const [measuredHeight, setMeasuredHeight] = useState(CONTAINER_HEIGHT);

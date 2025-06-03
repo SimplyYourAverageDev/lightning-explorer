@@ -110,7 +110,9 @@ type App struct {
 
 // FileSystemManager implementation
 type FileSystemManager struct {
-	platform PlatformManagerInterface
+	platform     PlatformManagerInterface
+	ctx          context.Context
+	eventEmitter *EventEmitter
 }
 
 // FileOperationsManager implementation

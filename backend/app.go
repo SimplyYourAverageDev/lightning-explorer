@@ -27,6 +27,12 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
+
+	// Set context on filesystem manager for event emission
+	if fsManager, ok := a.filesystem.(*FileSystemManager); ok {
+		fsManager.SetContext(ctx)
+	}
+
 	log.Println("🚀 Blueprint File Explorer backend started with modular architecture")
 }
 
@@ -215,4 +221,22 @@ func (a *App) HealthCheck() map[string]interface{} {
 		"status":  "healthy",
 		"modules": []string{"filesystem", "fileops", "platform", "drives", "terminal"},
 	}
+}
+
+// PrefetchDirectory pre-loads directory contents for faster navigation
+// This method is called when hovering over folders to improve perceived performance
+func (a *App) PrefetchDirectory(path string) NavigationResponse {
+	// Use the same method as NavigateToPath but mark it as prefetch for logging
+	log.Printf("🔄 Prefetching directory: %s", path)
+
+	response := a.filesystem.ListDirectory(path)
+
+	if response.Success {
+		log.Printf("✅ Prefetched directory %s: %d files, %d dirs",
+			path, response.Data.TotalFiles, response.Data.TotalDirs)
+	} else {
+		log.Printf("❌ Failed to prefetch directory %s: %s", path, response.Message)
+	}
+
+	return response
 }

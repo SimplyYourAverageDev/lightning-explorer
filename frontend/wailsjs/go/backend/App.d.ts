@@ -54,6 +54,8 @@ export function OpenPowerShellHere(arg1:string):Promise<boolean>;
 
 export function OpenTerminalHere(arg1:string):Promise<boolean>;
 
+export function PrefetchDirectory(arg1:string):Promise<backend.NavigationResponse>;
+
 export function RenameFile(arg1:string,arg2:string):Promise<boolean>;
 
 export function ValidatePath(arg1:string):Promise<boolean>;

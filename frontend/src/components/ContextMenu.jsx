@@ -48,11 +48,11 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
                 </div>
             )}
             <div className="context-menu-separator"></div>
-            <div className="context-menu-item" onClick={onHide} style={{ color: 'var(--blueprint-text-secondary)' }}>
+            <div className="context-menu-item" onClick={onHide} style={{ color: 'var(--zen-text-secondary)' }}>
                 <span className="context-menu-icon">[H]</span>
                 <span className="context-menu-text">Hide ({files.length})</span>
             </div>
-            <div className="context-menu-item" onClick={onPermanentDelete} style={{ color: 'var(--blueprint-error)' }}>
+            <div className="context-menu-item" onClick={onPermanentDelete} style={{ color: 'var(--zen-error)' }}>
                 <span className="context-menu-icon">[!]</span>
                 <span className="context-menu-text">Delete ({files.length})</span>
             </div>

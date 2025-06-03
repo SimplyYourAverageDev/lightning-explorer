@@ -108,7 +108,7 @@ A modern, technical file system navigator built with **Wails v2**, **Go**, and *
 ### Design System
 - **CSS Custom Properties** for theming
 - **Blueprint color palette** with technical aesthetics
-- **Typography hierarchy** using Inter and JetBrains Mono
+- **Typography hierarchy** using JetBrains Mono throughout
 - **Grid patterns** and technical overlays
 
 ## 🎨 Design Philosophy

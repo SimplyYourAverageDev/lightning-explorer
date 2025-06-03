@@ -226,7 +226,7 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
             border-radius: 4px;
             padding: 8px 12px;
             font-size: 12px;
-            font-family: 'Courier New', monospace;
+            font-family: 'JetBrains Mono', monospace;
             color: var(--blueprint-text);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             z-index: 1000;

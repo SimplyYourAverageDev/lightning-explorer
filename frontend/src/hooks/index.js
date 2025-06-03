@@ -7,6 +7,7 @@ export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { useDragAndDrop } from './useDragAndDrop';
 export { useFolderCreation } from './useFolderCreation';
 
+
 // Re-export existing hooks
 export { useFileOperations } from './useFileOperations';
 export { useSelection } from './useSelection';

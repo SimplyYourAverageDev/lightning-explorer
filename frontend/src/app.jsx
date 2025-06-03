@@ -1,4 +1,3 @@
-import './style.css';
 import './components/FastNavigation.css';
 import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import { 
@@ -62,14 +61,15 @@ export function App() {
     // Custom hooks
     const { navigationStats, setNavigationStats } = usePerformanceMonitoring();
     
+
+    
     const {
         currentPath,
         directoryContents,
         showLoadingIndicator,
         navigateToPath,
         handleNavigateUp,
-        handleRefresh,
-        clearCache
+        handleRefresh
     } = useNavigation(setError, setNavigationStats);
 
     const { dialog, showDialog, closeDialog } = useDialogs();
@@ -249,7 +249,7 @@ export function App() {
 
     // Initialize app
     useEffect(() => {
-        log('🚀 Blueprint File Explorer initializing...');
+        log('🚀 Zen File Explorer initializing...');
         initializeApp();
     }, []);
 
@@ -284,7 +284,7 @@ export function App() {
 
     return (
         <div 
-            className={`file-explorer blueprint-bg ${dragState.isDragging ? 'dragging-active' : ''}`}
+            className={`file-explorer ${dragState.isDragging ? 'dragging-active' : ''}`}
             onSelectStart={(e) => e.preventDefault()}
             onDragEnd={handleDragEnd}
             onContextMenu={(e) => {
@@ -305,10 +305,14 @@ export function App() {
                             'Ready'
                         }
                     </span>
-                    {/* Performance indicator */}
+                    {/* Performance indicator - Complete UI render timing */}
                     {navigationStats.totalNavigations > 0 && (
                         <span className="text-technical" style={PERFORMANCE_INDICATOR_STYLE}>
-                            {Math.round(navigationStats.lastNavigationTime)}ms last navigation
+                            {navigationStats.lastNavigationTime === 0 ? 
+                                'Measuring...' : 
+                                `${Math.round(navigationStats.lastNavigationTime)}ms fresh data`
+                            }
+                            {` (${navigationStats.totalNavigations} real-time loads)`}
                         </span>
                     )}
                 </div>
@@ -528,7 +532,7 @@ export function App() {
                     {dragState.isDragging && ` • Dragging ${dragState.draggedFiles.length} item${dragState.draggedFiles.length === 1 ? '' : 's'} (${dragState.dragOperation === 'copy' ? 'Hold Ctrl to copy' : 'Release Ctrl to move'})`}
                 </span>
                 <span style={STATUS_BAR_RIGHT_STYLE}>
-                    File Explorer • Drag to folders to move/copy
+                    File Explorer • Real-time updates • Drag to folders to move/copy
                 </span>
             </div>
         </div>

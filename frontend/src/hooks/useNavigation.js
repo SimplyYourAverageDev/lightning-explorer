@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "preact/hooks";
 import { NavigateToPath } from "../../wailsjs/go/backend/App";
+import { EventsOn, EventsOff } from "../../wailsjs/runtime/runtime";
 import { log, error } from "../utils/logger";
 
 export function useNavigation(setError, setNavigationStats) {
@@ -11,6 +12,7 @@ export function useNavigation(setError, setNavigationStats) {
     // Performance tracking refs
     const navigationStartTime = useRef(null);
     const loadingTimeout = useRef(null);
+    const renderCompleteCallback = useRef(null);
 
     // Smart loading indicator management
     const showSmartLoadingIndicator = useCallback(() => {
@@ -35,15 +37,52 @@ export function useNavigation(setError, setNavigationStats) {
         setShowLoadingIndicator(false);
     }, []);
 
-    // Navigate to path - always loads from backend
+    // Helper function to measure render completion time
+    const measureRenderTime = useCallback((startTime, source = 'unknown') => {
+        // Wait for multiple animation frames to ensure rendering is complete
+        // This accounts for: DOM updates, style calculations, layout, paint, and composite
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const totalTime = Date.now() - startTime;
+                    const renderPhaseTime = totalTime - (source === 'backend' ? 0 : 0); // Can track backend vs render split if needed
+                    
+                    // Update performance stats with the complete UI render time
+                    setNavigationStats(prev => ({
+                        totalNavigations: prev.totalNavigations + 1,
+                        averageTime: (prev.averageTime * prev.totalNavigations + totalTime) / (prev.totalNavigations + 1),
+                        lastNavigationTime: totalTime
+                    }));
+                    
+                    log(`✅ Complete navigation with UI render: ${totalTime}ms total (includes backend + rendering)`);
+                    
+                    // Clear the callback reference
+                    renderCompleteCallback.current = null;
+                });
+            });
+        });
+    }, [setNavigationStats]);
+
+    // Navigate to path with real-time fresh data
     const navigateToPath = useCallback(async (path, source = 'user') => {
-        log(`🧭 Navigation request: ${path} (${source})`);
+        log(`🧭 Navigation request: ${path} (${source}) - Real-time mode`);
         navigationStartTime.current = Date.now();
+        
+        // Clear any pending render completion callback
+        if (renderCompleteCallback.current) {
+            renderCompleteCallback.current = null;
+        }
+        
+        // Set measuring state to show progress in UI
+        setNavigationStats(prev => ({
+            ...prev,
+            lastNavigationTime: 0 // This will trigger "Measuring..." display
+        }));
         
         try {
             setError('');
             
-            // Show loading indicator
+            // Always fetch fresh data from backend (no caching)
             setIsActuallyLoading(true);
             showSmartLoadingIndicator();
             
@@ -56,19 +95,15 @@ export function useNavigation(setError, setNavigationStats) {
             const response = await Promise.race([navigationPromise, timeoutPromise]);
             
             if (response && response.success) {
+                const backendTime = Date.now() - navigationStartTime.current;
+                log(`📊 Fresh backend response received in ${backendTime}ms, starting UI render...`);
+                
                 setCurrentPath(response.data.currentPath);
                 setDirectoryContents(response.data);
                 
-                // Update performance stats
-                const navigationTime = Date.now() - navigationStartTime.current;
-                setNavigationStats(prev => ({
-                    totalNavigations: prev.totalNavigations + 1,
-                    cacheHits: prev.cacheHits,
-                    averageTime: (prev.averageTime * prev.totalNavigations + navigationTime) / (prev.totalNavigations + 1),
-                    lastNavigationTime: Date.now() - navigationStartTime.current
-                }));
+                // Measure render completion time for fresh data
+                measureRenderTime(navigationStartTime.current, 'backend');
                 
-                log(`✅ Navigation completed in ${navigationTime}ms: ${response.data.currentPath}`);
             } else {
                 const errorMsg = response?.message || 'Unknown navigation error';
                 setError(errorMsg);
@@ -81,7 +116,7 @@ export function useNavigation(setError, setNavigationStats) {
             setIsActuallyLoading(false);
             hideLoadingIndicator();
         }
-    }, [setError, setNavigationStats, showSmartLoadingIndicator, hideLoadingIndicator]);
+    }, [setError, measureRenderTime, showSmartLoadingIndicator, hideLoadingIndicator]);
 
     // Navigate up
     const handleNavigateUp = useCallback(async () => {
@@ -108,11 +143,58 @@ export function useNavigation(setError, setNavigationStats) {
         }
     }, [currentPath, navigateToPath]);
 
+    // Listen for progressive hydration events
+    useEffect(() => {
+        const unsubscribeHydrate = EventsOn("DirectoryHydrate", (fileInfo) => {
+            log(`🔄 Hydrating file: ${fileInfo.name}`);
+            
+            setDirectoryContents(prev => {
+                if (!prev) return prev;
+                
+                // Find and update the matching entry
+                const allFiles = [...prev.directories, ...prev.files];
+                const updatedFiles = allFiles.map(file => 
+                    file.path === fileInfo.path ? fileInfo : file
+                );
+                
+                // Split back into directories and files
+                const directories = updatedFiles.filter(f => f.isDir);
+                const files = updatedFiles.filter(f => !f.isDir);
+                
+                return {
+                    ...prev,
+                    directories,
+                    files,
+                    totalDirs: directories.length,
+                    totalFiles: files.length
+                };
+            });
+        });
+
+        const unsubscribeComplete = EventsOn("DirectoryComplete", (data) => {
+            log(`✅ Directory hydration completed: ${data.path} (${data.totalFiles} files processed)`);
+            
+            // Update performance stats to reflect completion
+            setNavigationStats(prev => ({
+                ...prev,
+                lastHydrationTime: Date.now()
+            }));
+        });
+        
+        return () => {
+            EventsOff("DirectoryHydrate");
+            EventsOff("DirectoryComplete");
+        };
+    }, [setNavigationStats]);
+
     // Cleanup on unmount
     useEffect(() => {
         return () => {
             if (loadingTimeout.current) {
                 clearTimeout(loadingTimeout.current);
+            }
+            if (renderCompleteCallback.current) {
+                renderCompleteCallback.current = null;
             }
         };
     }, []);

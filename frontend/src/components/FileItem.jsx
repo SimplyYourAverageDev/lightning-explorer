@@ -19,7 +19,8 @@ const FileItem = memo(({
     onDragEnter, 
     onDragLeave, 
     onDrop, 
-    isDragOver 
+    isDragOver,
+
 }) => {
     const icon = useMemo(() => getFileIcon(file.name, file.isDir), [file.name, file.isDir]);
     const type = useMemo(() => getFileType(file.name, file.isDir), [file.name, file.isDir]);
@@ -198,6 +199,8 @@ const FileItem = memo(({
             error('❌ Error parsing drag data:', err);
         }
     }, [file, isLoading, onDrop]);
+    
+
     
     return (
         <div 

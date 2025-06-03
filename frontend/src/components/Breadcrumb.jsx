@@ -1,60 +1,65 @@
 import { memo, useMemo, useCallback } from "preact/compat";
 
 // Memoized Breadcrumb component
-const Breadcrumb = memo(({ currentPath, onNavigate }) => {
-    const segments = useMemo(() => 
-        currentPath.split(/[\/\\]/).filter(Boolean), 
-        [currentPath]
-    );
+const Breadcrumb = memo(({ 
+    currentPath, 
+    onNavigate
+}) => {
+    const segments = useMemo(() => {
+        if (!currentPath) return [];
+        
+        // Handle Windows and Unix paths differently
+        const isWindows = currentPath.includes('\\') || currentPath.includes(':');
+        
+        if (isWindows) {
+            // For Windows paths like "C:\Users\username"
+            const parts = currentPath.split(/[\\]/);
+            return parts.filter(Boolean);
+        } else {
+            // For Unix paths like "/home/username"
+            const parts = currentPath.split('/');
+            return parts.filter(Boolean);
+        }
+    }, [currentPath]);
     
     const handleSegmentClick = useCallback((index) => {
-        if (index === -1) {
-            // Root click - navigate to first drive on Windows or root on Unix
-            if (segments.length > 0 && segments[0].includes(':')) {
-                // Windows - navigate to drive root
-                onNavigate(segments[0] + '\\');
-            } else {
-                // Unix - navigate to root
-                onNavigate('/');
+        // Build path from segments
+        const pathSegments = segments.slice(0, index + 1);
+        let newPath;
+        
+        // Detect Windows vs Unix path
+        const isWindows = currentPath.includes('\\') || currentPath.includes(':');
+        
+        if (isWindows) {
+            // Windows path reconstruction
+            newPath = pathSegments.join('\\');
+            // Add trailing backslash for drive roots
+            if (index === 0 && pathSegments[0].includes(':')) {
+                newPath += '\\';
             }
         } else {
-            // Build path from segments
-            const pathSegments = segments.slice(0, index + 1);
-            let newPath;
-            
-            if (pathSegments[0].includes(':')) {
-                // Windows path
-                newPath = pathSegments.join('\\');
-                if (!newPath.endsWith('\\') && index === 0) {
-                    newPath += '\\';
-                }
-            } else {
-                // Unix path
-                newPath = '/' + pathSegments.join('/');
-            }
-            
-            onNavigate(newPath);
+            // Unix path reconstruction
+            newPath = '/' + pathSegments.join('/');
         }
-    }, [segments, onNavigate]);
+        
+        onNavigate(newPath);
+    }, [segments, onNavigate, currentPath]);
+    
+    if (!segments.length) return null;
     
     return (
         <div className="nav-breadcrumb custom-scrollbar" onSelectStart={(e) => e.preventDefault()}>
-            <span 
-                className="nav-segment" 
-                onClick={() => handleSegmentClick(-1)}
-            >
-                ROOT
-            </span>
             {segments.map((segment, index) => (
-                <span key={index}>
-                    <span className="separator">/</span>
+                <div key={index} className="breadcrumb-segment-wrapper">
+                    {index > 0 && <span className="separator">{'/'}</span>}
                     <span 
                         className={`nav-segment ${index === segments.length - 1 ? 'current' : ''}`}
                         onClick={() => handleSegmentClick(index)}
+                        title={segment}
                     >
                         {segment}
                     </span>
-                </span>
+                </div>
             ))}
         </div>
     );

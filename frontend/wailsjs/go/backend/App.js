@@ -106,6 +106,10 @@ export function OpenTerminalHere(arg1) {
   return window['go']['backend']['App']['OpenTerminalHere'](arg1);
 }
 
+export function PrefetchDirectory(arg1) {
+  return window['go']['backend']['App']['PrefetchDirectory'](arg1);
+}
+
 export function RenameFile(arg1, arg2) {
   return window['go']['backend']['App']['RenameFile'](arg1, arg2);
 }

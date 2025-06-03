@@ -10,7 +10,7 @@ export default {
         'wails-dark': 'rgba(27, 38, 54, 1)',
       },
       fontFamily: {
-        'nunito': ['Nunito', 'sans-serif'],
+        'jetbrains': ['JetBrains Mono', 'monospace'],
       },
     },
   },

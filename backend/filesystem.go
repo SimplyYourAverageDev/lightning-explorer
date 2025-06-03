@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -18,16 +19,22 @@ func NewFileSystemManager(platform PlatformManagerInterface) *FileSystemManager 
 	}
 }
 
-// ListDirectory lists the contents of a directory
+// SetContext sets the Wails context for event emission
+func (fs *FileSystemManager) SetContext(ctx context.Context) {
+	fs.ctx = ctx
+	fs.eventEmitter = NewEventEmitter(ctx)
+}
+
+// ListDirectory lists the contents of a directory with streaming optimization
 func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	startTime := time.Now()
-	log.Printf("📂 Listing directory: %s", path)
+	log.Printf("📂 Listing directory with streaming: %s", path)
 
 	if path == "" {
 		path = fs.platform.GetHomeDirectory()
 	}
 
-	// Clean and validate path - optimized for Windows
+	// Clean and validate path
 	path = filepath.Clean(path)
 
 	// Quick existence check first
@@ -46,8 +53,8 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		}
 	}
 
-	// Read directory entries
-	entries, err := os.ReadDir(path)
+	// Use optimized enumeration
+	basicEntries, err := listDirectoryBasic(path)
 	if err != nil {
 		return NavigationResponse{
 			Success: false,
@@ -55,24 +62,49 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		}
 	}
 
-	// Pre-allocate slices with better size estimation
-	totalEntries := len(entries)
-	// Use actual directory/file ratio heuristics (usually 20-30% directories)
-	estimatedDirs := totalEntries / 4
-	estimatedFiles := totalEntries - estimatedDirs
-
-	files := make([]FileInfo, 0, estimatedFiles)
-	directories := make([]FileInfo, 0, estimatedDirs)
-
-	// Optimized processing based on directory size
-	if totalEntries > 50 { // Lower threshold for concurrent processing
-		files, directories = fs.processEntriesConcurrent(path, entries)
-	} else {
-		// Process entries synchronously for small directories (faster for small dirs)
-		files, directories = fs.processEntriesSync(path, entries, files, directories)
+	// Filter out skipped files
+	var filteredEntries []BasicEntry
+	for _, entry := range basicEntries {
+		if !fs.shouldSkipFile(entry.Name) {
+			filteredEntries = append(filteredEntries, entry)
+		}
 	}
 
-	// Optimized sorting using string comparison with locale awareness
+	// Split into first page and rest for background processing
+	const pageSize = 100
+	firstPage := filteredEntries
+	var rest []BasicEntry
+
+	if len(filteredEntries) > pageSize {
+		firstPage = filteredEntries[:pageSize]
+		rest = filteredEntries[pageSize:]
+	}
+
+	// Convert first page to FileInfo with minimal data
+	files := make([]FileInfo, 0, pageSize/2)
+	directories := make([]FileInfo, 0, pageSize/2)
+
+	for _, entry := range firstPage {
+		// Create minimal FileInfo for immediate display
+		fileInfo := FileInfo{
+			Name:        entry.Name,
+			Path:        entry.Path,
+			IsDir:       entry.IsDir,
+			Extension:   entry.Extension,
+			IsHidden:    entry.IsHidden,
+			Size:        0,           // Defer size calculation
+			ModTime:     time.Time{}, // Defer mod time
+			Permissions: "",          // Defer permissions
+		}
+
+		if entry.IsDir {
+			directories = append(directories, fileInfo)
+		} else {
+			files = append(files, fileInfo)
+		}
+	}
+
+	// Sort first page for immediate display
 	sort.Slice(directories, func(i, j int) bool {
 		return strings.ToLower(directories[i].Name) < strings.ToLower(directories[j].Name)
 	})
@@ -80,12 +112,13 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		return strings.ToLower(files[i].Name) < strings.ToLower(files[j].Name)
 	})
 
-	// Get parent path efficiently
+	// Get parent path
 	parentPath := filepath.Dir(path)
 	if parentPath == path {
-		parentPath = "" // At root
+		parentPath = ""
 	}
 
+	// Build immediate response
 	contents := DirectoryContents{
 		CurrentPath: path,
 		ParentPath:  parentPath,
@@ -95,14 +128,58 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		TotalDirs:   len(directories),
 	}
 
+	// Start background hydration if we have remaining entries
+	if len(rest) > 0 {
+		go fs.hydrateRemainingEntries(path, rest)
+	}
+
 	processingTime := time.Since(startTime)
-	log.Printf("✅ Directory listed in %v: %s (%d dirs, %d files)", processingTime, path, len(directories), len(files))
+	log.Printf("✅ First page listed in %v: %s (%d dirs, %d files, %d deferred)",
+		processingTime, path, len(directories), len(files), len(rest))
 
 	return NavigationResponse{
 		Success: true,
-		Message: fmt.Sprintf("Directory listed successfully in %v", processingTime),
+		Message: fmt.Sprintf("Directory listed (first page) in %v", processingTime),
 		Data:    contents,
 	}
+}
+
+// hydrateRemainingEntries processes remaining entries in background
+func (fs *FileSystemManager) hydrateRemainingEntries(basePath string, entries []BasicEntry) {
+	log.Printf("🔄 Starting background hydration for %d entries", len(entries))
+
+	for _, entry := range entries {
+		// Get full file info with stat data
+		info, err := os.Stat(entry.Path)
+		if err != nil {
+			log.Printf("⚠️ Failed to stat %s: %v", entry.Path, err)
+			continue
+		}
+
+		// Create complete FileInfo
+		fileInfo := FileInfo{
+			Name:        entry.Name,
+			Path:        entry.Path,
+			IsDir:       entry.IsDir,
+			Size:        info.Size(),
+			ModTime:     info.ModTime(),
+			Permissions: info.Mode().String(),
+			Extension:   entry.Extension,
+			IsHidden:    entry.IsHidden,
+		}
+
+		// Emit hydration event to frontend
+		if fs.eventEmitter != nil {
+			fs.eventEmitter.EmitDirectoryHydrate(fileInfo)
+		}
+	}
+
+	// Emit completion event
+	if fs.eventEmitter != nil {
+		fs.eventEmitter.EmitDirectoryComplete(basePath, len(entries), 0)
+	}
+
+	log.Printf("✅ Background hydration completed for %s", basePath)
 }
 
 // processEntriesSync processes directory entries synchronously with optimizations
@@ -329,7 +406,7 @@ func (fs *FileSystemManager) FileExists(path string) bool {
 	return !os.IsNotExist(err)
 }
 
-// CreateDirectory creates a new directory with cache invalidation
+// CreateDirectory creates a new directory
 func (fs *FileSystemManager) CreateDirectory(path, name string) NavigationResponse {
 	fullPath := filepath.Join(path, name)
 
