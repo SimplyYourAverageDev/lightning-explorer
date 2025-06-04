@@ -7,7 +7,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
-	"testui/backend"
+	"lightning_explorer/backend"
 )
 
 //go:embed all:frontend/dist
@@ -19,7 +19,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "Blueprint File Explorer",
+		Title:  "Lightning Explorer",
 		Width:  1400,
 		Height: 900,
 		AssetServer: &assetserver.Options{

@@ -13,8 +13,37 @@ export function useNavigation(setError, setNavigationStats) {
     const navigationStartTime = useRef(null);
     const loadingTimeout = useRef(null);
     const renderCompleteCallback = useRef(null);
+    
+    // SECURITY FIX: Track active navigation promises to prevent race conditions
+    const activeNavigationRef = useRef(null);
+    const navigationTimeoutRef = useRef(null);
 
-    // Smart loading indicator management
+    // MEMORY LEAK FIX: Comprehensive cleanup function
+    const cleanup = useCallback(() => {
+        // Clear all timeouts
+        if (loadingTimeout.current) {
+            clearTimeout(loadingTimeout.current);
+            loadingTimeout.current = null;
+        }
+        
+        if (navigationTimeoutRef.current) {
+            clearTimeout(navigationTimeoutRef.current);
+            navigationTimeoutRef.current = null;
+        }
+        
+        // Clear render callback
+        if (renderCompleteCallback.current) {
+            renderCompleteCallback.current = null;
+        }
+        
+        // Cancel active navigation
+        if (activeNavigationRef.current) {
+            activeNavigationRef.current.cancelled = true;
+            activeNavigationRef.current = null;
+        }
+    }, []);
+
+    // Smart loading indicator management with proper cleanup
     const showSmartLoadingIndicator = useCallback(() => {
         // Clear any existing timeout
         if (loadingTimeout.current) {
@@ -63,9 +92,25 @@ export function useNavigation(setError, setNavigationStats) {
         });
     }, [setNavigationStats]);
 
-    // Navigate to path with real-time fresh data
+    // RACE CONDITION FIX: Navigate to path with race condition prevention
     const navigateToPath = useCallback(async (path, source = 'user') => {
         log(`🧭 Navigation request: ${path} (${source}) - Real-time mode`);
+        
+        // Cancel any previous navigation
+        if (activeNavigationRef.current) {
+            activeNavigationRef.current.cancelled = true;
+        }
+        
+        // Clear previous timeout
+        if (navigationTimeoutRef.current) {
+            clearTimeout(navigationTimeoutRef.current);
+            navigationTimeoutRef.current = null;
+        }
+        
+        // Create new navigation context
+        const navigationContext = { cancelled: false };
+        activeNavigationRef.current = navigationContext;
+        
         navigationStartTime.current = Date.now();
         
         // Clear any pending render completion callback
@@ -86,49 +131,112 @@ export function useNavigation(setError, setNavigationStats) {
             setIsActuallyLoading(true);
             showSmartLoadingIndicator();
             
-            // Backend call with optimized timeout
+            // TIMEOUT FIX: Create proper timeout with cleanup
+            let timeoutId;
             const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Navigation timeout')), 5000);
+                timeoutId = setTimeout(() => {
+                    reject(new Error('Navigation timeout'));
+                }, 5000);
             });
+            
+            // Store timeout ID for cleanup
+            navigationTimeoutRef.current = timeoutId;
             
             const navigationPromise = NavigateToPath(path);
             const response = await Promise.race([navigationPromise, timeoutPromise]);
+            
+            // Clear timeout on successful completion
+            if (navigationTimeoutRef.current) {
+                clearTimeout(navigationTimeoutRef.current);
+                navigationTimeoutRef.current = null;
+            }
+            
+            // Check if this navigation was cancelled
+            if (navigationContext.cancelled) {
+                log(`🚫 Navigation cancelled: ${path}`);
+                return;
+            }
             
             if (response && response.success) {
                 const backendTime = Date.now() - navigationStartTime.current;
                 log(`📊 Fresh backend response received in ${backendTime}ms, starting UI render...`);
                 
-                setCurrentPath(response.data.currentPath);
-                setDirectoryContents(response.data);
-                
-                // Measure render completion time for fresh data
-                measureRenderTime(navigationStartTime.current, 'backend');
+                // Only update state if navigation wasn't cancelled
+                if (!navigationContext.cancelled) {
+                    setCurrentPath(response.data.currentPath);
+                    setDirectoryContents(response.data);
+                    
+                    // Measure render completion time for fresh data
+                    measureRenderTime(navigationStartTime.current, 'backend');
+                }
                 
             } else {
                 const errorMsg = response?.message || 'Unknown navigation error';
-                setError(errorMsg);
-                error('❌ Navigation failed:', errorMsg);
+                if (!navigationContext.cancelled) {
+                    setError(errorMsg);
+                    error('❌ Navigation failed:', errorMsg);
+                }
             }
         } catch (err) {
-            error('❌ Navigation error:', err);
-            setError('Failed to navigate: ' + err.message);
+            // Clear timeout on error
+            if (navigationTimeoutRef.current) {
+                clearTimeout(navigationTimeoutRef.current);
+                navigationTimeoutRef.current = null;
+            }
+            
+            if (!navigationContext.cancelled) {
+                error('❌ Navigation error:', err);
+                setError('Failed to navigate: ' + err.message);
+            }
         } finally {
-            setIsActuallyLoading(false);
-            hideLoadingIndicator();
+            // Only update loading state if navigation wasn't cancelled
+            if (!navigationContext.cancelled) {
+                setIsActuallyLoading(false);
+                hideLoadingIndicator();
+            }
+            
+            // Clear active navigation if it's still this one
+            if (activeNavigationRef.current === navigationContext) {
+                activeNavigationRef.current = null;
+            }
         }
     }, [setError, measureRenderTime, showSmartLoadingIndicator, hideLoadingIndicator]);
 
-    // Navigate up
+    // Navigate up with proper path validation
     const handleNavigateUp = useCallback(async () => {
         if (!currentPath) return;
         
         try {
-            // Calculate parent path
-            const parentPath = currentPath.includes('\\') 
-                ? currentPath.split('\\').slice(0, -1).join('\\')
-                : currentPath.split('/').slice(0, -1).join('/');
+            // SECURITY FIX: Proper path validation for navigate up
+            const cleanPath = currentPath.trim();
+            if (!cleanPath) return;
+            
+            // Calculate parent path safely
+            let parentPath;
+            if (cleanPath.includes('\\')) {
+                // Windows path
+                const parts = cleanPath.split('\\').filter(part => part.length > 0);
+                if (parts.length <= 1) return; // Already at root
+                parentPath = parts.slice(0, -1).join('\\');
+                // Ensure drive letter format for Windows
+                if (parentPath.length === 1 && parentPath.match(/[A-Za-z]/)) {
+                    parentPath += ':';
+                }
+                if (parentPath.length === 2 && parentPath.endsWith(':')) {
+                    parentPath += '\\';
+                }
+            } else {
+                // Unix-like path
+                const parts = cleanPath.split('/').filter(part => part.length > 0);
+                if (parts.length === 0) return; // Already at root
+                parentPath = '/' + parts.slice(0, -1).join('/');
+                if (parentPath === '/') {
+                    // Already at root
+                    return;
+                }
+            }
                 
-            if (parentPath && parentPath !== currentPath) {
+            if (parentPath && parentPath !== cleanPath) {
                 await navigateToPath(parentPath, 'navigate-up');
             }
         } catch (err) {
@@ -143,13 +251,23 @@ export function useNavigation(setError, setNavigationStats) {
         }
     }, [currentPath, navigateToPath]);
 
-    // Listen for progressive hydration events
+    // HYDRATION FIX: Listen for progressive hydration events with bounds checking
     useEffect(() => {
         const unsubscribeHydrate = EventsOn("DirectoryHydrate", (fileInfo) => {
             log(`🔄 Hydrating file: ${fileInfo.name}`);
             
             setDirectoryContents(prev => {
                 if (!prev) return prev;
+                
+                // SECURITY FIX: Validate that this hydration is for the current directory
+                const currentDir = prev.currentPath;
+                const fileDir = fileInfo.path ? fileInfo.path.substring(0, fileInfo.path.lastIndexOf('/') || fileInfo.path.lastIndexOf('\\')) : '';
+                
+                // Only process hydration for files in the current directory
+                if (currentDir !== fileDir) {
+                    log(`🚫 Ignoring hydration for ${fileInfo.path} - not in current directory ${currentDir}`);
+                    return prev;
+                }
                 
                 // Find and update the matching entry
                 const allFiles = [...prev.directories, ...prev.files];
@@ -187,17 +305,10 @@ export function useNavigation(setError, setNavigationStats) {
         };
     }, [setNavigationStats]);
 
-    // Cleanup on unmount
+    // MEMORY LEAK FIX: Cleanup on unmount
     useEffect(() => {
-        return () => {
-            if (loadingTimeout.current) {
-                clearTimeout(loadingTimeout.current);
-            }
-            if (renderCompleteCallback.current) {
-                renderCompleteCallback.current = null;
-            }
-        };
-    }, []);
+        return cleanup;
+    }, [cleanup]);
 
     return {
         currentPath,

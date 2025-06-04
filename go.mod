@@ -1,4 +1,4 @@
-module testui
+module lightning_explorer
 
 go 1.23
 

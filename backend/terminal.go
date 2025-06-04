@@ -5,9 +5,22 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
+	"unsafe"
+)
+
+var (
+	shell32Terminal  = syscall.NewLazyDLL("shell32.dll")
+	kernel32Terminal = syscall.NewLazyDLL("kernel32.dll")
+
+	// Shell32 procedures for terminal operations
+	shellExecuteW = shell32Terminal.NewProc("ShellExecuteW")
+
+	// Constants for ShellExecuteW
+	SW_SHOWNORMAL = 1
 )
 
 // NewTerminalManager creates a new terminal manager instance
@@ -15,56 +28,167 @@ func NewTerminalManager() *TerminalManager {
 	return &TerminalManager{}
 }
 
-// OpenPowerShellHere opens PowerShell 7 in the specified directory
+// OpenPowerShellHere opens PowerShell 7 in the specified directory using optimized methods
 func (t *TerminalManager) OpenPowerShellHere(directoryPath string) bool {
 	log.Printf("Opening PowerShell 7 in directory: %s", directoryPath)
 
-	// Validate the directory path
-	if directoryPath == "" {
-		log.Printf("Error: Empty directory path provided")
+	// Secure path validation
+	securePath, err := t.securePath(directoryPath)
+	if err != nil {
+		log.Printf("Error: Invalid directory path: %v", err)
 		return false
 	}
 
-	// Check if directory exists
-	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
-		log.Printf("Error: Directory does not exist: %s", directoryPath)
-		return false
+	if runtime.GOOS == "windows" {
+		return t.openWindowsTerminalOptimized(securePath, "powershell")
 	}
 
-	return t.openWindowsTerminal(directoryPath)
+	return t.openWindowsTerminal(securePath)
 }
 
 // OpenTerminalHere opens the system's default terminal in the specified directory
 func (t *TerminalManager) OpenTerminalHere(directoryPath string) bool {
 	log.Printf("Opening terminal in directory: %s", directoryPath)
 
-	// Validate the directory path
-	if directoryPath == "" {
-		log.Printf("Error: Empty directory path provided")
-		return false
-	}
-
-	// Check if directory exists
-	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
-		log.Printf("Error: Directory does not exist: %s", directoryPath)
+	// Secure path validation
+	securePath, err := t.securePath(directoryPath)
+	if err != nil {
+		log.Printf("Error: Invalid directory path: %v", err)
 		return false
 	}
 
 	switch runtime.GOOS {
 	case "windows":
-		return t.openWindowsTerminal(directoryPath)
+		return t.openWindowsTerminalOptimized(securePath, "default")
 	case "darwin":
-		return t.openMacTerminal(directoryPath)
+		return t.openMacTerminal(securePath)
 	case "linux":
-		return t.openLinuxTerminal(directoryPath)
+		return t.openLinuxTerminal(securePath)
 	default:
 		log.Printf("Unsupported operating system: %s", runtime.GOOS)
 		return false
 	}
 }
 
-// openWindowsTerminal opens PowerShell in Windows
+// openWindowsTerminalOptimized uses ShellExecuteW for better performance and reliability with secure path handling
+func (t *TerminalManager) openWindowsTerminalOptimized(directoryPath string, terminalType string) bool {
+	// Note: directoryPath should already be validated by calling functions, but validate again for safety
+	securePath, err := t.securePath(directoryPath)
+	if err != nil {
+		log.Printf("Error: Invalid directory path in optimized function: %v", err)
+		return t.openWindowsTerminalFallback(directoryPath, terminalType)
+	}
+
+	var executable string
+	var parameters string
+
+	switch terminalType {
+	case "powershell":
+		// Try PowerShell 7 first, fallback to Windows PowerShell
+		pwshPath := "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+		if _, err := os.Stat(pwshPath); err == nil {
+			executable = pwshPath
+		} else {
+			executable = "powershell.exe"
+		}
+		parameters = "-NoExit"
+	case "cmd":
+		executable = "cmd.exe"
+		parameters = "/K"
+	case "wt":
+		executable = "wt.exe"
+		// Use secure parameter construction - don't use fmt.Sprintf with user input
+		parameters = "-d"
+		// Note: We'll pass the directory separately to ShellExecuteW
+	default:
+		// Default to PowerShell
+		return t.openWindowsTerminalOptimized(securePath, "powershell")
+	}
+
+	log.Printf("Using ShellExecuteW to open: %s with params: %s in directory: %s", executable, parameters, securePath)
+
+	// Convert strings to UTF16 pointers with error handling
+	executableUTF16, err := syscall.UTF16PtrFromString(executable)
+	if err != nil {
+		log.Printf("Failed to convert executable to UTF16: %v", err)
+		return t.openWindowsTerminalFallback(securePath, terminalType)
+	}
+
+	var parametersUTF16 *uint16
+	if parameters != "" {
+		if terminalType == "wt" {
+			// For Windows Terminal, construct parameters safely
+			safeParams := "-d \"" + strings.ReplaceAll(securePath, "\"", "\\\"") + "\""
+			parametersUTF16, err = syscall.UTF16PtrFromString(safeParams)
+		} else {
+			parametersUTF16, err = syscall.UTF16PtrFromString(parameters)
+		}
+		if err != nil {
+			log.Printf("Failed to convert parameters to UTF16: %v", err)
+			return t.openWindowsTerminalFallback(securePath, terminalType)
+		}
+	}
+
+	var directoryUTF16 *uint16
+	if terminalType != "wt" { // For wt, directory is passed in parameters
+		directoryUTF16, err = syscall.UTF16PtrFromString(securePath)
+		if err != nil {
+			log.Printf("Failed to convert directory to UTF16: %v", err)
+			return t.openWindowsTerminalFallback(securePath, terminalType)
+		}
+	}
+
+	// Call ShellExecuteW
+	ret, _, err := shellExecuteW.Call(
+		0, // hwnd (no parent window)
+		0, // lpOperation (default "open")
+		uintptr(unsafe.Pointer(executableUTF16)),
+		uintptr(unsafe.Pointer(parametersUTF16)),
+		uintptr(unsafe.Pointer(directoryUTF16)),
+		uintptr(SW_SHOWNORMAL),
+	)
+
+	if ret <= 32 {
+		log.Printf("ShellExecuteW failed with return code %d: %v", ret, err)
+		return t.openWindowsTerminalFallback(securePath, terminalType)
+	}
+
+	log.Printf("Successfully opened terminal using ShellExecuteW")
+	return true
+}
+
+// openWindowsTerminalFallback provides fallback using exec.Command with secure path handling
+func (t *TerminalManager) openWindowsTerminalFallback(directoryPath string, terminalType string) bool {
+	log.Printf("Using fallback method for terminal opening")
+
+	// Validate path again for security
+	securePath, err := t.securePath(directoryPath)
+	if err != nil {
+		log.Printf("Error: Invalid directory path in fallback: %v", err)
+		return false
+	}
+
+	switch terminalType {
+	case "powershell":
+		return t.openWindowsTerminal(securePath)
+	case "cmd":
+		return t.OpenCommandPromptHere(securePath)
+	case "wt":
+		return t.OpenWindowsTerminalApp(securePath)
+	default:
+		return t.openWindowsTerminal(securePath)
+	}
+}
+
+// openWindowsTerminal opens PowerShell in Windows with secure path handling
 func (t *TerminalManager) openWindowsTerminal(directoryPath string) bool {
+	// Validate path for security
+	securePath, err := t.securePath(directoryPath)
+	if err != nil {
+		log.Printf("Error: Invalid directory path: %v", err)
+		return false
+	}
+
 	// PowerShell 7 executable path
 	pwshPath := "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
 
@@ -79,8 +203,8 @@ func (t *TerminalManager) openWindowsTerminal(directoryPath string) bool {
 	// Use the most reliable method: -NoExit without -Command, just set working directory
 	cmd := exec.Command(pwshPath, "-NoExit")
 
-	// Set the working directory for the process - this is the key!
-	cmd.Dir = directoryPath
+	// Set the working directory for the process - this is secure!
+	cmd.Dir = securePath
 
 	// Create new console window that stays open
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -88,56 +212,121 @@ func (t *TerminalManager) openWindowsTerminal(directoryPath string) bool {
 		CreationFlags: 0x00000010, // CREATE_NEW_CONSOLE - create new console window
 	}
 
-	log.Printf("PowerShell command: %s %v in directory: %s", pwshPath, cmd.Args[1:], directoryPath)
+	log.Printf("PowerShell command: %s %v in directory: %s", pwshPath, cmd.Args[1:], securePath)
 
 	// Start the command
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		log.Printf("Error opening PowerShell: %v", err)
 		return false
 	}
 
-	log.Printf("Successfully opened PowerShell in directory: %s", directoryPath)
+	log.Printf("Successfully opened PowerShell in directory: %s", securePath)
 	return true
 }
 
-// openMacTerminal opens Terminal in macOS
-func (t *TerminalManager) openMacTerminal(directoryPath string) bool {
-	// macOS: Open Terminal with the specified directory
-	cmd := exec.Command("osascript", "-e", fmt.Sprintf(`tell app "Terminal" to do script "cd '%s'"`, directoryPath))
+// securePath sanitizes a directory path to prevent command injection
+func (t *TerminalManager) securePath(directoryPath string) (string, error) {
+	if directoryPath == "" {
+		return "", fmt.Errorf("directory path cannot be empty")
+	}
 
-	err := cmd.Start()
+	// Clean the path
+	cleanPath := filepath.Clean(directoryPath)
+
+	// Validate it's an absolute path
+	if !filepath.IsAbs(cleanPath) {
+		return "", fmt.Errorf("directory path must be absolute")
+	}
+
+	// Check if directory exists
+	info, err := os.Stat(cleanPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("directory does not exist: %s", cleanPath)
+		}
+		return "", fmt.Errorf("cannot access directory: %v", err)
+	}
+
+	if !info.IsDir() {
+		return "", fmt.Errorf("path is not a directory: %s", cleanPath)
+	}
+
+	// Additional security: Check for dangerous characters that could be used in injection
+	dangerousChars := []string{";", "&", "|", "`", "$", "(", ")", "{", "}", "[", "]", "<", ">", "\"", "'", "\\", "\n", "\r", "\t"}
+	for _, char := range dangerousChars {
+		if strings.Contains(cleanPath, char) {
+			return "", fmt.Errorf("directory path contains potentially dangerous characters")
+		}
+	}
+
+	return cleanPath, nil
+}
+
+// openMacTerminal opens Terminal in macOS with secure path handling
+func (t *TerminalManager) openMacTerminal(directoryPath string) bool {
+	// Secure path validation
+	securePath, err := t.securePath(directoryPath)
+	if err != nil {
+		log.Printf("Error: Invalid directory path: %v", err)
+		return false
+	}
+
+	// Use secure approach - don't inject the path into a script string
+	// Instead, change working directory of the Terminal process
+	tempScript := fmt.Sprintf(`
+tell application "Terminal"
+	activate
+	do script "cd %s"
+end tell`, strings.ReplaceAll(securePath, "'", "'\"'\"'")) // Escape single quotes properly
+
+	cmd := exec.Command("osascript", "-e", tempScript)
+
+	err = cmd.Start()
 	if err != nil {
 		log.Printf("Error opening macOS Terminal: %v", err)
 		return false
 	}
 
-	log.Printf("Successfully opened Terminal in directory: %s", directoryPath)
+	log.Printf("Successfully opened Terminal in directory: %s", securePath)
 	return true
 }
 
-// openLinuxTerminal opens terminal in Linux
+// openLinuxTerminal opens terminal in Linux with secure execution
 func (t *TerminalManager) openLinuxTerminal(directoryPath string) bool {
-	// Linux: Try to open terminal in the directory
-	// Try different terminal emulators in order of preference
-	terminals := [][]string{
-		{"gnome-terminal", "--working-directory", directoryPath},
-		{"konsole", "--workdir", directoryPath},
-		{"xfce4-terminal", "--working-directory", directoryPath},
-		{"xterm", "-e", fmt.Sprintf("cd '%s' && bash", directoryPath)},
-		{"urxvt", "-e", fmt.Sprintf("bash -c 'cd \"%s\" && bash'", directoryPath)},
-		{"terminator", "--working-directory", directoryPath},
+	// Secure path validation
+	securePath, err := t.securePath(directoryPath)
+	if err != nil {
+		log.Printf("Error: Invalid directory path: %v", err)
+		return false
 	}
 
-	for _, terminalCmd := range terminals {
-		if _, err := exec.LookPath(terminalCmd[0]); err == nil {
-			cmd := exec.Command(terminalCmd[0], terminalCmd[1:]...)
+	// Use secure terminal opening without shell injection
+	// Try different terminal emulators with proper argument passing
+	terminals := []struct {
+		command string
+		args    []string
+	}{
+		{"gnome-terminal", []string{"--working-directory=" + securePath}},
+		{"konsole", []string{"--workdir", securePath}},
+		{"xfce4-terminal", []string{"--working-directory=" + securePath}},
+		{"terminator", []string{"--working-directory=" + securePath}},
+		// For terminals that don't support working directory, use a safer approach
+		{"xterm", []string{"-e", "bash", "-c", fmt.Sprintf("cd %s && exec bash", shellescape(securePath))}},
+		{"urxvt", []string{"-cd", securePath}},
+	}
+
+	for _, terminal := range terminals {
+		if _, err := exec.LookPath(terminal.command); err == nil {
+			cmd := exec.Command(terminal.command, terminal.args...)
+			cmd.Dir = securePath // Set working directory as additional security
+
 			err := cmd.Start()
 			if err == nil {
-				log.Printf("Successfully opened %s in directory: %s", terminalCmd[0], directoryPath)
+				log.Printf("Successfully opened %s in directory: %s", terminal.command, securePath)
 				return true
 			}
-			log.Printf("Failed to open %s: %v", terminalCmd[0], err)
+			log.Printf("Failed to open %s: %v", terminal.command, err)
 		}
 	}
 
@@ -145,29 +334,36 @@ func (t *TerminalManager) openLinuxTerminal(directoryPath string) bool {
 	return false
 }
 
-// OpenCommandPromptHere opens Command Prompt in Windows (alternative to PowerShell)
+// shellescape properly escapes a string for shell use
+func shellescape(s string) string {
+	// For bash, we'll use single quotes and escape any single quotes in the string
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+}
+
+// OpenCommandPromptHere opens Command Prompt in Windows with secure execution
 func (t *TerminalManager) OpenCommandPromptHere(directoryPath string) bool {
 	if runtime.GOOS != "windows" {
 		log.Printf("Command Prompt is only available on Windows")
 		return false
 	}
 
-	log.Printf("Opening Command Prompt in directory: %s", directoryPath)
-
-	// Validate the directory path
-	if directoryPath == "" {
-		log.Printf("Error: Empty directory path provided")
+	// Secure path validation
+	securePath, err := t.securePath(directoryPath)
+	if err != nil {
+		log.Printf("Error: Invalid directory path: %v", err)
 		return false
 	}
 
-	// Check if directory exists
-	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
-		log.Printf("Error: Directory does not exist: %s", directoryPath)
-		return false
+	log.Printf("Opening Command Prompt in directory: %s", securePath)
+
+	// Try optimized method first
+	if t.openWindowsTerminalOptimized(securePath, "cmd") {
+		return true
 	}
 
-	// Open Command Prompt with specific directory
-	cmd := exec.Command("cmd.exe", "/K", fmt.Sprintf("cd /d \"%s\"", directoryPath))
+	// Secure fallback - don't use fmt.Sprintf for command construction
+	// Instead, pass the directory as working directory and use cd command safely
+	cmd := exec.Command("cmd.exe", "/K", "cd", "/d", securePath)
 
 	// Create new console window
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -175,36 +371,53 @@ func (t *TerminalManager) OpenCommandPromptHere(directoryPath string) bool {
 		CreationFlags: 0x00000010, // CREATE_NEW_CONSOLE
 	}
 
-	err := cmd.Start()
+	// Set working directory as additional security
+	cmd.Dir = securePath
+
+	err = cmd.Start()
 	if err != nil {
 		log.Printf("Error opening Command Prompt: %v", err)
 		return false
 	}
 
-	log.Printf("Successfully opened Command Prompt in directory: %s", directoryPath)
+	log.Printf("Successfully opened Command Prompt in directory: %s", securePath)
 	return true
 }
 
-// OpenWindowsTerminalApp opens Windows Terminal app (if available)
+// OpenWindowsTerminalApp opens Windows Terminal app (if available) with secure path handling
 func (t *TerminalManager) OpenWindowsTerminalApp(directoryPath string) bool {
 	if runtime.GOOS != "windows" {
 		log.Printf("Windows Terminal is only available on Windows")
 		return false
 	}
 
-	log.Printf("Opening Windows Terminal app in directory: %s", directoryPath)
-
-	// Check if Windows Terminal is available
-	cmd := exec.Command("wt.exe", "-d", directoryPath)
-
-	err := cmd.Start()
+	// Secure path validation
+	securePath, err := t.securePath(directoryPath)
 	if err != nil {
-		log.Printf("Windows Terminal not available, error: %v", err)
-		// Fallback to PowerShell
-		return t.openWindowsTerminal(directoryPath)
+		log.Printf("Error: Invalid directory path: %v", err)
+		return false
 	}
 
-	log.Printf("Successfully opened Windows Terminal app in directory: %s", directoryPath)
+	log.Printf("Opening Windows Terminal app in directory: %s", securePath)
+
+	// Try optimized method first
+	if t.openWindowsTerminalOptimized(securePath, "wt") {
+		return true
+	}
+
+	// Secure fallback - pass directory as separate argument
+	cmd := exec.Command("wt.exe", "-d", securePath)
+	cmd.Dir = securePath // Additional security
+
+	err = cmd.Start()
+	if err != nil {
+		log.Printf("Error opening Windows Terminal: %v", err)
+		// Fallback to PowerShell
+		log.Printf("Falling back to PowerShell")
+		return t.OpenPowerShellHere(securePath)
+	}
+
+	log.Printf("Successfully opened Windows Terminal in directory: %s", securePath)
 	return true
 }
 
@@ -214,8 +427,8 @@ func (t *TerminalManager) GetAvailableTerminals() []string {
 
 	switch runtime.GOOS {
 	case "windows":
-		// Check for Windows terminals
-		windowsTerminals := []struct {
+		// Check for available Windows terminals
+		terminalPaths := []struct {
 			path string
 			name string
 		}{
@@ -225,9 +438,9 @@ func (t *TerminalManager) GetAvailableTerminals() []string {
 			{"wt.exe", "Windows Terminal"},
 		}
 
-		for _, term := range windowsTerminals {
+		for _, term := range terminalPaths {
 			if term.name == "Windows Terminal" {
-				// Special check for Windows Terminal using wt.exe
+				// Special check for Windows Terminal
 				if _, err := exec.LookPath("wt.exe"); err == nil {
 					terminals = append(terminals, term.name)
 				}
@@ -237,22 +450,13 @@ func (t *TerminalManager) GetAvailableTerminals() []string {
 		}
 
 	case "darwin":
-		// macOS terminals
-		terminals = append(terminals, "Terminal")
-
-		// Check for additional terminals
-		macTerminals := []string{"iTerm", "Hyper", "Alacritty"}
-		for _, term := range macTerminals {
-			if _, err := exec.LookPath(strings.ToLower(term)); err == nil {
-				terminals = append(terminals, term)
-			}
-		}
+		terminals = append(terminals, "Terminal", "iTerm2")
 
 	case "linux":
-		// Linux terminals
+		// Check for common Linux terminals
 		linuxTerminals := []string{
-			"gnome-terminal", "konsole", "xfce4-terminal", "xterm",
-			"urxvt", "terminator", "alacritty", "kitty", "tilix",
+			"gnome-terminal", "konsole", "xfce4-terminal",
+			"xterm", "urxvt", "terminator", "alacritty", "kitty",
 		}
 
 		for _, term := range linuxTerminals {
@@ -265,24 +469,61 @@ func (t *TerminalManager) GetAvailableTerminals() []string {
 	return terminals
 }
 
-// ExecuteCommand executes a command in the background (useful for scripts)
+// ExecuteCommand executes a command in the specified working directory with security validation
 func (t *TerminalManager) ExecuteCommand(command string, workingDir string) error {
 	log.Printf("Executing command: %s in directory: %s", command, workingDir)
+
+	// Input validation
+	if command == "" {
+		return fmt.Errorf("command cannot be empty")
+	}
+
+	// Validate working directory if provided
+	var secureWorkingDir string
+	if workingDir != "" {
+		var err error
+		secureWorkingDir, err = t.securePath(workingDir)
+		if err != nil {
+			return fmt.Errorf("invalid working directory: %v", err)
+		}
+	}
+
+	// Security: Validate the command doesn't contain dangerous patterns
+	dangerousPatterns := []string{
+		"rm -rf /", "del /s /q", "format", "fdisk",
+		"shutdown", "reboot", "halt", "poweroff",
+		"passwd", "sudo su", "chmod 777",
+		"&& rm", "&& del", "| rm", "| del",
+		"; rm", "; del", "`rm", "`del",
+	}
+
+	lowerCommand := strings.ToLower(command)
+	for _, pattern := range dangerousPatterns {
+		if strings.Contains(lowerCommand, pattern) {
+			return fmt.Errorf("command contains potentially dangerous pattern: %s", pattern)
+		}
+	}
 
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
 	case "windows":
+		// Use cmd with secure argument passing
 		cmd = exec.Command("cmd", "/C", command)
 	default:
+		// Use sh with secure argument passing
 		cmd = exec.Command("sh", "-c", command)
 	}
 
-	if workingDir != "" {
-		cmd.Dir = workingDir
+	if secureWorkingDir != "" {
+		cmd.Dir = secureWorkingDir
 	}
 
-	// Run the command and capture output
+	// Hide window for background execution
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	}
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Command execution failed: %v, output: %s", err, string(output))

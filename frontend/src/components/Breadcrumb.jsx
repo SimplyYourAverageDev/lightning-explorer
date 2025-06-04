@@ -8,42 +8,23 @@ const Breadcrumb = memo(({
     const segments = useMemo(() => {
         if (!currentPath) return [];
         
-        // Handle Windows and Unix paths differently
-        const isWindows = currentPath.includes('\\') || currentPath.includes(':');
-        
-        if (isWindows) {
-            // For Windows paths like "C:\Users\username"
-            const parts = currentPath.split(/[\\]/);
-            return parts.filter(Boolean);
-        } else {
-            // For Unix paths like "/home/username"
-            const parts = currentPath.split('/');
-            return parts.filter(Boolean);
-        }
+        // Windows paths like "C:\Users\username"
+        const parts = currentPath.split(/[\\]/);
+        return parts.filter(Boolean);
     }, [currentPath]);
     
     const handleSegmentClick = useCallback((index) => {
-        // Build path from segments
+        // Build Windows path from segments
         const pathSegments = segments.slice(0, index + 1);
-        let newPath;
+        let newPath = pathSegments.join('\\');
         
-        // Detect Windows vs Unix path
-        const isWindows = currentPath.includes('\\') || currentPath.includes(':');
-        
-        if (isWindows) {
-            // Windows path reconstruction
-            newPath = pathSegments.join('\\');
-            // Add trailing backslash for drive roots
-            if (index === 0 && pathSegments[0].includes(':')) {
-                newPath += '\\';
-            }
-        } else {
-            // Unix path reconstruction
-            newPath = '/' + pathSegments.join('/');
+        // Add trailing backslash for drive roots
+        if (index === 0 && pathSegments[0].includes(':')) {
+            newPath += '\\';
         }
         
         onNavigate(newPath);
-    }, [segments, onNavigate, currentPath]);
+    }, [segments, onNavigate]);
     
     if (!segments.length) return null;
     

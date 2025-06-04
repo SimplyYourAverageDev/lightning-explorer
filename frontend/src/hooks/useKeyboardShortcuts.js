@@ -23,8 +23,7 @@ export function useKeyboardShortcuts({
             if (event.key === 'F5') {
                 event.preventDefault();
                 handleRefresh();
-            } else if ((event.key === 'Backspace' && !event.target.matches('input, textarea')) || 
-                     (event.altKey && event.key === 'ArrowLeft')) {
+            } else if (event.key === 'Backspace' && !event.target.matches('input, textarea')) {
                 event.preventDefault();
                 handleNavigateUp();
             } else if (event.key === 'Enter' && selectedFiles.size > 0) {

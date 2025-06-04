@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "testui",
-  "outputfilename": "testui",
+  "name": "lightning_explorer",
+  "outputfilename": "lightning_explorer",
   "frontend:install": "bun install",
   "frontend:build": "bun run build",
   "frontend:dev:watcher": "bun run dev",

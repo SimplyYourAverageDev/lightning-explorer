@@ -82,6 +82,10 @@ type PlatformManagerInterface interface {
 	HideFile(filePath string) bool
 	OpenFile(filePath string) bool
 	FormatFileSize(size int64) string
+	// Native Windows API methods
+	IsHiddenWindowsNative(filePath string) bool
+	HideFileWindowsNative(filePath string) bool
+	GetCurrentUserSIDNative() (string, error)
 }
 
 // DriveManagerInterface defines drive management contract

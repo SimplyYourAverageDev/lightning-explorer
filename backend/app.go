@@ -33,7 +33,7 @@ func (a *App) Startup(ctx context.Context) {
 		fsManager.SetContext(ctx)
 	}
 
-	log.Println("🚀 Blueprint File Explorer backend started with modular architecture")
+	log.Println("🚀 Lightning Explorer backend started with modular architecture")
 }
 
 // API Methods for Wails Frontend

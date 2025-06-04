@@ -1,5 +1,3 @@
 build/*
 node_modules
 frontend/dist
-frontend/bun.lock
-frontend/package-lock.json

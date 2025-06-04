@@ -115,30 +115,8 @@ func (p *PlatformManager) IsHiddenWindows(filePath string) bool {
 		return false
 	}
 
-	// Use attrib command to check hidden attribute
-	cmd := exec.Command("attrib", filePath)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-
-	output, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-
-	// Parse attrib output - hidden files show 'H' in the attribute string
-	outputStr := string(output)
-	lines := strings.Split(outputStr, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.Contains(line, filePath) {
-			parts := strings.Fields(line)
-			if len(parts) > 0 {
-				attributes := parts[0]
-				return strings.Contains(attributes, "H")
-			}
-		}
-	}
-
-	return false
+	// Use native Windows API instead of attrib command
+	return p.IsHiddenWindowsNative(filePath)
 }
 
 // IsHiddenMac checks if a file is hidden on macOS
@@ -184,25 +162,14 @@ func (p *PlatformManager) IsHidden(filePath string) bool {
 	}
 }
 
-// HideFileWindows sets the hidden attribute on Windows using attrib command
+// HideFileWindows sets the hidden attribute on Windows using native API
 func (p *PlatformManager) HideFileWindows(filePath string) bool {
 	if runtime.GOOS != "windows" {
 		return false
 	}
 
-	log.Printf("Setting hidden attribute on Windows: %s", filePath)
-
-	cmd := exec.Command("attrib", "+H", filePath)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-
-	err := cmd.Run()
-	if err != nil {
-		log.Printf("Failed to hide file using attrib: %v", err)
-		return false
-	}
-
-	log.Printf("Successfully set hidden attribute: %s", filePath)
-	return true
+	// Use native Windows API instead of attrib command
+	return p.HideFileWindowsNative(filePath)
 }
 
 // HideFileMac hides file on macOS by adding a dot prefix (if not already hidden)

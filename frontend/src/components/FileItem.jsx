@@ -79,12 +79,12 @@ const FileItem = memo(({
         }
         
         // Handle immediate actions (with modifier keys or unselected files)
-        if (event.shiftKey || event.ctrlKey || event.metaKey || !isSelected) {
+        if (event.shiftKey || event.ctrlKey || !isSelected) {
             log('🖱️ Processing selection for:', file.name);
             if (PERFORMANCE_LOGGING) {
                 log(`⚡ Immediate response: ${(performance.now() - clickStartTime).toFixed(2)}ms`);
             }
-            onSelect(fileIndex, event.shiftKey, event.ctrlKey || event.metaKey);
+            onSelect(fileIndex, event.shiftKey, event.ctrlKey);
             clickCountRef.current = 0;
             return;
         }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "preact/hooks";
+import { useState, useCallback, useRef, useEffect } from "preact/hooks";
 import { CopyFiles, MoveFiles } from "../../wailsjs/go/backend/App";
 
 export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, clearSelection, handleRefresh) => {
@@ -109,25 +109,45 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
     const handleDragLeave = useCallback((event, targetFolder) => {
         if (!targetFolder.isDir) return;
 
+        // Clear any existing timeout first
+        if (dragTimeoutRef.current) {
+            clearTimeout(dragTimeoutRef.current);
+            dragTimeoutRef.current = null;
+        }
+
         // Add small delay to prevent flicker when moving between child elements
         dragTimeoutRef.current = setTimeout(() => {
-            const rect = event.currentTarget.getBoundingClientRect();
-            const x = event.clientX;
-            const y = event.clientY;
+            try {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const x = event.clientX;
+                const y = event.clientY;
 
-            // Only clear if we're actually outside the element
-            if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-                setDragState(prev => ({ 
-                    ...prev, 
-                    dragOverFolder: prev.dragOverFolder === targetFolder.path ? null : prev.dragOverFolder 
-                }));
+                // Only clear if we're actually outside the element
+                if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+                    setDragState(prev => ({ 
+                        ...prev, 
+                        dragOverFolder: prev.dragOverFolder === targetFolder.path ? null : prev.dragOverFolder 
+                    }));
+                }
+            } catch (e) {
+                // Handle any errors in rect calculation
+                console.warn('Drag leave calculation error:', e);
             }
+            
+            // Clear timeout reference after execution
+            dragTimeoutRef.current = null;
         }, 100);
     }, []);
 
     // Handle drop operation
     const handleDrop = useCallback(async (event, targetFolder, dragData) => {
         event.preventDefault();
+        
+        // Clear any pending timeouts
+        if (dragTimeoutRef.current) {
+            clearTimeout(dragTimeoutRef.current);
+            dragTimeoutRef.current = null;
+        }
         
         if (!targetFolder.isDir) {
             console.warn('⚠️ Cannot drop on non-directory:', targetFolder.name);
@@ -136,19 +156,43 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
 
         const { files: sourcePaths, operation, source } = dragData;
         
+        // Input validation
+        if (!sourcePaths || !Array.isArray(sourcePaths) || sourcePaths.length === 0) {
+            console.warn('⚠️ Invalid source paths for drop operation');
+            return;
+        }
+        
+        if (!targetFolder.path || typeof targetFolder.path !== 'string') {
+            console.warn('⚠️ Invalid target folder path');
+            return;
+        }
+        
         // Prevent dropping on itself or into same directory
         if (source === targetFolder.path) {
             console.log('ℹ️ Dropping in same directory, ignoring');
             return;
         }
 
-        // Prevent dropping a folder into itself or its subdirectories
+        // SECURITY FIX: Enhanced validation to prevent dangerous drops
         const isInvalidDrop = sourcePaths.some(srcPath => {
-            return targetFolder.path.startsWith(srcPath + '/') || targetFolder.path.startsWith(srcPath + '\\') || targetFolder.path === srcPath;
+            if (!srcPath || typeof srcPath !== 'string') return true;
+            
+            // Normalize paths for comparison
+            const normalizedSrc = srcPath.replace(/[\\\/]+/g, '/').toLowerCase();
+            const normalizedTarget = targetFolder.path.replace(/[\\\/]+/g, '/').toLowerCase();
+            
+            // Prevent dropping folder into itself or subdirectories
+            return normalizedTarget.startsWith(normalizedSrc + '/') || 
+                   normalizedTarget === normalizedSrc ||
+                   // Prevent dropping into system folders
+                   normalizedTarget.includes('/windows/system32') ||
+                   normalizedTarget.includes('/program files') ||
+                   normalizedSrc.includes('/windows/system32') ||
+                   normalizedSrc.includes('/program files');
         });
 
         if (isInvalidDrop) {
-            setError('Cannot move or copy a folder into itself or its subdirectories');
+            setError('Cannot move or copy files: Invalid or dangerous operation detected');
             return;
         }
 
@@ -193,11 +237,16 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
 
         // Clean up drag preview
         if (dragPreviewRef.current) {
-            document.body.removeChild(dragPreviewRef.current);
+            try {
+                document.body.removeChild(dragPreviewRef.current);
+            } catch (e) {
+                // Preview might have already been removed
+                console.warn('Drag preview cleanup warning:', e);
+            }
             dragPreviewRef.current = null;
         }
 
-        // Clear timeout
+        // CRITICAL FIX: Clear timeout to prevent memory leaks
         if (dragTimeoutRef.current) {
             clearTimeout(dragTimeoutRef.current);
             dragTimeoutRef.current = null;
@@ -212,6 +261,26 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
             dragOverFolder: null,
             dragStartPosition: { x: 0, y: 0 }
         });
+    }, []);
+
+    // MEMORY LEAK FIX: Add cleanup effect for component unmount
+    useEffect(() => {
+        return () => {
+            // Cleanup on unmount
+            if (dragPreviewRef.current) {
+                try {
+                    document.body.removeChild(dragPreviewRef.current);
+                } catch (e) {
+                    // Preview might have already been removed
+                }
+                dragPreviewRef.current = null;
+            }
+            
+            if (dragTimeoutRef.current) {
+                clearTimeout(dragTimeoutRef.current);
+                dragTimeoutRef.current = null;
+            }
+        };
     }, []);
 
     // Create custom drag preview

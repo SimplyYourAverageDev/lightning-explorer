@@ -406,11 +406,69 @@ func (fs *FileSystemManager) FileExists(path string) bool {
 	return !os.IsNotExist(err)
 }
 
-// CreateDirectory creates a new directory
+// CreateDirectory creates a new directory with comprehensive security validation
 func (fs *FileSystemManager) CreateDirectory(path, name string) NavigationResponse {
-	fullPath := filepath.Join(path, name)
+	// Input validation and sanitization
+	if path == "" {
+		return NavigationResponse{
+			Success: false,
+			Message: "Parent path cannot be empty",
+		}
+	}
 
-	err := os.MkdirAll(fullPath, 0755)
+	if name == "" {
+		return NavigationResponse{
+			Success: false,
+			Message: "Directory name cannot be empty",
+		}
+	}
+
+	// Sanitize and validate the directory name
+	sanitizedName, err := fs.validateAndSanitizeFileName(name)
+	if err != nil {
+		return NavigationResponse{
+			Success: false,
+			Message: fmt.Sprintf("Invalid directory name: %v", err),
+		}
+	}
+
+	// Clean and validate the parent path
+	cleanPath := filepath.Clean(path)
+	if !filepath.IsAbs(cleanPath) {
+		return NavigationResponse{
+			Success: false,
+			Message: "Parent path must be absolute",
+		}
+	}
+
+	// Construct the full path
+	fullPath := filepath.Join(cleanPath, sanitizedName)
+
+	// Security check: Ensure the new directory is within the parent directory
+	if !fs.isPathWithinParent(fullPath, cleanPath) {
+		return NavigationResponse{
+			Success: false,
+			Message: "Directory creation outside parent directory is not allowed",
+		}
+	}
+
+	// Check if the directory already exists
+	if fs.FileExists(fullPath) {
+		return NavigationResponse{
+			Success: false,
+			Message: "Directory already exists",
+		}
+	}
+
+	// Validate parent directory exists and is writable
+	if err := fs.validateParentDirectory(cleanPath); err != nil {
+		return NavigationResponse{
+			Success: false,
+			Message: fmt.Sprintf("Parent directory validation failed: %v", err),
+		}
+	}
+
+	err = os.MkdirAll(fullPath, 0755)
 	if err != nil {
 		return NavigationResponse{
 			Success: false,
@@ -418,11 +476,106 @@ func (fs *FileSystemManager) CreateDirectory(path, name string) NavigationRespon
 		}
 	}
 
-	log.Printf("📁 Directory created: %s", fullPath)
+	log.Printf("📁 Directory created securely: %s", fullPath)
 	return NavigationResponse{
 		Success: true,
 		Message: "Directory created successfully",
 	}
+}
+
+// validateAndSanitizeFileName validates and sanitizes a filename/directory name
+func (fs *FileSystemManager) validateAndSanitizeFileName(name string) (string, error) {
+	// Remove leading/trailing whitespace
+	name = strings.TrimSpace(name)
+
+	if name == "" {
+		return "", fmt.Errorf("name cannot be empty")
+	}
+
+	// Check for path traversal attempts
+	if strings.Contains(name, "..") {
+		return "", fmt.Errorf("path traversal sequences not allowed")
+	}
+
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return "", fmt.Errorf("path separators not allowed in name")
+	}
+
+	// Check for reserved names (Windows)
+	reservedNames := []string{
+		"CON", "PRN", "AUX", "NUL",
+		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+	}
+
+	upperName := strings.ToUpper(name)
+	for _, reserved := range reservedNames {
+		if upperName == reserved || strings.HasPrefix(upperName, reserved+".") {
+			return "", fmt.Errorf("reserved name not allowed: %s", reserved)
+		}
+	}
+
+	// Check for invalid characters
+	invalidChars := []string{"<", ">", ":", "\"", "|", "?", "*"}
+	for _, char := range invalidChars {
+		if strings.Contains(name, char) {
+			return "", fmt.Errorf("invalid character not allowed: %s", char)
+		}
+	}
+
+	// Check length limits
+	if len(name) > 255 {
+		return "", fmt.Errorf("name too long (max 255 characters)")
+	}
+
+	// Check for names that are just dots or spaces
+	if strings.Trim(name, ". ") == "" {
+		return "", fmt.Errorf("name cannot consist only of dots and spaces")
+	}
+
+	return name, nil
+}
+
+// isPathWithinParent checks if childPath is within parentPath (prevents path traversal)
+func (fs *FileSystemManager) isPathWithinParent(childPath, parentPath string) bool {
+	// Clean both paths
+	cleanChild := filepath.Clean(childPath)
+	cleanParent := filepath.Clean(parentPath)
+
+	// Get relative path from parent to child
+	rel, err := filepath.Rel(cleanParent, cleanChild)
+	if err != nil {
+		return false
+	}
+
+	// If relative path starts with "..", it's outside the parent
+	return !strings.HasPrefix(rel, "..") && rel != ".."
+}
+
+// validateParentDirectory validates that the parent directory exists and is writable
+func (fs *FileSystemManager) validateParentDirectory(parentPath string) error {
+	info, err := os.Stat(parentPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("parent directory does not exist")
+		}
+		return fmt.Errorf("cannot access parent directory: %v", err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("parent path is not a directory")
+	}
+
+	// Test write permission by creating a temporary file
+	tempFile := filepath.Join(parentPath, ".lightning_explorer_write_test")
+	file, err := os.Create(tempFile)
+	if err != nil {
+		return fmt.Errorf("parent directory is not writable: %v", err)
+	}
+	file.Close()
+	os.Remove(tempFile)
+
+	return nil
 }
 
 // ValidatePath checks if a path is valid and accessible with optimized validation

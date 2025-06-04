@@ -140,10 +140,10 @@ const VirtualizedFileList = memo(({
         // Optimize file item click handlers - Fixed to prevent double-opens
     const handleFileClick = useCallback((fileIndex, event) => {
         // Always handle selection for virtualized list - FileItem will handle opening logic
-        onFileSelect(fileIndex, event.shiftKey, event.ctrlKey || event.metaKey);
+        onFileSelect(fileIndex, event.shiftKey, event.ctrlKey);
         
         // Scroll to item if needed
-        if (event.shiftKey || event.ctrlKey || event.metaKey) {
+        if (event.shiftKey || event.ctrlKey) {
             scrollToItem(fileIndex);
         }
     }, [onFileSelect, scrollToItem]);

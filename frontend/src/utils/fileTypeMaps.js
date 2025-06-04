@@ -60,8 +60,7 @@ export const EXTENSION_TYPE_MAP = {
     'r': 'r', 'rdata': 'r',
     'jl': 'julia',
     
-    // Shell scripts
-    'sh': 'shell', 'bash': 'shell', 'zsh': 'shell', 'fish': 'shell',
+    // Windows scripts
     'ps1': 'powershell', 'psm1': 'powershell',
     'bat': 'batch', 'cmd': 'batch',
     
@@ -121,15 +120,10 @@ export const EXTENSION_TYPE_MAP = {
     
     // Archives
     'zip': 'archive', 'rar': 'archive', '7z': 'archive',
-    'tar': 'archive', 'gz': 'archive', 'bz2': 'archive',
-    'xz': 'archive', 'lz': 'archive', 'lzma': 'archive',
-    'cab': 'archive', 'iso': 'disc', 'dmg': 'disc',
-    'pkg': 'package', 'deb': 'package', 'rpm': 'package',
+    'cab': 'archive', 'iso': 'disc',
     
     // Executables
-    'exe': 'executable', 'msi': 'installer', 'app': 'macos',
-    'run': 'executable', 'bin': 'executable',
-    'appimage': 'executable', 'snap': 'executable',
+    'exe': 'executable', 'msi': 'installer',
     
     // Fonts
     'ttf': 'font', 'otf': 'font', 'woff': 'font', 'woff2': 'font',
@@ -204,7 +198,6 @@ export const TYPE_ICON_MAP = {
     'lua': '🌙',
     'r': '📊',
     'julia': '🔴',
-    'shell': '🐚',
     'powershell': '💙',
     'batch': '⚫',
     'assembly': '🔩',
@@ -261,7 +254,7 @@ export const TYPE_ICON_MAP = {
     // Executables
     'executable': '⚡',
     'installer': '📦',
-    'macos': '🍎',
+    'batch': '⚫',
     
     // Fonts
     'font': '🔤',
