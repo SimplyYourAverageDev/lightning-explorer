@@ -754,6 +754,317 @@ body {
   background: #333;
 }
 
+/* Retro Dialog Styles - 8-bit Zen Design */
+.retro-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: dialogOverlayFadeIn 200ms ease-out;
+  user-select: none;
+}
+
+@keyframes dialogOverlayFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+
+.retro-dialog {
+  background: var(--zen-surface);
+  border: 2px solid var(--zen-border);
+  border-radius: var(--zen-radius-lg);
+  box-shadow: var(--zen-shadow-lg);
+  min-width: 360px;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  animation: dialogSlideIn 250ms ease-out;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--zen-text-sm);
+}
+
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Dialog header - 8-bit style */
+.retro-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--zen-space-lg) var(--zen-space-xl);
+  background: linear-gradient(135deg, var(--zen-primary-alpha) 0%, var(--zen-surface-hover) 100%);
+  border-bottom: 1px solid var(--zen-border);
+  min-height: 3rem;
+}
+
+.retro-dialog-title {
+  font-weight: 700;
+  font-size: var(--zen-text-lg);
+  color: var(--zen-text-primary);
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
+  font-size: var(--zen-text-sm);
+}
+
+.retro-dialog-close {
+  background: none;
+  border: none;
+  color: var(--zen-text-secondary);
+  font-size: var(--zen-text-lg);
+  cursor: pointer;
+  padding: var(--zen-space-sm);
+  border-radius: var(--zen-radius);
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.retro-dialog-close:hover {
+  background: var(--zen-surface-hover);
+  color: var(--zen-text-primary);
+  transform: scale(1.1);
+}
+
+.retro-dialog-close:active {
+  background: var(--zen-surface-active);
+  transform: scale(0.95);
+}
+
+/* Dialog content */
+.retro-dialog-content {
+  padding: var(--zen-space-2xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--zen-space-lg);
+  text-align: center;
+}
+
+.retro-dialog-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: var(--zen-space-sm);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.retro-dialog-message {
+  color: var(--zen-text-primary);
+  line-height: 1.6;
+  font-size: var(--zen-text-base);
+  max-width: 400px;
+}
+
+/* Special styling for delete dialog */
+.retro-dialog.delete-type .retro-dialog-header {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, var(--zen-surface-hover) 100%);
+}
+
+.retro-dialog.delete-type .retro-dialog-title {
+  color: var(--zen-error);
+}
+
+.retro-dialog.delete-type .retro-dialog-icon {
+  color: var(--zen-error);
+  animation: deleteWarningPulse 2s ease-in-out infinite;
+}
+
+@keyframes deleteWarningPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Input field for prompt dialogs */
+.retro-dialog-input-container {
+  width: 100%;
+  margin-top: var(--zen-space-lg);
+}
+
+.retro-dialog-input {
+  width: 100%;
+  padding: var(--zen-space-lg);
+  border: 2px solid var(--zen-border);
+  border-radius: var(--zen-radius);
+  background: var(--zen-surface);
+  color: var(--zen-text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--zen-text-base);
+  transition: all 150ms ease;
+  outline: none;
+}
+
+.retro-dialog-input:focus {
+  border-color: var(--zen-primary);
+  box-shadow: 0 0 0 3px var(--zen-primary-alpha);
+  background: var(--zen-surface-elevated);
+}
+
+.retro-dialog-input::placeholder {
+  color: var(--zen-text-tertiary);
+  font-style: italic;
+}
+
+/* Dialog buttons */
+.retro-dialog-buttons {
+  display: flex;
+  gap: var(--zen-space-md);
+  padding: var(--zen-space-xl);
+  background: var(--zen-surface-hover);
+  border-top: 1px solid var(--zen-border);
+  justify-content: center;
+}
+
+.retro-dialog-btn {
+  padding: var(--zen-space-md) var(--zen-space-xl);
+  border: 2px solid transparent;
+  border-radius: var(--zen-radius);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--zen-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+  min-width: 8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  outline: none;
+  user-select: none;
+}
+
+.retro-dialog-btn-primary {
+  background: var(--zen-primary);
+  color: var(--zen-text-inverse);
+  border-color: var(--zen-primary);
+}
+
+.retro-dialog-btn-primary:hover {
+  background: var(--zen-primary-light);
+  border-color: var(--zen-primary-light);
+  transform: translateY(-1px);
+  box-shadow: var(--zen-shadow-md);
+}
+
+.retro-dialog-btn-primary:active {
+  transform: translateY(0);
+  box-shadow: var(--zen-shadow-sm);
+}
+
+.retro-dialog-btn-secondary {
+  background: var(--zen-surface);
+  color: var(--zen-text-secondary);
+  border-color: var(--zen-border);
+}
+
+.retro-dialog-btn-secondary:hover {
+  background: var(--zen-surface-hover);
+  color: var(--zen-text-primary);
+  border-color: var(--zen-border-focus);
+  transform: translateY(-1px);
+  box-shadow: var(--zen-shadow-md);
+}
+
+.retro-dialog-btn-secondary:active {
+  transform: translateY(0);
+  box-shadow: var(--zen-shadow-sm);
+  background: var(--zen-surface-active);
+}
+
+/* Special styling for delete confirmation button */
+.retro-dialog.delete-type .retro-dialog-btn-primary {
+  background: var(--zen-error);
+  border-color: var(--zen-error);
+}
+
+.retro-dialog.delete-type .retro-dialog-btn-primary:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+/* Focus states for accessibility */
+.retro-dialog-btn:focus-visible {
+  outline: 2px solid var(--zen-primary);
+  outline-offset: 2px;
+}
+
+.retro-dialog-close:focus-visible {
+  outline: 2px solid var(--zen-primary);
+  outline-offset: 2px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .retro-dialog {
+    min-width: 300px;
+    max-width: 90vw;
+    margin: var(--zen-space-lg);
+  }
+  
+  .retro-dialog-content {
+    padding: var(--zen-space-xl);
+  }
+  
+  .retro-dialog-buttons {
+    flex-direction: column;
+    padding: var(--zen-space-lg);
+  }
+  
+  .retro-dialog-btn {
+    width: 100%;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .retro-dialog {
+    border-width: 3px;
+  }
+  
+  .retro-dialog-btn {
+    border-width: 3px;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .retro-dialog-overlay,
+  .retro-dialog,
+  .retro-dialog-btn,
+  .retro-dialog-close {
+    animation: none;
+    transition: none;
+  }
+  
+  .retro-dialog.delete-type .retro-dialog-icon {
+    animation: none;
+  }
+}
+
 @media print {
   .toolbar,
   .sidebar,

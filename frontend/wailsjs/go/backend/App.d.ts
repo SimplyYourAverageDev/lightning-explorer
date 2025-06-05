@@ -8,9 +8,13 @@ export function CopyFiles(arg1:Array<string>,arg2:string):Promise<boolean>;
 
 export function CreateDirectory(arg1:string,arg2:string):Promise<backend.NavigationResponse>;
 
+export function CreateDirectoryOptimized(arg1:string,arg2:string):Promise<any>;
+
 export function DeleteFiles(arg1:Array<string>):Promise<boolean>;
 
 export function DeletePath(arg1:string):Promise<backend.NavigationResponse>;
+
+export function DeletePathOptimized(arg1:string):Promise<any>;
 
 export function ExecuteCommand(arg1:string,arg2:string):Promise<boolean>;
 
@@ -32,11 +36,17 @@ export function GetFileDetailsOptimized(arg1:string):Promise<any>;
 
 export function GetHomeDirectory():Promise<string>;
 
+export function GetHomeDirectoryOptimized():Promise<any>;
+
 export function GetQuickAccessPaths():Promise<Array<Record<string, any>>>;
+
+export function GetQuickAccessPathsOptimized():Promise<any>;
 
 export function GetSerializationMode():Promise<number>;
 
 export function GetSystemRoots():Promise<Array<string>>;
+
+export function GetSystemRootsOptimized():Promise<any>;
 
 export function HealthCheck():Promise<Record<string, any>>;
 

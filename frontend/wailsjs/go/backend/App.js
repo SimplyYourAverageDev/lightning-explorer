@@ -14,12 +14,20 @@ export function CreateDirectory(arg1, arg2) {
   return window['go']['backend']['App']['CreateDirectory'](arg1, arg2);
 }
 
+export function CreateDirectoryOptimized(arg1, arg2) {
+  return window['go']['backend']['App']['CreateDirectoryOptimized'](arg1, arg2);
+}
+
 export function DeleteFiles(arg1) {
   return window['go']['backend']['App']['DeleteFiles'](arg1);
 }
 
 export function DeletePath(arg1) {
   return window['go']['backend']['App']['DeletePath'](arg1);
+}
+
+export function DeletePathOptimized(arg1) {
+  return window['go']['backend']['App']['DeletePathOptimized'](arg1);
 }
 
 export function ExecuteCommand(arg1, arg2) {
@@ -62,8 +70,16 @@ export function GetHomeDirectory() {
   return window['go']['backend']['App']['GetHomeDirectory']();
 }
 
+export function GetHomeDirectoryOptimized() {
+  return window['go']['backend']['App']['GetHomeDirectoryOptimized']();
+}
+
 export function GetQuickAccessPaths() {
   return window['go']['backend']['App']['GetQuickAccessPaths']();
+}
+
+export function GetQuickAccessPathsOptimized() {
+  return window['go']['backend']['App']['GetQuickAccessPathsOptimized']();
 }
 
 export function GetSerializationMode() {
@@ -72,6 +88,10 @@ export function GetSerializationMode() {
 
 export function GetSystemRoots() {
   return window['go']['backend']['App']['GetSystemRoots']();
+}
+
+export function GetSystemRootsOptimized() {
+  return window['go']['backend']['App']['GetSystemRootsOptimized']();
 }
 
 export function HealthCheck() {

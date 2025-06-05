@@ -43,6 +43,12 @@ func (s *SerializationUtils) SerializeDriveInfoSlice(data []DriveInfo) (interfac
 	return s.encodeMsgPackBase64(data)
 }
 
+// SerializeGeneric serializes any data structure using MessagePack Base64
+func (s *SerializationUtils) SerializeGeneric(data interface{}) (interface{}, error) {
+	// FORCE MessagePack Base64 - no other modes supported
+	return s.encodeMsgPackBase64(data)
+}
+
 // encodeMsgPackBase64 encodes data to MessagePack and then to base64 string
 func (s *SerializationUtils) encodeMsgPackBase64(data interface{}) (string, error) {
 	msgPackData, err := msgpack.Marshal(data)

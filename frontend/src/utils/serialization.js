@@ -146,6 +146,54 @@ export class EnhancedAPI {
     }
 
     /**
+     * Get home directory with MessagePack serialization
+     * @returns {Promise<Object>} - Home directory response
+     */
+    async getHomeDirectory() {
+        const result = await this.api.GetHomeDirectoryOptimized();
+        return this.serialization.deserialize(result);
+    }
+
+    /**
+     * Create directory with MessagePack serialization
+     * @param {string} path - The parent directory path
+     * @param {string} name - The new directory name
+     * @returns {Promise<Object>} - Navigation response
+     */
+    async createDirectory(path, name) {
+        const result = await this.api.CreateDirectoryOptimized(path, name);
+        return this.serialization.deserialize(result);
+    }
+
+    /**
+     * Delete path with MessagePack serialization
+     * @param {string} path - The path to delete
+     * @returns {Promise<Object>} - Navigation response
+     */
+    async deletePath(path) {
+        const result = await this.api.DeletePathOptimized(path);
+        return this.serialization.deserialize(result);
+    }
+
+    /**
+     * Get quick access paths with MessagePack serialization
+     * @returns {Promise<Array>} - Quick access paths array
+     */
+    async getQuickAccessPaths() {
+        const result = await this.api.GetQuickAccessPathsOptimized();
+        return this.serialization.deserialize(result);
+    }
+
+    /**
+     * Get system roots with MessagePack serialization
+     * @returns {Promise<Object>} - System roots response
+     */
+    async getSystemRoots() {
+        const result = await this.api.GetSystemRootsOptimized();
+        return this.serialization.deserialize(result);
+    }
+
+    /**
      * Set the serialization mode (always forces MessagePack Base64)
      * @param {number} mode - Ignored, always uses MessagePack Base64
      * @returns {Promise<boolean>} - Always returns true

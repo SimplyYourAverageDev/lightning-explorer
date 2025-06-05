@@ -2,7 +2,6 @@ import './components/FastNavigation.css';
 import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import { Suspense } from "preact/compat";
 import { 
-    GetHomeDirectory, 
     OpenInSystemExplorer
 } from "../wailsjs/go/backend/App";
 
@@ -337,12 +336,25 @@ export function App() {
         try {
             setError('');
             
-            const homeDir = await GetHomeDirectory();
-            if (homeDir) {
-                await navigateToPath(homeDir, 'init');
-                setIsAppInitialized(true);
+            // Use MessagePack optimized API for home directory
+            if (enhancedAPI) {
+                const homeDirResponse = await enhancedAPI.getHomeDirectory();
+                if (homeDirResponse && homeDirResponse.success && homeDirResponse.home_directory) {
+                    await navigateToPath(homeDirResponse.home_directory, 'init');
+                    setIsAppInitialized(true);
+                } else {
+                    setError('Unable to determine starting directory');
+                }
             } else {
-                setError('Unable to determine starting directory');
+                // Fallback to regular API if enhanced API not available
+                const { GetHomeDirectory } = await import("../wailsjs/go/backend/App");
+                const homeDir = await GetHomeDirectory();
+                if (homeDir) {
+                    await navigateToPath(homeDir, 'init');
+                    setIsAppInitialized(true);
+                } else {
+                    setError('Unable to determine starting directory');
+                }
             }
         } catch (err) {
             error('❌ Error initializing app:', err);

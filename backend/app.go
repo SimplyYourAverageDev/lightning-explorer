@@ -377,3 +377,125 @@ func (a *App) BenchmarkSerialization(path string) map[string]interface{} {
 	log.Printf("📊 Serialization benchmark for %s completed", path)
 	return result
 }
+
+// NEW MessagePack-optimized API methods
+
+// GetHomeDirectoryOptimized returns the user's home directory with MessagePack optimization
+func (a *App) GetHomeDirectoryOptimized() interface{} {
+	homeDir := a.platform.GetHomeDirectory()
+
+	// Wrap in a structure for consistent MessagePack serialization
+	response := map[string]interface{}{
+		"home_directory": homeDir,
+		"success":        homeDir != "",
+	}
+
+	// Log size comparison for performance monitoring
+	LogSerializationComparison(response, "HomeDirectory")
+
+	serialized, err := a.serialization.SerializeGeneric(response)
+	if err != nil {
+		log.Printf("❌ Serialization error for GetHomeDirectoryOptimized: %v", err)
+		return response // Fall back to regular JSON
+	}
+
+	return serialized
+}
+
+// CreateDirectoryOptimized creates a new directory with MessagePack response
+func (a *App) CreateDirectoryOptimized(path, name string) interface{} {
+	response := a.filesystem.CreateDirectory(path, name)
+
+	// Log size comparison for performance monitoring
+	LogSerializationComparison(response, "CreateDirectory")
+
+	serialized, err := a.serialization.SerializeNavigationResponse(response)
+	if err != nil {
+		log.Printf("❌ Serialization error for CreateDirectoryOptimized: %v", err)
+		return response // Fall back to regular JSON
+	}
+
+	return serialized
+}
+
+// DeletePathOptimized deletes a file or directory with MessagePack response
+func (a *App) DeletePathOptimized(path string) interface{} {
+	success := a.fileOps.DeleteFiles([]string{path})
+	response := NavigationResponse{
+		Success: success,
+		Message: func() string {
+			if success {
+				return "Item deleted successfully"
+			}
+			return "Failed to delete item"
+		}(),
+	}
+
+	// Log size comparison for performance monitoring
+	LogSerializationComparison(response, "DeletePath")
+
+	serialized, err := a.serialization.SerializeNavigationResponse(response)
+	if err != nil {
+		log.Printf("❌ Serialization error for DeletePathOptimized: %v", err)
+		return response // Fall back to regular JSON
+	}
+
+	return serialized
+}
+
+// GetQuickAccessPathsOptimized returns commonly accessed directories with MessagePack encoding
+func (a *App) GetQuickAccessPathsOptimized() interface{} {
+	paths := a.drives.GetQuickAccessPaths()
+
+	// Convert to drive info format for consistent serialization
+	var driveInfoPaths []DriveInfo
+	for _, path := range paths {
+		driveInfoPaths = append(driveInfoPaths, DriveInfo{
+			Path:   path.Path,
+			Letter: path.Letter,
+			Name:   path.Name,
+		})
+	}
+
+	// Log size comparison for performance monitoring
+	LogSerializationComparison(driveInfoPaths, "QuickAccessPaths")
+
+	serialized, err := a.serialization.SerializeDriveInfoSlice(driveInfoPaths)
+	if err != nil {
+		log.Printf("❌ Serialization error for GetQuickAccessPathsOptimized: %v", err)
+		// Fall back to legacy format
+		var result []map[string]interface{}
+		for _, path := range paths {
+			result = append(result, map[string]interface{}{
+				"path":   path.Path,
+				"letter": path.Letter,
+				"name":   path.Name,
+			})
+		}
+		return result
+	}
+
+	return serialized
+}
+
+// GetSystemRootsOptimized returns system root paths with MessagePack encoding
+func (a *App) GetSystemRootsOptimized() interface{} {
+	roots := a.platform.GetSystemRoots()
+
+	// Wrap in a structure for consistent MessagePack serialization
+	response := map[string]interface{}{
+		"system_roots": roots,
+		"count":        len(roots),
+	}
+
+	// Log size comparison for performance monitoring
+	LogSerializationComparison(response, "SystemRoots")
+
+	serialized, err := a.serialization.SerializeGeneric(response)
+	if err != nil {
+		log.Printf("❌ Serialization error for GetSystemRootsOptimized: %v", err)
+		return response // Fall back to regular JSON
+	}
+
+	return serialized
+}

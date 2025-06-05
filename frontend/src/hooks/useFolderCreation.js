@@ -1,17 +1,19 @@
 import { useState, useCallback, useRef } from "preact/hooks";
-import { CreateDirectory } from "../../wailsjs/go/backend/App";
 import { log, error } from "../utils/logger";
+import { serializationUtils, EnhancedAPI } from "../utils/serialization";
 
 export function useFolderCreation(currentPath, onRefresh, setError) {
     const [creatingFolder, setCreatingFolder] = useState(false);
     const [tempFolderName, setTempFolderName] = useState("New folder");
     const editInputRef = useRef(null);
+    const isProcessingRef = useRef(false);
 
     const startFolderCreation = useCallback(() => {
         if (!currentPath) return;
         
         setCreatingFolder(true);
         setTempFolderName("New folder");
+        isProcessingRef.current = false;
         
         // Focus the input in the next tick
         setTimeout(() => {
@@ -25,9 +27,15 @@ export function useFolderCreation(currentPath, onRefresh, setError) {
     const cancelFolderCreation = useCallback(() => {
         setCreatingFolder(false);
         setTempFolderName("New folder");
+        isProcessingRef.current = false;
     }, []);
 
     const confirmFolderCreation = useCallback(async () => {
+        // Prevent double execution
+        if (isProcessingRef.current) {
+            return;
+        }
+        
         if (!currentPath || !tempFolderName.trim()) {
             cancelFolderCreation();
             return;
@@ -36,9 +44,20 @@ export function useFolderCreation(currentPath, onRefresh, setError) {
         const folderName = tempFolderName.trim();
         
         try {
+            isProcessingRef.current = true;
             log(`📁 Creating folder: "${folderName}" in ${currentPath}`);
             
-            const response = await CreateDirectory(currentPath, folderName);
+            // Try to use MessagePack optimized API first, fallback to regular API
+            let response;
+            try {
+                const wailsAPI = await import("../../wailsjs/go/backend/App");
+                const enhancedAPI = new EnhancedAPI(wailsAPI, serializationUtils);
+                response = await enhancedAPI.createDirectory(currentPath, folderName);
+            } catch (enhancedErr) {
+                // Fallback to regular API
+                const { CreateDirectory } = await import("../../wailsjs/go/backend/App");
+                response = await CreateDirectory(currentPath, folderName);
+            }
             
             if (response && response.success) {
                 log(`✅ Folder created successfully: ${folderName}`);
@@ -48,6 +67,7 @@ export function useFolderCreation(currentPath, onRefresh, setError) {
                 
                 setCreatingFolder(false);
                 setTempFolderName("New folder");
+                isProcessingRef.current = false;
             } else {
                 const errorMsg = response?.message || 'Failed to create folder';
                 error('❌ Folder creation failed:', errorMsg);
@@ -78,7 +98,9 @@ export function useFolderCreation(currentPath, onRefresh, setError) {
     const handleInputBlur = useCallback(() => {
         // Delay to allow for clicks on other elements
         setTimeout(() => {
-            if (creatingFolder) {
+            // Only confirm if still creating folder, not already processing, and the input still exists
+            // This prevents double confirmation when Enter is pressed
+            if (creatingFolder && !isProcessingRef.current && editInputRef.current) {
                 confirmFolderCreation();
             }
         }, 100);
