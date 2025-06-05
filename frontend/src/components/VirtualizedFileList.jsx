@@ -11,9 +11,9 @@ import {
     FLEX_CENTER_STYLE
 } from "../utils/styleConstants";
 
-// Virtual scrolling configuration  
+// Virtual scrolling configuration - restored to working values
 const ITEM_HEIGHT = 72; // Simplified height: 3.5rem min-height (56px) + 1rem gap (16px) = 72px
-const BUFFER_SIZE = 10; // More buffer items for smoother scrolling
+const BUFFER_SIZE = 10; // Restored buffer for smoother scrolling
 const CONTAINER_HEIGHT = 400; // Default container height
 
 const VirtualizedFileList = memo(({ 
@@ -101,7 +101,7 @@ const VirtualizedFileList = memo(({
     // Calculate total height for scrollbar
     const totalHeight = (files.length + (creatingFolder ? 1 : 0)) * ITEM_HEIGHT;
     
-    // Optimized scroll handler
+    // Simple and reliable scroll handler
     const handleScroll = useCallback(rafThrottle((event) => {
         setScrollTop(event.target.scrollTop);
     }), []);

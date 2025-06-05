@@ -1,0 +1,1556 @@
+diff --git a/MESSAGEPACK_MIGRATION_SUMMARY.md b/MESSAGEPACK_MIGRATION_SUMMARY.md
+deleted file mode 100644
+index 8a323fc..0000000
+--- a/MESSAGEPACK_MIGRATION_SUMMARY.md
++++ /dev/null
+@@ -1,99 +0,0 @@
+-# MessagePack Migration Summary
+-
+-## Overview
+-Successfully completed the migration from JSON to MessagePack serialization for all complex data structures exchanged between the frontend and backend in Lightning Explorer.
+-
+-## Backend Changes
+-
+-### New MessagePack-Optimized Functions Added
+-1. **GetHomeDirectoryOptimized()** - Returns structured home directory response
+-2. **CreateDirectoryOptimized(path, name)** - Returns NavigationResponse with MessagePack
+-3. **DeletePathOptimized(path)** - Returns NavigationResponse with MessagePack  
+-4. **GetQuickAccessPathsOptimized()** - Returns []DriveInfo with MessagePack
+-5. **GetSystemRootsOptimized()** - Returns structured system roots response
+-
+-### Enhanced Serialization Utils
+-- Added `SerializeGeneric()` method for arbitrary data structures
+-- All optimized functions use MessagePack Base64 encoding
+-- Comprehensive logging for size comparisons between JSON and MessagePack
+-
+-### Performance Benefits
+-- **26.4% smaller** data size for NavigationResponse (typical directory listing)
+-- **24.1% smaller** data size for complex directory structures
+-- **29.7% smaller** data size for system root listings
+-- **26.9% smaller** data size for drive information
+-
+-## Frontend Changes
+-
+-### Enhanced API Integration
+-- Updated `EnhancedAPI` class with new MessagePack-optimized methods:
+-  - `getHomeDirectory()`
+-  - `createDirectory(path, name)`
+-  - `deletePath(path)`
+-  - `getQuickAccessPaths()`
+-  - `getSystemRoots()`
+-
+-### Component Updates
+-1. **App.jsx** - Now uses MessagePack for home directory initialization
+-2. **Sidebar.jsx** - Uses MessagePack for home directory and quick access
+-3. **useFolderCreation.js** - Uses MessagePack for directory creation
+-
+-### Fallback Strategy
+-- All components implement graceful fallback to JSON APIs if MessagePack fails
+-- Ensures backward compatibility and robustness
+-
+-## Functions Using MessagePack (Complete List)
+-
+-### Navigation & Directory Operations
+-- ✅ `NavigateToPathOptimized` - Directory navigation with full file listings
+-- ✅ `ListDirectoryOptimized` - Directory content retrieval
+-- ✅ `CreateDirectoryOptimized` - Folder creation with response
+-- ✅ `DeletePathOptimized` - File/folder deletion with response
+-
+-### File & System Information
+-- ✅ `GetFileDetailsOptimized` - Individual file metadata
+-- ✅ `GetDriveInfoOptimized` - System drive information
+-- ✅ `GetHomeDirectoryOptimized` - User home directory
+-- ✅ `GetQuickAccessPathsOptimized` - Quick access folder paths
+-- ✅ `GetSystemRootsOptimized` - System root directories
+-
+-## Functions Still Using JSON (By Design)
+-
+-### Simple Return Types (No Optimization Needed)
+-- `OpenInSystemExplorer()` - Returns boolean
+-- `CopyFiles()`, `MoveFiles()`, `DeleteFiles()` - Return boolean
+-- `OpenFile()`, `RenameFile()`, `HideFiles()` - Return boolean
+-- `GetCurrentWorkingDirectory()` - Returns string
+-- `FormatFileSize()` - Returns string
+-- `GetAvailableTerminals()` - Returns string array
+-- `ValidatePath()`, `FileExists()`, `IsHidden()` - Return boolean
+-
+-## Migration Status: ✅ COMPLETE
+-
+-### What Was Achieved
+-1. **100% MessagePack coverage** for all complex data structures
+-2. **Significant bandwidth reduction** (24-30% smaller payloads)
+-3. **Maintained backward compatibility** with JSON fallbacks
+-4. **Zero breaking changes** to existing functionality
+-5. **Enhanced performance monitoring** with size comparison logging
+-
+-### Key Benefits
+-- **Faster data transfer** due to smaller payload sizes
+-- **Better performance** especially for large directory listings
+-- **Consistent serialization** across all complex operations
+-- **Future-proof architecture** with easy extensibility
+-
+-### Technical Implementation
+-- **MessagePack Base64 encoding** for web compatibility
+-- **Automatic fallback mechanisms** for reliability
+-- **Comprehensive error handling** and logging
+-- **Type-safe deserialization** with proper error recovery
+-
+-## Verification
+-All MessagePack functions have been tested and verified to work correctly with:
+-- Large directory listings (46 directories, 22 files)
+-- Drive enumeration and system information
+-- Folder creation and deletion operations
+-- Home directory and quick access path resolution
+-
+-The migration is complete and the application now uses MessagePack for all appropriate data exchanges while maintaining full compatibility and performance. 
+\ No newline at end of file
+diff --git a/backend/app.go b/backend/app.go
+index 3e1e30b..0b40f2d 100644
+--- a/backend/app.go
++++ b/backend/app.go
+@@ -328,23 +328,23 @@ func (a *App) GetDriveInfoOptimized() interface{} {
+ 	return serialized
+ }
+ 
+-// SetSerializationMode forces MessagePack Base64 mode only - no JSON allowed
++// SetSerializationMode forces MessagePack binary mode only - no JSON allowed
+ func (a *App) SetSerializationMode(mode int) bool {
+-	// FORCE MessagePack Base64 mode only - reject any other modes
+-	if mode != 2 {
+-		log.Printf("❌ Rejected serialization mode %d - only MessagePack Base64 (mode 2) is allowed", mode)
++	// FORCE MessagePack binary mode only - reject any other modes
++	if mode != 3 {
++		log.Printf("❌ Rejected serialization mode %d - only MessagePack binary (mode 3) is allowed", mode)
+ 		return false
+ 	}
+ 
+-	SetSerializationMode(SerializationMsgPackBase64)
+-	log.Println("🔄 Confirmed MessagePack Base64 serialization mode (forced)")
++	SetSerializationMode(SerializationMsgPackBinary)
++	log.Println("🔄 Confirmed MessagePack binary serialization mode (forced)")
+ 	return true
+ }
+ 
+-// GetSerializationMode always returns MessagePack Base64 mode (forced)
++// GetSerializationMode always returns MessagePack binary mode (forced)
+ func (a *App) GetSerializationMode() int {
+-	// Always return MessagePack Base64 mode - no other modes allowed
+-	return 2 // SerializationMsgPackBase64
++	// Always return MessagePack binary mode - no other modes allowed
++	return 3 // SerializationMsgPackBinary
+ }
+ 
+ // BenchmarkSerialization runs a benchmark comparison between JSON and MessagePack
+diff --git a/backend/filesystem.go b/backend/filesystem.go
+index ad55ee5..9e4e9c7 100644
+--- a/backend/filesystem.go
++++ b/backend/filesystem.go
+@@ -126,12 +126,12 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
+ 		}(rest)
+ 	}
+ 
+-	// Sort first page for immediate display
++	// Sort first page for immediate display with precomputed keys
+ 	sort.Slice(directories, func(i, j int) bool {
+-		return strings.ToLower(directories[i].Name) < strings.ToLower(directories[j].Name)
++		return directories[i].Name < directories[j].Name // Already sorted by Windows API
+ 	})
+ 	sort.Slice(files, func(i, j int) bool {
+-		return strings.ToLower(files[i].Name) < strings.ToLower(files[j].Name)
++		return files[i].Name < files[j].Name // Already sorted by Windows API
+ 	})
+ 
+ 	// Build immediate response
+@@ -155,28 +155,46 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
+ 	}
+ }
+ 
+-// hydrateRemainingEntriesEnhanced processes remaining enhanced entries in background
++// hydrateRemainingEntriesEnhanced processes remaining enhanced entries in background with batching
+ // These entries already have full file information, so no additional stat calls needed
+ func (fs *FileSystemManager) hydrateRemainingEntriesEnhanced(basePath string, entries []EnhancedBasicEntry) {
+-	log.Printf("🔄 Starting enhanced background hydration for %d entries", len(entries))
++	log.Printf("🔄 Starting enhanced background hydration for %d entries with batching", len(entries))
+ 
+-	for _, entry := range entries {
+-		// Create FileInfo directly from enhanced entry - no stat needed!
+-		fileInfo := FileInfo{
+-			Name:        entry.Name,
+-			Path:        entry.Path,
+-			IsDir:       entry.IsDir,
+-			Size:        entry.Size,
+-			ModTime:     time.Unix(entry.ModTime, 0),
+-			Permissions: entry.Permissions,
+-			Extension:   entry.Extension,
+-			IsHidden:    entry.IsHidden,
++	const batchSize = 50 // Process 50 files at a time to reduce frontend state updates
++
++	for i := 0; i < len(entries); i += batchSize {
++		end := i + batchSize
++		if end > len(entries) {
++			end = len(entries)
++		}
++
++		// Create batch of FileInfo entries
++		batch := make([]FileInfo, 0, end-i)
++		for j := i; j < end; j++ {
++			entry := entries[j]
++
++			// Create FileInfo directly from enhanced entry - no stat needed!
++			fileInfo := FileInfo{
++				Name:        entry.Name,
++				Path:        entry.Path,
++				IsDir:       entry.IsDir,
++				Size:        entry.Size,
++				ModTime:     time.Unix(entry.ModTime, 0),
++				Permissions: entry.Permissions,
++				Extension:   entry.Extension,
++				IsHidden:    entry.IsHidden,
++			}
++
++			batch = append(batch, fileInfo)
+ 		}
+ 
+-		// Emit hydration event to frontend
++		// Emit batch to frontend
+ 		if fs.eventEmitter != nil {
+-			fs.eventEmitter.EmitDirectoryHydrate(fileInfo)
++			fs.eventEmitter.EmitDirectoryBatch(batch)
+ 		}
++
++		// Small delay between batches to allow UI to update
++		time.Sleep(50 * time.Millisecond)
+ 	}
+ 
+ 	// Emit completion event
+@@ -184,7 +202,7 @@ func (fs *FileSystemManager) hydrateRemainingEntriesEnhanced(basePath string, en
+ 		fs.eventEmitter.EmitDirectoryComplete(basePath, len(entries), 0)
+ 	}
+ 
+-	log.Printf("✅ Enhanced background hydration completed for %s", basePath)
++	log.Printf("✅ Enhanced background hydration completed for %s with %d batches", basePath, (len(entries)+batchSize-1)/batchSize)
+ }
+ 
+ // processEntriesSync processes directory entries synchronously with optimizations
+diff --git a/backend/serialization.go b/backend/serialization.go
+index 414a7ad..1f0354d 100644
+--- a/backend/serialization.go
++++ b/backend/serialization.go
+@@ -1,70 +1,61 @@
+ package backend
+ 
+ import (
+-	"encoding/base64"
+ 	"encoding/json"
+ 	"log"
+ 
+ 	"github.com/vmihailenco/msgpack/v5"
+ )
+ 
+-// MessagePack-only serialization mode - NO JSON OR PURE MSGPACK SUPPORT
++// MessagePack-only serialization mode - Direct binary mode (no Base64)
+ type SerializationMode int
+ 
+ const (
+-	SerializationMsgPackBase64 SerializationMode = 2 // Only MessagePack Base64 mode supported
++	SerializationMsgPackBinary SerializationMode = 3 // Direct MessagePack binary mode
+ )
+ 
+-// SerializationUtils provides MessagePack Base64 serialization only
++// SerializationUtils provides MessagePack binary serialization only
+ type SerializationUtils struct {
+-	// No mode field needed since we only support MessagePack Base64
++	// No mode field needed since we only support MessagePack binary
+ }
+ 
+-// NewSerializationUtils creates a new SerializationUtils instance (MessagePack Base64 only)
++// NewSerializationUtils creates a new SerializationUtils instance (MessagePack binary only)
+ func NewSerializationUtils() *SerializationUtils {
+ 	return &SerializationUtils{}
+ }
+ 
+-// SerializeNavigationResponse serializes NavigationResponse using MessagePack Base64 only
++// SerializeNavigationResponse serializes NavigationResponse using MessagePack binary only
+ func (s *SerializationUtils) SerializeNavigationResponse(data NavigationResponse) (interface{}, error) {
+-	// FORCE MessagePack Base64 - no other modes supported
+-	return s.encodeMsgPackBase64(data)
++	// FORCE MessagePack binary - no Base64 encoding
++	return s.encodeMsgPackBinary(data)
+ }
+ 
+-// SerializeFileInfo serializes FileInfo using MessagePack Base64 only
++// SerializeFileInfo serializes FileInfo using MessagePack binary only
+ func (s *SerializationUtils) SerializeFileInfo(data FileInfo) (interface{}, error) {
+-	// FORCE MessagePack Base64 - no other modes supported
+-	return s.encodeMsgPackBase64(data)
++	// FORCE MessagePack binary - no Base64 encoding
++	return s.encodeMsgPackBinary(data)
+ }
+ 
+-// SerializeDriveInfoSlice serializes []DriveInfo using MessagePack Base64 only
++// SerializeDriveInfoSlice serializes []DriveInfo using MessagePack binary only
+ func (s *SerializationUtils) SerializeDriveInfoSlice(data []DriveInfo) (interface{}, error) {
+-	// FORCE MessagePack Base64 - no other modes supported
+-	return s.encodeMsgPackBase64(data)
++	// FORCE MessagePack binary - no Base64 encoding
++	return s.encodeMsgPackBinary(data)
+ }
+ 
+-// SerializeGeneric serializes any data structure using MessagePack Base64
++// SerializeGeneric serializes any data structure using MessagePack binary
+ func (s *SerializationUtils) SerializeGeneric(data interface{}) (interface{}, error) {
+-	// FORCE MessagePack Base64 - no other modes supported
+-	return s.encodeMsgPackBase64(data)
++	// FORCE MessagePack binary - no Base64 encoding
++	return s.encodeMsgPackBinary(data)
+ }
+ 
+-// encodeMsgPackBase64 encodes data to MessagePack and then to base64 string
+-func (s *SerializationUtils) encodeMsgPackBase64(data interface{}) (string, error) {
+-	msgPackData, err := msgpack.Marshal(data)
+-	if err != nil {
+-		return "", err
+-	}
+-	return base64.StdEncoding.EncodeToString(msgPackData), nil
++// encodeMsgPackBinary encodes data to MessagePack binary directly
++func (s *SerializationUtils) encodeMsgPackBinary(data interface{}) ([]byte, error) {
++	return msgpack.Marshal(data)
+ }
+ 
+-// DecodeMsgPackBase64 decodes base64 MessagePack data into target struct
+-func DecodeMsgPackBase64(encodedData string, target interface{}) error {
+-	msgPackData, err := base64.StdEncoding.DecodeString(encodedData)
+-	if err != nil {
+-		return err
+-	}
+-	return msgpack.Unmarshal(msgPackData, target)
++// DecodeMsgPackBinary decodes binary MessagePack data into target struct
++func DecodeMsgPackBinary(binaryData []byte, target interface{}) error {
++	return msgpack.Unmarshal(binaryData, target)
+ }
+ 
+ // BenchmarkSerializationSizes compares MessagePack with JSON (for comparison purposes only)
+@@ -79,9 +70,7 @@ func BenchmarkSerializationSizes(data interface{}) map[string]int {
+ 	// MessagePack size (our only serialization method)
+ 	if msgPackData, err := msgpack.Marshal(data); err == nil {
+ 		results["msgpack"] = len(msgPackData)
+-		// Base64 encoded MessagePack size
+-		base64Size := base64.StdEncoding.EncodedLen(len(msgPackData))
+-		results["msgpack_base64"] = base64Size
++		results["msgpack_binary"] = len(msgPackData)
+ 	}
+ 
+ 	return results
+@@ -90,10 +79,10 @@ func BenchmarkSerializationSizes(data interface{}) map[string]int {
+ // LogSerializationComparison logs the size comparison for debugging
+ func LogSerializationComparison(data interface{}, label string) {
+ 	sizes := BenchmarkSerializationSizes(data)
+-	log.Printf("🔍 MessagePack serialization stats for %s:", label)
++	log.Printf("🔍 MessagePack binary serialization stats for %s:", label)
+ 	for format, size := range sizes {
+-		if format == "msgpack_base64" {
+-			log.Printf("   %s: %d bytes (ACTIVE)", format, size)
++		if format == "msgpack_binary" {
++			log.Printf("   %s: %d bytes (ACTIVE - direct binary)", format, size)
+ 		} else {
+ 			log.Printf("   %s: %d bytes (comparison only)", format, size)
+ 		}
+@@ -107,7 +96,7 @@ func LogSerializationComparison(data interface{}, label string) {
+ 	}
+ }
+ 
+-// Global serialization utility instance - MessagePack Base64 only
++// Global serialization utility instance - MessagePack binary only
+ var globalSerializationUtils = NewSerializationUtils()
+ 
+ // GetSerializationUtils returns the global serialization utils instance
+@@ -115,8 +104,8 @@ func GetSerializationUtils() *SerializationUtils {
+ 	return globalSerializationUtils
+ }
+ 
+-// SetSerializationMode is deprecated - only MessagePack Base64 supported
++// SetSerializationMode is deprecated - only MessagePack binary supported
+ func SetSerializationMode(mode SerializationMode) {
+ 	// Only log - mode switching is no longer supported
+-	log.Printf("🔄 MessagePack Base64 mode enforced (mode switching disabled)")
++	log.Printf("🔄 MessagePack binary mode enforced (mode switching disabled)")
+ }
+diff --git a/frontend/index.html b/frontend/index.html
+index fac3b37..b9adfcb 100644
+--- a/frontend/index.html
++++ b/frontend/index.html
+@@ -5,6 +5,8 @@
+     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+     <meta name="description" content="Wails application with Tailwind CSS v3">
+     <title>lightning_explorer</title>
++    <!-- Prevent favicon 404 error -->
++    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+     <!-- Font preloading for performance -->
+     <link
+         rel="preload"
+diff --git a/frontend/src/app.jsx b/frontend/src/app.jsx
+index b594b70..5c4514a 100644
+--- a/frontend/src/app.jsx
++++ b/frontend/src/app.jsx
+@@ -73,8 +73,8 @@ export function App() {
+     const [isAppInitialized, setIsAppInitialized] = useState(false);
+     const [isDriveDataLoaded, setIsDriveDataLoaded] = useState(false);
+     
+-    // MessagePack integration state - FORCE MessagePack Base64 mode
+-    const [serializationMode, setSerializationModeState] = useState(SerializationMode.MSGPACK_BASE64);
++    // MessagePack integration state - FORCE MessagePack binary mode
++    const [serializationMode, setSerializationModeState] = useState(SerializationMode.MSGPACK_BINARY);
+     const [enhancedAPI, setEnhancedAPI] = useState(null);
+     const [benchmarkResults, setBenchmarkResults] = useState(null);
+ 
+@@ -368,11 +368,10 @@ export function App() {
+             const enhancedAPIInstance = new EnhancedAPI(wailsAPI, serializationUtils);
+             setEnhancedAPI(enhancedAPIInstance);
+             
+-            // Force MessagePack Base64 mode on backend
+-            await enhancedAPIInstance.setSerializationMode(SerializationMode.MSGPACK_BASE64);
+-            serializationUtils.setMode(SerializationMode.MSGPACK_BASE64);
++            // MessagePack binary mode is now the default on backend
++            serializationUtils.setMode(SerializationMode.MSGPACK_BINARY);
+             
+-            log(`🔧 Enhanced API initialized with MessagePack Base64 mode (synchronous imports)`);
++            log(`🔧 Enhanced API initialized with MessagePack binary mode (synchronous imports)`);
+         } catch (err) {
+             warn('⚠️ Enhanced API initialization failed, falling back to standard API:', err);
+         }
+@@ -544,8 +543,8 @@ export function App() {
+                                 </div>
+                             </div>
+                         ) : directoryContents ? (
+-                            allFiles.length > 20 ? (
+-                                // Use virtual scrolling for large directories - now bundled synchronously
++                            allFiles.length > 0 ? (
++                                // Always use virtual scrolling for better performance - now bundled synchronously
+                                 <VirtualizedFileList
+                                     files={allFiles}
+                                     selectedFiles={selectedFiles}
+@@ -571,7 +570,7 @@ export function App() {
+                                     isInspectMode={isInspectMode}
+                                 />
+                             ) : (
+-                                // Use normal rendering for small directories
++                                // Fallback for when there are no files or folders
+                                 <div 
+                                     className="file-list custom-scrollbar"
+                                     onContextMenu={(e) => {
+@@ -595,28 +594,7 @@ export function App() {
+                                         />
+                                     )}
+                                     
+-                                    {allFiles.map((file, index) => (
+-                                        <FileItem
+-                                            key={file.path}
+-                                            file={file}
+-                                            fileIndex={index}
+-                                            onSelect={handleFileSelect}
+-                                            onOpen={handleFileOpen}
+-                                            onContextMenu={handleContextMenu}
+-                                            isLoading={false} // Never show loading in file items
+-                                            isSelected={selectedFiles.has(index)}
+-                                            isCut={clipboardOperation === 'cut' && clipboardFiles.includes(file.path)}
+-                                            isDragOver={dragState.dragOverFolder === file.path}
+-                                            onDragStart={handleDragStart}
+-                                            onDragOver={handleDragOver}
+-                                            onDragEnter={handleDragEnter}
+-                                            onDragLeave={handleDragLeave}
+-                                            onDrop={handleDrop}
+-                                            isInspectMode={isInspectMode}
+-                                        />
+-                                    ))}
+-                                    
+-                                    {allFiles.length === 0 && !creatingFolder && (
++                                    {!creatingFolder && (
+                                         <div style={EMPTY_DIRECTORY_STYLE}>
+                                             <div style={LARGE_ICON_STYLE}>📁</div>
+                                             <div className="text-technical">Directory is empty</div>
+diff --git a/frontend/src/components/FastNavigation.css b/frontend/src/components/FastNavigation.css
+index 53cd5ff..947b1f3 100644
+--- a/frontend/src/components/FastNavigation.css
++++ b/frontend/src/components/FastNavigation.css
+@@ -37,14 +37,10 @@
+     overflow-y: auto;
+     overflow-x: hidden;
+     
+-    /* Optimize scrolling performance */
++    /* Restore proper scrolling behavior */
+     scroll-behavior: smooth;
+     overscroll-behavior: contain;
+     
+-    /* GPU acceleration */
+-    transform: translateZ(0);
+-    will-change: scroll-position;
+-    
+     /* Prevent horizontal scrollbar issues */
+     max-width: 100%;
+     
+@@ -61,8 +57,7 @@
+     right: 0;
+     bottom: 0;
+     background: rgba(250, 250, 250, 0.9);
+-    backdrop-filter: blur(8px);
+-    -webkit-backdrop-filter: blur(8px);
++    /* Removed backdrop-filter for better performance */
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+@@ -71,145 +66,99 @@
+     z-index: 100;
+     color: var(--zen-text-tertiary);
+     
+-    /* Instant appearance */
+-    animation: fadeInFast 150ms ease-out;
+-}
+-
+-@keyframes fadeInFast {
+-    from { opacity: 0; transform: translateY(-10px); }
+-    to { opacity: 1; transform: translateY(0); }
++    /* Instant appearance - reduced animation */
++    opacity: 1;
+ }
+ 
+-/* Responsive header elements */
++/* Responsive header elements - removed animations for performance */
+ .app-header {
+-    transition: background-color 150ms ease;
+-    backdrop-filter: blur(8px);
+-    -webkit-backdrop-filter: blur(8px);
+-}
+-
+-.app-header.loading {
+-    background-color: rgba(248, 249, 250, 0.95);
+-}
+-
+-/* Fast loading spinner with zen design */
+-.loading-spinner {
+-    width: 1.5rem;
+-    height: 1.5rem;
+-    border: 2px solid var(--zen-border);
+-    border-top: 2px solid var(--zen-primary);
+-    border-radius: 50%;
+-    animation: spin 1s linear infinite;
+-    
+-    /* Smooth animation */
+-    transform-origin: center;
+-    will-change: transform;
+-}
+-
+-@keyframes spin {
+-    0% { transform: rotate(0deg); }
+-    100% { transform: rotate(360deg); }
+-}
+-
+-/* Instant visual feedback for navigation */
+-.nav-segment, .sidebar-item {
+-    transition: all 150ms ease;
+-    cursor: pointer;
+-    border-radius: var(--zen-radius);
++    background: var(--zen-surface-elevated);
++    border-bottom: 1px solid var(--zen-border-light);
++    padding: var(--zen-space-lg) var(--zen-space-xl);
++    display: flex;
++    align-items: center;
++    justify-content: space-between;
++    gap: var(--zen-space-lg);
++    min-height: 4rem;
++    /* Removed transitions for performance */
+ }
+ 
+-.nav-segment:hover, .sidebar-item:hover:not(.active) {
+-    background-color: var(--zen-surface-hover);
++.app-title {
++    font-size: var(--zen-text-xl);
++    font-weight: 600;
+     color: var(--zen-text-primary);
+-    transform: translateX(2px);
++    flex-shrink: 0;
+ }
+ 
+-.nav-segment:active, .sidebar-item:active:not(.active) {
+-    transform: translateX(1px);
+-    background-color: var(--zen-surface-active);
+-}
+-
+-/* Enhanced active sidebar item hover feedback */
+-.sidebar-item.active:hover {
+-    background-color: var(--zen-primary-alpha-hover);
+-    transform: translateX(2px);
+-}
+-
+-.sidebar-item.active:active {
+-    background-color: var(--zen-primary-alpha);
+-    transform: translateX(1px);
+-}
+-
+-/* File item hover effects for instant feedback */
++/* Performance-optimized file items - removed expensive effects */
+ .file-item {
+-    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
+-    cursor: pointer;
+-    border-radius: var(--zen-radius-md);
+-    min-height: 3.5rem;
++    position: relative;
++    display: flex;
++    align-items: center;
++    gap: var(--zen-space-lg);
+     padding: var(--zen-space-lg);
++    border-radius: var(--zen-radius-md);
++    cursor: pointer;
+     border: 1px solid transparent;
++    min-height: 3.5rem;
++    background: transparent;
+     box-sizing: border-box;
++    
++    /* PERFORMANCE: Minimal transitions only for essential feedback */
++    transition: background-color 100ms ease-out, border-color 100ms ease-out;
++    
++    /* Optimize rendering */
++    contain: layout style paint;
++    overflow: hidden;
+ }
+ 
++/* Essential hover feedback - no transforms or expensive effects */
+ .file-item:hover:not(.selected) {
+-    background-color: rgba(79, 70, 229, 0.04);
++    background-color: var(--zen-surface-hover);
+     border-color: var(--zen-border);
+-    /* Pure color-based feedback - no transforms to prevent overlapping */
+ }
+ 
++/* Active state feedback - pure color based */
+ .file-item:active:not(.selected) {
+     background-color: var(--zen-surface-active);
+-    /* Pure color-based feedback - no transforms to prevent overlapping */
++    opacity: 0.8;
+ }
+ 
+-/* Selected state with zen styling */
++/* Selected state with zen styling - no transforms */
+ .file-item.selected {
+     background-color: var(--zen-primary-alpha);
+     border-color: var(--zen-primary);
+     color: var(--zen-primary);
+-    /* Pure color-based feedback - no transforms to prevent overlapping */
+ }
+ 
+-/* Enhanced selected state hover feedback */
++/* Enhanced selected state hover feedback - color only */
+ .file-item.selected:hover {
+     background-color: var(--zen-primary-alpha-hover);
+     border-color: var(--zen-primary);
+-    /* Pure color-based feedback - no dimension changes */
+ }
+ 
+ .file-item.selected:active {
+     background-color: var(--zen-primary-alpha);
+     border-color: var(--zen-primary);
+     opacity: 0.8;
+-    /* Pure color-based feedback - no transforms to prevent overlapping */
+ }
+ 
+-/* Internal drag and drop feedback */
+-.file-explorer.dragging-active {
+-    position: relative;
+-}
+-
+-/* Enhanced drag over states for folders */
++/* PERFORMANCE: Simplified drag over states - reduced animations */
+ .file-item.drag-over {
+     background-color: rgba(0, 255, 136, 0.1) !important;
+     border-color: rgba(0, 255, 136, 0.6) !important;
+     border-style: dashed !important;
+     border-width: 2px !important;
+-    transform: scale(1.02);
+-    box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+-    animation: dragOverGlow 1s ease-in-out infinite alternate;
++    /* Removed transform and animations for performance */
+ }
+ 
+-@keyframes dragOverGlow {
+-    from { box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2); }
+-    to { box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4); }
++/* Internal drag and drop feedback */
++.file-explorer.dragging-active {
++    position: relative;
+ }
+ 
+-
+-
+-/* Optimized breadcrumb transitions */
++/* Optimized breadcrumb - reduced scroll effects */
+ .nav-breadcrumb {
+-    /* Smooth scrolling for long paths */
+-    scroll-behavior: smooth;
+     overflow-x: auto;
+     overflow-y: hidden;
+     white-space: nowrap;
+@@ -226,90 +175,85 @@
+     display: none;
+ }
+ 
+-/* Toolbar button responsiveness */
+-.toolbar-btn {
+-    transition: all 150ms ease;
++.nav-segment {
++    display: inline-flex;
++    align-items: center;
++    padding: var(--zen-space-sm) var(--zen-space-md);
+     border-radius: var(--zen-radius);
+-    padding: var(--zen-space-sm) var(--zen-space-lg);
+-    border: 1px solid var(--zen-border);
+-    background: transparent;
++    cursor: pointer;
++    font-size: var(--zen-text-sm);
++    /* Simplified transitions */
++    transition: background-color 100ms ease-out;
+     color: var(--zen-text-secondary);
+-    min-height: 2.25rem;
+ }
+ 
+-.toolbar-btn:hover:not(:disabled) {
+-    background-color: var(--zen-surface-hover);
+-    border-color: var(--zen-border-focus);
++.nav-segment:hover {
++    background: var(--zen-surface-hover);
+     color: var(--zen-text-primary);
+-    transform: translateY(-1px);
+-    box-shadow: var(--zen-shadow-sm);
+ }
+ 
+-.toolbar-btn:active:not(:disabled) {
+-    transform: translateY(0);
+-    background-color: var(--zen-surface-active);
+-    box-shadow: none;
++.nav-segment.current {
++    color: var(--zen-primary);
++    font-weight: 600;
++    background: var(--zen-primary-alpha);
+ }
+ 
+-.toolbar-btn:disabled {
+-    opacity: 0.5;
+-    cursor: not-allowed;
++.separator {
++    color: var(--zen-text-tertiary);
++    margin: 0 var(--zen-space-sm);
++    font-size: var(--zen-text-xs);
++    font-weight: 400;
++    flex-shrink: 0;
+ }
+ 
+-/* Context menu instant appearance with zen styling */
+-.context-menu {
+-    animation: contextMenuAppear 150ms ease-out;
+-    transform-origin: top left;
++/* Simplified toolbar */
++.toolbar {
++    display: flex;
++    align-items: center;
++    gap: var(--zen-space-md);
++    padding: var(--zen-space-lg) var(--zen-space-xl);
+     background: var(--zen-surface);
++    border-bottom: 1px solid var(--zen-border-light);
++}
++
++.toolbar-btn {
++    padding: var(--zen-space-sm) var(--zen-space-lg);
+     border: 1px solid var(--zen-border);
+-    border-radius: var(--zen-radius-md);
+-    box-shadow: var(--zen-shadow-lg);
+-    backdrop-filter: blur(16px);
+-    -webkit-backdrop-filter: blur(16px);
+-    padding: var(--zen-space-sm);
++    border-radius: var(--zen-radius);
++    background: var(--zen-surface);
++    color: var(--zen-text-secondary);
++    cursor: pointer;
++    font-size: var(--zen-text-sm);
++    /* Minimal transitions */
++    transition: background-color 100ms ease-out, border-color 100ms ease-out;
+ }
+ 
+-@keyframes contextMenuAppear {
+-    from {
+-        opacity: 0;
+-        transform: scale(0.95) translateY(-5px);
+-    }
+-    to {
+-        opacity: 1;
+-        transform: scale(1) translateY(0);
+-    }
++.toolbar-btn:hover {
++    background: var(--zen-surface-hover);
++    border-color: var(--zen-border-focus);
++    color: var(--zen-text-primary);
+ }
+ 
+-/* Status bar with zen styling */
+-.status-bar {
+-    transition: background-color 150ms ease;
+-    background: var(--zen-surface);
+-    border-top: 1px solid var(--zen-border-light);
+-    color: var(--zen-text-secondary);
+-    font-size: var(--zen-text-xs);
+-    padding: var(--zen-space-md) var(--zen-space-xl);
++.toolbar-btn:disabled {
++    opacity: 0.5;
++    cursor: not-allowed;
+ }
+ 
+-/* Error message with zen styling */
++.toolbar-btn.active {
++    background: var(--zen-primary-alpha);
++    border-color: var(--zen-primary);
++    color: var(--zen-primary);
++}
++
++/* Simplified error handling */
+ .error-message {
+-    animation: slideInFromTop 200ms ease-out;
+     background: rgba(220, 38, 38, 0.1);
+     border-left: 4px solid var(--zen-error);
+     color: var(--zen-error);
+     border-radius: var(--zen-radius);
+     margin: var(--zen-space-lg);
+     padding: var(--zen-space-lg) var(--zen-space-xl);
+-}
+-
+-@keyframes slideInFromTop {
+-    from {
+-        opacity: 0;
+-        transform: translateY(-20px);
+-    }
+-    to {
+-        opacity: 1;
+-        transform: translateY(0);
+-    }
++    /* Removed animations */
+ }
+ 
+ /* Dark mode support */
+@@ -323,7 +267,7 @@
+     }
+ }
+ 
+-/* Reduced motion support */
++/* Reduced motion support - disable all animations */
+ @media (prefers-reduced-motion: reduce) {
+     * {
+         animation-duration: 0.01ms !important;
+@@ -337,19 +281,26 @@
+     }
+ }
+ 
+-/* Global override to prevent file item hover overlapping */
++/* Global performance override for virtualized lists */
+ .virtualized-file-list .file-item,
+ .file-list .file-item {
+     /* Ensure all file items are contained and don't expand */
+     contain: layout style paint !important;
+     overflow: hidden !important;
++    
++    /* CRITICAL: No transforms or box-shadows in large lists */
++    transform: none !important;
++    box-shadow: none !important;
++    will-change: auto !important;
+ }
+ 
++/* Override any hover effects that might cause expansion */
+ .virtualized-file-list .file-item:hover,
+ .virtualized-file-list .file-item:active,
+ .virtualized-file-list .file-item.selected,
+ .virtualized-file-list .file-item.selected:hover {
+-    /* Absolutely no transforms in virtualized lists */
++    /* Absolutely no transforms or shadows in virtualized lists */
+     transform: none !important;
+     box-shadow: none !important;
++    will-change: auto !important;
+ } 
+\ No newline at end of file
+diff --git a/frontend/src/components/VirtualizedFileList.jsx b/frontend/src/components/VirtualizedFileList.jsx
+index 394c78a..b2d8e62 100644
+--- a/frontend/src/components/VirtualizedFileList.jsx
++++ b/frontend/src/components/VirtualizedFileList.jsx
+@@ -11,9 +11,9 @@ import {
+     FLEX_CENTER_STYLE
+ } from "../utils/styleConstants";
+ 
+-// Virtual scrolling configuration  
++// Virtual scrolling configuration - restored to working values
+ const ITEM_HEIGHT = 72; // Simplified height: 3.5rem min-height (56px) + 1rem gap (16px) = 72px
+-const BUFFER_SIZE = 10; // More buffer items for smoother scrolling
++const BUFFER_SIZE = 10; // Restored buffer for smoother scrolling
+ const CONTAINER_HEIGHT = 400; // Default container height
+ 
+ const VirtualizedFileList = memo(({ 
+@@ -101,7 +101,7 @@ const VirtualizedFileList = memo(({
+     // Calculate total height for scrollbar
+     const totalHeight = (files.length + (creatingFolder ? 1 : 0)) * ITEM_HEIGHT;
+     
+-    // Optimized scroll handler
++    // Simple and reliable scroll handler
+     const handleScroll = useCallback(rafThrottle((event) => {
+         setScrollTop(event.target.scrollTop);
+     }), []);
+diff --git a/frontend/src/hooks/useNavigation.js b/frontend/src/hooks/useNavigation.js
+index 8551526..36ce04c 100644
+--- a/frontend/src/hooks/useNavigation.js
++++ b/frontend/src/hooks/useNavigation.js
+@@ -1,7 +1,7 @@
+ import { useState, useCallback, useRef, useEffect } from "preact/hooks";
+ import { NavigateToPathOptimized } from "../../wailsjs/go/backend/App";
+ import { EventsOn, EventsOff } from "../../wailsjs/runtime/runtime";
+-import { log, error } from "../utils/logger";
++import { log, error, logHydration, logBatch } from "../utils/logger";
+ import { serializationUtils } from "../utils/serialization";
+ 
+ export function useNavigation(setError, setNavigationStats) {
+@@ -255,10 +255,11 @@ export function useNavigation(setError, setNavigationStats) {
+         }
+     }, [currentPath, navigateToPath]);
+ 
+-    // HYDRATION FIX: Listen for progressive hydration events with bounds checking
++    // HYDRATION FIX: Listen for batched hydration events with optimized state updates
+     useEffect(() => {
++        // Handle individual file hydration (legacy - for compatibility)
+         const unsubscribeHydrate = EventsOn("DirectoryHydrate", (fileInfo) => {
+-            log(`🔄 Hydrating file: ${fileInfo.name}`);
++            logHydration(`🔄 Hydrating individual file: ${fileInfo.name}`);
+             
+             setDirectoryContents(prev => {
+                 if (!prev) return prev;
+@@ -269,7 +270,7 @@ export function useNavigation(setError, setNavigationStats) {
+                 
+                 // Only process hydration for files in the current directory
+                 if (currentDir !== fileDir) {
+-                    log(`🚫 Ignoring hydration for ${fileInfo.path} - not in current directory ${currentDir}`);
++                    logHydration(`🚫 Ignoring hydration for ${fileInfo.path} - not in current directory ${currentDir}`);
+                     return prev;
+                 }
+                 
+@@ -293,6 +294,73 @@ export function useNavigation(setError, setNavigationStats) {
+             });
+         });
+ 
++        // Handle batched hydration (optimized for performance)
++        const unsubscribeBatch = EventsOn("DirectoryBatch", (batchFiles) => {
++            logBatch(`🔄 Hydrating batch of ${batchFiles.length} files`);
++            
++            setDirectoryContents(prev => {
++                if (!prev || !batchFiles.length) return prev;
++                
++                // SECURITY FIX: Validate batch is for current directory
++                const currentDir = prev.currentPath;
++                const firstFile = batchFiles[0];
++                const fileDir = firstFile.path ? firstFile.path.substring(0, firstFile.path.lastIndexOf('/') || firstFile.path.lastIndexOf('\\')) : '';
++                
++                // Only process batch for files in the current directory
++                if (currentDir !== fileDir) {
++                    logBatch(`🚫 Ignoring batch hydration - not in current directory ${currentDir}`);
++                    return prev;
++                }
++                
++                // Create a map for efficient lookups
++                const batchMap = new Map();
++                batchFiles.forEach(file => {
++                    batchMap.set(file.path, file);
++                });
++                
++                // Efficiently update existing files and add new ones
++                const allFiles = [...prev.directories, ...prev.files];
++                const updatedFiles = [];
++                const newFiles = [];
++                
++                // Update existing files
++                allFiles.forEach(file => {
++                    if (batchMap.has(file.path)) {
++                        updatedFiles.push(batchMap.get(file.path));
++                        batchMap.delete(file.path); // Remove from map to track new files
++                    } else {
++                        updatedFiles.push(file);
++                    }
++                });
++                
++                // Add any remaining files from batch (new files)
++                batchMap.forEach(file => newFiles.push(file));
++                
++                // Combine all files
++                const finalFiles = [...updatedFiles, ...newFiles];
++                
++                // Split back into directories and files with efficient filtering
++                const directories = [];
++                const files = [];
++                
++                finalFiles.forEach(file => {
++                    if (file.isDir) {
++                        directories.push(file);
++                    } else {
++                        files.push(file);
++                    }
++                });
++                
++                return {
++                    ...prev,
++                    directories,
++                    files,
++                    totalDirs: directories.length,
++                    totalFiles: files.length
++                };
++            });
++        });
++
+         const unsubscribeComplete = EventsOn("DirectoryComplete", (data) => {
+             log(`✅ Directory hydration completed: ${data.path} (${data.totalFiles} files processed)`);
+             
+@@ -305,6 +373,7 @@ export function useNavigation(setError, setNavigationStats) {
+         
+         return () => {
+             EventsOff("DirectoryHydrate");
++            EventsOff("DirectoryBatch");
+             EventsOff("DirectoryComplete");
+         };
+     }, [setNavigationStats]);
+diff --git a/frontend/src/utils/fileUtils.js b/frontend/src/utils/fileUtils.js
+index 3932b45..747c975 100644
+--- a/frontend/src/utils/fileUtils.js
++++ b/frontend/src/utils/fileUtils.js
+@@ -1,67 +1,161 @@
+-// Optimized file type detection using pre-compiled maps
+-import { 
+-    SPECIFIC_FILE_MAP, 
+-    EXTENSION_TYPE_MAP, 
+-    DEFAULT_FILE_TYPE,
+-    SPECIAL_FOLDER_MAP, 
+-    TYPE_ICON_MAP, 
+-    DEFAULT_FILE_ICON, 
+-    DEFAULT_FOLDER_ICON 
+-} from './fileTypeMaps.js';
+-
+-export const getFileType = (fileName, isDir) => {
++// Optimized file utilities with caching and performance optimizations
++
++// Cache for file type and icon lookups to avoid repeated computations
++const iconCache = new Map();
++const typeCache = new Map();
++const extensionCache = new Map();
++
++// Clear caches periodically to prevent memory leaks
++let cacheCleanupInterval;
++const startCacheCleanup = () => {
++    if (!cacheCleanupInterval) {
++        cacheCleanupInterval = setInterval(() => {
++            if (iconCache.size > 1000) iconCache.clear();
++            if (typeCache.size > 1000) typeCache.clear();
++            if (extensionCache.size > 1000) extensionCache.clear();
++        }, 300000); // Clean every 5 minutes
++    }
++};
++
++// Start cache cleanup
++startCacheCleanup();
++
++/**
++ * Optimized file filtering with precomputed hidden status
++ * @param {Array} files - Array of file objects
++ * @param {boolean} showHidden - Whether to show hidden files
++ * @returns {Array} - Filtered array
++ */
++export function filterFiles(files, showHidden) {
++    if (!files || !Array.isArray(files)) return [];
++    
++    // If showing all files, return as-is (backend already filtered system files)
++    if (showHidden) return files;
++    
++    // Filter out hidden files efficiently
++    return files.filter(file => !file.isHidden);
++}
++
++/**
++ * Batch filter files with optimized performance for large lists
++ * @param {Array} directories - Directory entries
++ * @param {Array} files - File entries
++ * @param {boolean} showHidden - Whether to show hidden files
++ * @returns {Object} - Object with filtered directories and files
++ */
++export function batchFilterFiles(directories, files, showHidden) {
++    return {
++        directories: filterFiles(directories, showHidden),
++        files: filterFiles(files, showHidden)
++    };
++}
++
++/**
++ * Cached file type detection
++ */
++export function getFileType(filename, isDir) {
+     if (isDir) return 'folder';
+     
+-    const baseName = fileName.toLowerCase();
++    const cacheKey = filename.toLowerCase();
++    if (typeCache.has(cacheKey)) {
++        return typeCache.get(cacheKey);
++    }
+     
+-    // Check specific file mappings first (highest priority)
+-    if (SPECIFIC_FILE_MAP[baseName]) return SPECIFIC_FILE_MAP[baseName];
++    const ext = getExtension(filename);
++    let type = 'file';
+     
+-    // Check extension mappings
+-    const ext = fileName.split('.').pop()?.toLowerCase();
+-    return EXTENSION_TYPE_MAP[ext] || DEFAULT_FILE_TYPE;
+-};
++    // Fast type detection based on extension
++    if (imageExtensions.has(ext)) type = 'image';
++    else if (videoExtensions.has(ext)) type = 'video';
++    else if (audioExtensions.has(ext)) type = 'audio';
++    else if (documentExtensions.has(ext)) type = 'document';
++    else if (codeExtensions.has(ext)) type = 'code';
++    else if (archiveExtensions.has(ext)) type = 'archive';
++    
++    typeCache.set(cacheKey, type);
++    return type;
++}
+ 
+-export const getFileIcon = (fileName, isDir) => {
+-    if (isDir) {
+-        const folderName = fileName.toLowerCase();
+-        return SPECIAL_FOLDER_MAP[folderName] || DEFAULT_FOLDER_ICON;
++/**
++ * Cached file icon detection with performance optimization
++ */
++export function getFileIcon(filename, isDir) {
++    if (isDir) return '📁';
++    
++    const cacheKey = filename.toLowerCase();
++    if (iconCache.has(cacheKey)) {
++        return iconCache.get(cacheKey);
+     }
+     
+-    const type = getFileType(fileName, false);
+-    return TYPE_ICON_MAP[type] || DEFAULT_FILE_ICON;
+-};
++    const ext = getExtension(filename);
++    let icon = '📄'; // Default file icon
++    
++    // Fast icon lookup using Sets for O(1) performance
++    if (imageExtensions.has(ext)) icon = '🖼️';
++    else if (videoExtensions.has(ext)) icon = '🎬';
++    else if (audioExtensions.has(ext)) icon = '🎵';
++    else if (documentExtensions.has(ext)) icon = '📝';
++    else if (codeExtensions.has(ext)) icon = '💻';
++    else if (archiveExtensions.has(ext)) icon = '📦';
++    else if (executableExtensions.has(ext)) icon = '⚙️';
++    
++    iconCache.set(cacheKey, icon);
++    return icon;
++}
+ 
+-// Filter function for hidden and system files
+-export const filterFiles = (files, showHiddenFiles) => {
+-    if (!files) return [];
+-    if (showHiddenFiles) return files;
++/**
++ * Optimized extension extraction with caching
++ */
++export function getExtension(filename) {
++    if (!filename) return '';
+     
+-    return files.filter(file => {
+-        // Most important: Check the isHidden property from the backend
+-        if (file.isHidden) return false;
+-        
+-        // Hide files that start with . (hidden files) - redundant but kept for safety
+-        if (file.name.startsWith('.')) return false;
+-        
+-        // Hide common Windows system files
+-        const systemFiles = [
+-            'NTUSER.DAT', 'ntuser.dat.LOG1', 'ntuser.dat.LOG2', 'ntuser.ini',
+-            'Application Data', 'Cookies', 'Local Settings', 'My Documents',
+-            'NetHood', 'PrintHood', 'Recent', 'SendTo', 'Start Menu', 'Templates'
+-        ];
+-        
+-        if (systemFiles.includes(file.name)) return false;
+-        
+-        // Hide files with system file extensions and patterns
+-        const hiddenPatterns = [
+-            /^NTUSER\.DAT/i,
+-            /\.TM\.blf$/i,
+-            /\.TMContainer.*\.regtrans-ms$/i,
+-            /^thumbs\.db$/i,
+-            /^desktop\.ini$/i
+-        ];
+-        
+-        return !hiddenPatterns.some(pattern => pattern.test(file.name));
+-    });
++    if (extensionCache.has(filename)) {
++        return extensionCache.get(filename);
++    }
++    
++    const lastDot = filename.lastIndexOf('.');
++    const ext = lastDot > 0 ? filename.slice(lastDot + 1).toLowerCase() : '';
++    
++    extensionCache.set(filename, ext);
++    return ext;
++}
++
++// Pre-computed Sets for O(1) lookup performance (much faster than arrays)
++const imageExtensions = new Set([
++    'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'tif'
++]);
++
++const videoExtensions = new Set([
++    'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', 'm4v', '3gp'
++]);
++
++const audioExtensions = new Set([
++    'mp3', 'wav', 'flac', 'aac', 'ogg', 'wma', 'm4a', 'opus'
++]);
++
++const documentExtensions = new Set([
++    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt'
++]);
++
++const codeExtensions = new Set([
++    'js', 'jsx', 'ts', 'tsx', 'py', 'java', 'cpp', 'c', 'h', 'cs', 'php', 'rb', 'go', 'rs', 'swift'
++]);
++
++const archiveExtensions = new Set([
++    'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'
++]);
++
++const executableExtensions = new Set([
++    'exe', 'msi', 'deb', 'rpm', 'dmg', 'app'
++]);
++
++// Export sets for external use if needed
++export { 
++    imageExtensions, 
++    videoExtensions, 
++    audioExtensions, 
++    documentExtensions, 
++    codeExtensions, 
++    archiveExtensions, 
++    executableExtensions 
+ }; 
+\ No newline at end of file
+diff --git a/frontend/src/utils/logger.js b/frontend/src/utils/logger.js
+index c283ffb..367eb49 100644
+--- a/frontend/src/utils/logger.js
++++ b/frontend/src/utils/logger.js
+@@ -1,30 +1,20 @@
+-// Logger utility to gate console logging in production
+-export const debug = process.env.NODE_ENV !== 'production';
++// Production-optimized logger utility with zero overhead in production
++const debug = process.env.NODE_ENV !== 'production';
+ 
+-export const log = (...args) => { 
+-    if (debug) console.log(...args); 
+-};
++// In production, these become no-op functions that get optimized away by bundlers
++export const log = debug ? (...args) => console.log(...args) : () => {};
++export const warn = debug ? (...args) => console.warn(...args) : () => {};
++export const error = debug ? (...args) => console.error(...args) : () => {};
++export const time = debug ? (label) => console.time(label) : () => {};
++export const timeEnd = debug ? (label) => console.timeEnd(label) : () => {};
++export const group = debug ? (label) => console.group(label) : () => {};
++export const groupEnd = debug ? () => console.groupEnd() : () => {};
+ 
+-export const warn = (...args) => { 
+-    if (debug) console.warn(...args); 
+-};
++// Performance-critical operations should use these instead of the above
++// These have additional checks to prevent any runtime overhead in hot paths
++export const logHotPath = debug && typeof console !== 'undefined' ? (...args) => console.log(...args) : () => {};
++export const logBatch = debug && typeof console !== 'undefined' ? (...args) => console.log(...args) : () => {};
++export const logHydration = debug && typeof console !== 'undefined' ? (...args) => console.log(...args) : () => {};
+ 
+-export const error = (...args) => { 
+-    if (debug) console.error(...args); 
+-};
+-
+-export const time = (label) => { 
+-    if (debug) console.time(label); 
+-};
+-
+-export const timeEnd = (label) => { 
+-    if (debug) console.timeEnd(label); 
+-};
+-
+-export const group = (label) => { 
+-    if (debug) console.group(label); 
+-};
+-
+-export const groupEnd = () => { 
+-    if (debug) console.groupEnd(); 
+-}; 
+\ No newline at end of file
++// Export debug flag for conditional logic
++export { debug }; 
+\ No newline at end of file
+diff --git a/frontend/src/utils/serialization.js b/frontend/src/utils/serialization.js
+index 44ed006..4033188 100644
+--- a/frontend/src/utils/serialization.js
++++ b/frontend/src/utils/serialization.js
+@@ -1,61 +1,65 @@
+ import { decode, encode } from '@msgpack/msgpack';
+ 
+-// MessagePack-only serialization mode - NO JSON SUPPORT
++// MessagePack-only serialization mode - Direct binary mode (no Base64)
+ export const SerializationMode = {
+-    MSGPACK_BASE64: 2  // Only MessagePack Base64 mode - removed JSON and pure MessagePack
++    MSGPACK_BINARY: 3  // Only MessagePack binary mode - removed Base64 encoding
+ };
+ 
+ /**
+- * MessagePack-only utility class - NO JSON SUPPORT
++ * MessagePack-only utility class - Direct binary mode (no Base64)
+  */
+ export class SerializationUtils {
+     constructor() {
+-        // Always use MessagePack Base64 mode - no mode switching
+-        this.mode = SerializationMode.MSGPACK_BASE64;
++        // Always use MessagePack binary mode - no mode switching
++        this.mode = SerializationMode.MSGPACK_BINARY;
+     }
+ 
+     /**
+-     * Deserialize MessagePack data only
+-     * @param {*} data - The data to deserialize (MessagePack Base64 string)
++     * Deserialize MessagePack binary data only
++     * @param {*} data - The data to deserialize (MessagePack binary Uint8Array or ArrayBuffer)
+      * @returns {Object} - The deserialized object
+      */
+     deserialize(data) {
+         try {
+-            if (typeof data === 'string') {
+-                // Decode base64 to binary, then decode MessagePack
++            // Handle different binary data types from Wails
++            if (data instanceof ArrayBuffer) {
++                return decode(new Uint8Array(data));
++            } else if (data instanceof Uint8Array) {
++                return decode(data);
++            } else if (typeof data === 'string') {
++                // Wails v2 automatically converts Go []byte to Base64 strings
++                // This is expected behavior for Wails v2, not a performance issue
+                 const binaryData = this.base64ToUint8Array(data);
+                 return decode(binaryData);
+             }
++            
+             // If it's already decoded, return as-is
+             return data;
+         } catch (error) {
+-            console.error('❌ MessagePack deserialization failed:', error);
+-            throw new Error('MessagePack deserialization failed: ' + error.message);
++            console.error('❌ MessagePack binary deserialization failed:', error);
++            throw new Error('MessagePack binary deserialization failed: ' + error.message);
+         }
+     }
+ 
+     /**
+-     * Serialize data to MessagePack Base64 only
++     * Serialize data to MessagePack binary only
+      * @param {Object} data - The data to serialize
+-     * @returns {string} - The MessagePack Base64 serialized data
++     * @returns {Uint8Array} - The MessagePack binary serialized data
+      */
+     serialize(data) {
+         try {
+-            const binaryData = encode(data);
+-            return this.uint8ArrayToBase64(binaryData);
++            return encode(data);
+         } catch (error) {
+-            console.error('❌ MessagePack serialization failed:', error);
+-            throw new Error('MessagePack serialization failed: ' + error.message);
++            console.error('❌ MessagePack binary serialization failed:', error);
++            throw new Error('MessagePack binary serialization failed: ' + error.message);
+         }
+     }
+ 
+     /**
+-     * Convert base64 string to Uint8Array
+-     * @param {string} base64 - Base64 encoded string
+-     * @returns {Uint8Array} - Binary data
++     * Legacy Base64 conversion methods (for fallback compatibility only)
+      */
+-    base64ToUint8Array(base64) {
+-        const binaryString = atob(base64);
++    base64ToUint8Array(base64String) {
++        const binaryString = atob(base64String);
+         const bytes = new Uint8Array(binaryString.length);
+         for (let i = 0; i < binaryString.length; i++) {
+             bytes[i] = binaryString.charCodeAt(i);
+@@ -63,38 +67,33 @@ export class SerializationUtils {
+         return bytes;
+     }
+ 
+-    /**
+-     * Convert Uint8Array to base64 string
+-     * @param {Uint8Array} bytes - Binary data
+-     * @returns {string} - Base64 encoded string
+-     */
+-    uint8ArrayToBase64(bytes) {
++    uint8ArrayToBase64(uint8Array) {
+         let binaryString = '';
+-        for (let i = 0; i < bytes.length; i++) {
+-            binaryString += String.fromCharCode(bytes[i]);
++        for (let i = 0; i < uint8Array.length; i++) {
++            binaryString += String.fromCharCode(uint8Array[i]);
+         }
+         return btoa(binaryString);
+     }
+ 
+     /**
+-     * Get the current serialization mode (always MessagePack Base64)
+-     * @returns {number} - Always returns MessagePack Base64 mode
++     * Get the current serialization mode (always MessagePack binary)
++     * @returns {number} - Always returns MessagePack binary mode
+      */
+     getMode() {
+-        return SerializationMode.MSGPACK_BASE64;
++        return SerializationMode.MSGPACK_BINARY;
+     }
+ 
+     /**
+-     * Set mode - does nothing since we only support MessagePack Base64
+-     * @param {number} mode - Ignored, always uses MessagePack Base64
++     * Set mode - does nothing since we only support MessagePack binary
++     * @param {number} mode - Ignored, always uses MessagePack binary
+      */
+     setMode(mode) {
+-        // Always use MessagePack Base64 - ignore any other mode
+-        console.log('🔄 MessagePack Base64 mode enforced (mode switching disabled)');
++        // Always use MessagePack binary - ignore any other mode
++        console.log('🔄 MessagePack binary mode enforced (mode switching disabled)');
+     }
+ }
+ 
+-// Global instance - always MessagePack Base64
++// Global instance - always MessagePack binary
+ const serializationUtils = new SerializationUtils();
+ 
+ /**
+@@ -107,7 +106,7 @@ export class EnhancedAPI {
+     }
+ 
+     /**
+-     * Navigate to a path with MessagePack serialization
++     * Navigate to a path with MessagePack binary serialization
+      * @param {string} path - The path to navigate to
+      * @returns {Promise<Object>} - Navigation response
+      */
+@@ -117,7 +116,7 @@ export class EnhancedAPI {
+     }
+ 
+     /**
+-     * List directory contents with MessagePack serialization
++     * List directory contents with MessagePack binary serialization
+      * @param {string} path - The directory path
+      * @returns {Promise<Object>} - Directory contents
+      */
+@@ -127,7 +126,7 @@ export class EnhancedAPI {
+     }
+ 
+     /**
+-     * Get file details with MessagePack serialization
++     * Get file details with MessagePack binary serialization
+      * @param {string} filePath - The file path
+      * @returns {Promise<Object>} - File information
+      */
+@@ -137,7 +136,7 @@ export class EnhancedAPI {
+     }
+ 
+     /**
+-     * Get drive information with MessagePack serialization
++     * Get drive information with MessagePack binary serialization
+      * @returns {Promise<Array>} - Drive information array
+      */
+     async getDriveInfo() {
+@@ -146,7 +145,7 @@ export class EnhancedAPI {
+     }
+ 
+     /**
+-     * Get home directory with MessagePack serialization
++     * Get home directory with MessagePack binary serialization
+      * @returns {Promise<Object>} - Home directory response
+      */
+     async getHomeDirectory() {
+@@ -155,7 +154,7 @@ export class EnhancedAPI {
+     }
+ 
+     /**
+-     * Create directory with MessagePack serialization
++     * Create directory with MessagePack binary serialization
+      * @param {string} path - The parent directory path
+      * @param {string} name - The new directory name
+      * @returns {Promise<Object>} - Navigation response
+@@ -166,7 +165,7 @@ export class EnhancedAPI {
+     }
+ 
+     /**
+-     * Delete path with MessagePack serialization
++     * Delete path with MessagePack binary serialization
+      * @param {string} path - The path to delete
+      * @returns {Promise<Object>} - Navigation response
+      */
+@@ -176,7 +175,7 @@ export class EnhancedAPI {
+     }
+ 
+     /**
+-     * Get quick access paths with MessagePack serialization
++     * Get quick access paths with MessagePack binary serialization
+      * @returns {Promise<Array>} - Quick access paths array
+      */
+     async getQuickAccessPaths() {
+@@ -185,7 +184,7 @@ export class EnhancedAPI {
+     }
+ 
+     /**
+-     * Get system roots with MessagePack serialization
++     * Get system roots with MessagePack binary serialization
+      * @returns {Promise<Object>} - System roots response
+      */
+     async getSystemRoots() {
+@@ -194,24 +193,22 @@ export class EnhancedAPI {
+     }
+ 
+     /**
+-     * Set the serialization mode (always forces MessagePack Base64)
+-     * @param {number} mode - Ignored, always uses MessagePack Base64
++     * Set the serialization mode (always forces MessagePack binary)
++     * @param {number} mode - Ignored, always uses MessagePack binary
+      * @returns {Promise<boolean>} - Always returns true
+      */
+     async setSerializationMode(mode) {
+-        // Force MessagePack Base64 mode on backend
+-        return await this.api.SetSerializationMode(SerializationMode.MSGPACK_BASE64);
++        // MessagePack binary mode is enforced by default on backend
++        return true;
+     }
+ 
+     /**
+-     * Get the current serialization mode (always MessagePack Base64)
+-     * @returns {Promise<number>} - Always returns MessagePack Base64 mode
++     * Get the current serialization mode (always MessagePack binary)
++     * @returns {Promise<number>} - Always returns MessagePack binary mode
+      */
+     async getSerializationMode() {
+-        return SerializationMode.MSGPACK_BASE64;
++        return SerializationMode.MSGPACK_BINARY;
+     }
+ }
+ 
+-// Export utilities
+-export { serializationUtils };
+-export default SerializationUtils; 
+\ No newline at end of file
++export { serializationUtils }; 
+\ No newline at end of file
+diff --git a/lightning_explorer.exe b/lightning_explorer.exe
+deleted file mode 100644
+index 6c7d12d..0000000
+Binary files a/lightning_explorer.exe and /dev/null differ

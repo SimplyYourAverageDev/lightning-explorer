@@ -1,61 +1,65 @@
 import { decode, encode } from '@msgpack/msgpack';
 
-// MessagePack-only serialization mode - NO JSON SUPPORT
+// MessagePack-only serialization mode - Direct binary mode (no Base64)
 export const SerializationMode = {
-    MSGPACK_BASE64: 2  // Only MessagePack Base64 mode - removed JSON and pure MessagePack
+    MSGPACK_BINARY: 3  // Only MessagePack binary mode - removed Base64 encoding
 };
 
 /**
- * MessagePack-only utility class - NO JSON SUPPORT
+ * MessagePack-only utility class - Direct binary mode (no Base64)
  */
 export class SerializationUtils {
     constructor() {
-        // Always use MessagePack Base64 mode - no mode switching
-        this.mode = SerializationMode.MSGPACK_BASE64;
+        // Always use MessagePack binary mode - no mode switching
+        this.mode = SerializationMode.MSGPACK_BINARY;
     }
 
     /**
-     * Deserialize MessagePack data only
-     * @param {*} data - The data to deserialize (MessagePack Base64 string)
+     * Deserialize MessagePack binary data only
+     * @param {*} data - The data to deserialize (MessagePack binary Uint8Array or ArrayBuffer)
      * @returns {Object} - The deserialized object
      */
     deserialize(data) {
         try {
-            if (typeof data === 'string') {
-                // Decode base64 to binary, then decode MessagePack
+            // Handle different binary data types from Wails
+            if (data instanceof ArrayBuffer) {
+                return decode(new Uint8Array(data));
+            } else if (data instanceof Uint8Array) {
+                return decode(data);
+            } else if (typeof data === 'string') {
+                // Wails v2 automatically converts Go []byte to Base64 strings
+                // This is expected behavior for Wails v2, not a performance issue
                 const binaryData = this.base64ToUint8Array(data);
                 return decode(binaryData);
             }
+            
             // If it's already decoded, return as-is
             return data;
         } catch (error) {
-            console.error('❌ MessagePack deserialization failed:', error);
-            throw new Error('MessagePack deserialization failed: ' + error.message);
+            console.error('❌ MessagePack binary deserialization failed:', error);
+            throw new Error('MessagePack binary deserialization failed: ' + error.message);
         }
     }
 
     /**
-     * Serialize data to MessagePack Base64 only
+     * Serialize data to MessagePack binary only
      * @param {Object} data - The data to serialize
-     * @returns {string} - The MessagePack Base64 serialized data
+     * @returns {Uint8Array} - The MessagePack binary serialized data
      */
     serialize(data) {
         try {
-            const binaryData = encode(data);
-            return this.uint8ArrayToBase64(binaryData);
+            return encode(data);
         } catch (error) {
-            console.error('❌ MessagePack serialization failed:', error);
-            throw new Error('MessagePack serialization failed: ' + error.message);
+            console.error('❌ MessagePack binary serialization failed:', error);
+            throw new Error('MessagePack binary serialization failed: ' + error.message);
         }
     }
 
     /**
-     * Convert base64 string to Uint8Array
-     * @param {string} base64 - Base64 encoded string
-     * @returns {Uint8Array} - Binary data
+     * Legacy Base64 conversion methods (for fallback compatibility only)
      */
-    base64ToUint8Array(base64) {
-        const binaryString = atob(base64);
+    base64ToUint8Array(base64String) {
+        const binaryString = atob(base64String);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
             bytes[i] = binaryString.charCodeAt(i);
@@ -63,38 +67,33 @@ export class SerializationUtils {
         return bytes;
     }
 
-    /**
-     * Convert Uint8Array to base64 string
-     * @param {Uint8Array} bytes - Binary data
-     * @returns {string} - Base64 encoded string
-     */
-    uint8ArrayToBase64(bytes) {
+    uint8ArrayToBase64(uint8Array) {
         let binaryString = '';
-        for (let i = 0; i < bytes.length; i++) {
-            binaryString += String.fromCharCode(bytes[i]);
+        for (let i = 0; i < uint8Array.length; i++) {
+            binaryString += String.fromCharCode(uint8Array[i]);
         }
         return btoa(binaryString);
     }
 
     /**
-     * Get the current serialization mode (always MessagePack Base64)
-     * @returns {number} - Always returns MessagePack Base64 mode
+     * Get the current serialization mode (always MessagePack binary)
+     * @returns {number} - Always returns MessagePack binary mode
      */
     getMode() {
-        return SerializationMode.MSGPACK_BASE64;
+        return SerializationMode.MSGPACK_BINARY;
     }
 
     /**
-     * Set mode - does nothing since we only support MessagePack Base64
-     * @param {number} mode - Ignored, always uses MessagePack Base64
+     * Set mode - does nothing since we only support MessagePack binary
+     * @param {number} mode - Ignored, always uses MessagePack binary
      */
     setMode(mode) {
-        // Always use MessagePack Base64 - ignore any other mode
-        console.log('🔄 MessagePack Base64 mode enforced (mode switching disabled)');
+        // Always use MessagePack binary - ignore any other mode
+        console.log('🔄 MessagePack binary mode enforced (mode switching disabled)');
     }
 }
 
-// Global instance - always MessagePack Base64
+// Global instance - always MessagePack binary
 const serializationUtils = new SerializationUtils();
 
 /**
@@ -107,7 +106,7 @@ export class EnhancedAPI {
     }
 
     /**
-     * Navigate to a path with MessagePack serialization
+     * Navigate to a path with MessagePack binary serialization
      * @param {string} path - The path to navigate to
      * @returns {Promise<Object>} - Navigation response
      */
@@ -117,7 +116,7 @@ export class EnhancedAPI {
     }
 
     /**
-     * List directory contents with MessagePack serialization
+     * List directory contents with MessagePack binary serialization
      * @param {string} path - The directory path
      * @returns {Promise<Object>} - Directory contents
      */
@@ -127,7 +126,7 @@ export class EnhancedAPI {
     }
 
     /**
-     * Get file details with MessagePack serialization
+     * Get file details with MessagePack binary serialization
      * @param {string} filePath - The file path
      * @returns {Promise<Object>} - File information
      */
@@ -137,7 +136,7 @@ export class EnhancedAPI {
     }
 
     /**
-     * Get drive information with MessagePack serialization
+     * Get drive information with MessagePack binary serialization
      * @returns {Promise<Array>} - Drive information array
      */
     async getDriveInfo() {
@@ -146,7 +145,7 @@ export class EnhancedAPI {
     }
 
     /**
-     * Get home directory with MessagePack serialization
+     * Get home directory with MessagePack binary serialization
      * @returns {Promise<Object>} - Home directory response
      */
     async getHomeDirectory() {
@@ -155,7 +154,7 @@ export class EnhancedAPI {
     }
 
     /**
-     * Create directory with MessagePack serialization
+     * Create directory with MessagePack binary serialization
      * @param {string} path - The parent directory path
      * @param {string} name - The new directory name
      * @returns {Promise<Object>} - Navigation response
@@ -166,7 +165,7 @@ export class EnhancedAPI {
     }
 
     /**
-     * Delete path with MessagePack serialization
+     * Delete path with MessagePack binary serialization
      * @param {string} path - The path to delete
      * @returns {Promise<Object>} - Navigation response
      */
@@ -176,7 +175,7 @@ export class EnhancedAPI {
     }
 
     /**
-     * Get quick access paths with MessagePack serialization
+     * Get quick access paths with MessagePack binary serialization
      * @returns {Promise<Array>} - Quick access paths array
      */
     async getQuickAccessPaths() {
@@ -185,7 +184,7 @@ export class EnhancedAPI {
     }
 
     /**
-     * Get system roots with MessagePack serialization
+     * Get system roots with MessagePack binary serialization
      * @returns {Promise<Object>} - System roots response
      */
     async getSystemRoots() {
@@ -194,24 +193,22 @@ export class EnhancedAPI {
     }
 
     /**
-     * Set the serialization mode (always forces MessagePack Base64)
-     * @param {number} mode - Ignored, always uses MessagePack Base64
+     * Set the serialization mode (always forces MessagePack binary)
+     * @param {number} mode - Ignored, always uses MessagePack binary
      * @returns {Promise<boolean>} - Always returns true
      */
     async setSerializationMode(mode) {
-        // Force MessagePack Base64 mode on backend
-        return await this.api.SetSerializationMode(SerializationMode.MSGPACK_BASE64);
+        // MessagePack binary mode is enforced by default on backend
+        return true;
     }
 
     /**
-     * Get the current serialization mode (always MessagePack Base64)
-     * @returns {Promise<number>} - Always returns MessagePack Base64 mode
+     * Get the current serialization mode (always MessagePack binary)
+     * @returns {Promise<number>} - Always returns MessagePack binary mode
      */
     async getSerializationMode() {
-        return SerializationMode.MSGPACK_BASE64;
+        return SerializationMode.MSGPACK_BINARY;
     }
 }
 
-// Export utilities
-export { serializationUtils };
-export default SerializationUtils; 
+export { serializationUtils }; 

@@ -1,70 +1,61 @@
 package backend
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"log"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-// MessagePack-only serialization mode - NO JSON OR PURE MSGPACK SUPPORT
+// MessagePack-only serialization mode - Direct binary mode (no Base64)
 type SerializationMode int
 
 const (
-	SerializationMsgPackBase64 SerializationMode = 2 // Only MessagePack Base64 mode supported
+	SerializationMsgPackBinary SerializationMode = 3 // Direct MessagePack binary mode
 )
 
-// SerializationUtils provides MessagePack Base64 serialization only
+// SerializationUtils provides MessagePack binary serialization only
 type SerializationUtils struct {
-	// No mode field needed since we only support MessagePack Base64
+	// No mode field needed since we only support MessagePack binary
 }
 
-// NewSerializationUtils creates a new SerializationUtils instance (MessagePack Base64 only)
+// NewSerializationUtils creates a new SerializationUtils instance (MessagePack binary only)
 func NewSerializationUtils() *SerializationUtils {
 	return &SerializationUtils{}
 }
 
-// SerializeNavigationResponse serializes NavigationResponse using MessagePack Base64 only
+// SerializeNavigationResponse serializes NavigationResponse using MessagePack binary only
 func (s *SerializationUtils) SerializeNavigationResponse(data NavigationResponse) (interface{}, error) {
-	// FORCE MessagePack Base64 - no other modes supported
-	return s.encodeMsgPackBase64(data)
+	// FORCE MessagePack binary - no Base64 encoding
+	return s.encodeMsgPackBinary(data)
 }
 
-// SerializeFileInfo serializes FileInfo using MessagePack Base64 only
+// SerializeFileInfo serializes FileInfo using MessagePack binary only
 func (s *SerializationUtils) SerializeFileInfo(data FileInfo) (interface{}, error) {
-	// FORCE MessagePack Base64 - no other modes supported
-	return s.encodeMsgPackBase64(data)
+	// FORCE MessagePack binary - no Base64 encoding
+	return s.encodeMsgPackBinary(data)
 }
 
-// SerializeDriveInfoSlice serializes []DriveInfo using MessagePack Base64 only
+// SerializeDriveInfoSlice serializes []DriveInfo using MessagePack binary only
 func (s *SerializationUtils) SerializeDriveInfoSlice(data []DriveInfo) (interface{}, error) {
-	// FORCE MessagePack Base64 - no other modes supported
-	return s.encodeMsgPackBase64(data)
+	// FORCE MessagePack binary - no Base64 encoding
+	return s.encodeMsgPackBinary(data)
 }
 
-// SerializeGeneric serializes any data structure using MessagePack Base64
+// SerializeGeneric serializes any data structure using MessagePack binary
 func (s *SerializationUtils) SerializeGeneric(data interface{}) (interface{}, error) {
-	// FORCE MessagePack Base64 - no other modes supported
-	return s.encodeMsgPackBase64(data)
+	// FORCE MessagePack binary - no Base64 encoding
+	return s.encodeMsgPackBinary(data)
 }
 
-// encodeMsgPackBase64 encodes data to MessagePack and then to base64 string
-func (s *SerializationUtils) encodeMsgPackBase64(data interface{}) (string, error) {
-	msgPackData, err := msgpack.Marshal(data)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(msgPackData), nil
+// encodeMsgPackBinary encodes data to MessagePack binary directly
+func (s *SerializationUtils) encodeMsgPackBinary(data interface{}) ([]byte, error) {
+	return msgpack.Marshal(data)
 }
 
-// DecodeMsgPackBase64 decodes base64 MessagePack data into target struct
-func DecodeMsgPackBase64(encodedData string, target interface{}) error {
-	msgPackData, err := base64.StdEncoding.DecodeString(encodedData)
-	if err != nil {
-		return err
-	}
-	return msgpack.Unmarshal(msgPackData, target)
+// DecodeMsgPackBinary decodes binary MessagePack data into target struct
+func DecodeMsgPackBinary(binaryData []byte, target interface{}) error {
+	return msgpack.Unmarshal(binaryData, target)
 }
 
 // BenchmarkSerializationSizes compares MessagePack with JSON (for comparison purposes only)
@@ -79,9 +70,7 @@ func BenchmarkSerializationSizes(data interface{}) map[string]int {
 	// MessagePack size (our only serialization method)
 	if msgPackData, err := msgpack.Marshal(data); err == nil {
 		results["msgpack"] = len(msgPackData)
-		// Base64 encoded MessagePack size
-		base64Size := base64.StdEncoding.EncodedLen(len(msgPackData))
-		results["msgpack_base64"] = base64Size
+		results["msgpack_binary"] = len(msgPackData)
 	}
 
 	return results
@@ -90,10 +79,10 @@ func BenchmarkSerializationSizes(data interface{}) map[string]int {
 // LogSerializationComparison logs the size comparison for debugging
 func LogSerializationComparison(data interface{}, label string) {
 	sizes := BenchmarkSerializationSizes(data)
-	log.Printf("🔍 MessagePack serialization stats for %s:", label)
+	log.Printf("🔍 MessagePack binary serialization stats for %s:", label)
 	for format, size := range sizes {
-		if format == "msgpack_base64" {
-			log.Printf("   %s: %d bytes (ACTIVE)", format, size)
+		if format == "msgpack_binary" {
+			log.Printf("   %s: %d bytes (ACTIVE - direct binary)", format, size)
 		} else {
 			log.Printf("   %s: %d bytes (comparison only)", format, size)
 		}
@@ -107,7 +96,7 @@ func LogSerializationComparison(data interface{}, label string) {
 	}
 }
 
-// Global serialization utility instance - MessagePack Base64 only
+// Global serialization utility instance - MessagePack binary only
 var globalSerializationUtils = NewSerializationUtils()
 
 // GetSerializationUtils returns the global serialization utils instance
@@ -115,8 +104,8 @@ func GetSerializationUtils() *SerializationUtils {
 	return globalSerializationUtils
 }
 
-// SetSerializationMode is deprecated - only MessagePack Base64 supported
+// SetSerializationMode is deprecated - only MessagePack binary supported
 func SetSerializationMode(mode SerializationMode) {
 	// Only log - mode switching is no longer supported
-	log.Printf("🔄 MessagePack Base64 mode enforced (mode switching disabled)")
+	log.Printf("🔄 MessagePack binary mode enforced (mode switching disabled)")
 }

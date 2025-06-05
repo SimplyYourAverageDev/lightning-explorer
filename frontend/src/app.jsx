@@ -73,8 +73,8 @@ export function App() {
     const [isAppInitialized, setIsAppInitialized] = useState(false);
     const [isDriveDataLoaded, setIsDriveDataLoaded] = useState(false);
     
-    // MessagePack integration state - FORCE MessagePack Base64 mode
-    const [serializationMode, setSerializationModeState] = useState(SerializationMode.MSGPACK_BASE64);
+    // MessagePack integration state - FORCE MessagePack binary mode
+    const [serializationMode, setSerializationModeState] = useState(SerializationMode.MSGPACK_BINARY);
     const [enhancedAPI, setEnhancedAPI] = useState(null);
     const [benchmarkResults, setBenchmarkResults] = useState(null);
 
@@ -368,11 +368,10 @@ export function App() {
             const enhancedAPIInstance = new EnhancedAPI(wailsAPI, serializationUtils);
             setEnhancedAPI(enhancedAPIInstance);
             
-            // Force MessagePack Base64 mode on backend
-            await enhancedAPIInstance.setSerializationMode(SerializationMode.MSGPACK_BASE64);
-            serializationUtils.setMode(SerializationMode.MSGPACK_BASE64);
+            // MessagePack binary mode is now the default on backend
+            serializationUtils.setMode(SerializationMode.MSGPACK_BINARY);
             
-            log(`🔧 Enhanced API initialized with MessagePack Base64 mode (synchronous imports)`);
+            log(`🔧 Enhanced API initialized with MessagePack binary mode (synchronous imports)`);
         } catch (err) {
             warn('⚠️ Enhanced API initialization failed, falling back to standard API:', err);
         }
@@ -544,8 +543,8 @@ export function App() {
                                 </div>
                             </div>
                         ) : directoryContents ? (
-                            allFiles.length > 20 ? (
-                                // Use virtual scrolling for large directories - now bundled synchronously
+                            allFiles.length > 0 ? (
+                                // Always use virtual scrolling for better performance - now bundled synchronously
                                 <VirtualizedFileList
                                     files={allFiles}
                                     selectedFiles={selectedFiles}
@@ -571,7 +570,7 @@ export function App() {
                                     isInspectMode={isInspectMode}
                                 />
                             ) : (
-                                // Use normal rendering for small directories
+                                // Fallback for when there are no files or folders
                                 <div 
                                     className="file-list custom-scrollbar"
                                     onContextMenu={(e) => {
@@ -595,28 +594,7 @@ export function App() {
                                         />
                                     )}
                                     
-                                    {allFiles.map((file, index) => (
-                                        <FileItem
-                                            key={file.path}
-                                            file={file}
-                                            fileIndex={index}
-                                            onSelect={handleFileSelect}
-                                            onOpen={handleFileOpen}
-                                            onContextMenu={handleContextMenu}
-                                            isLoading={false} // Never show loading in file items
-                                            isSelected={selectedFiles.has(index)}
-                                            isCut={clipboardOperation === 'cut' && clipboardFiles.includes(file.path)}
-                                            isDragOver={dragState.dragOverFolder === file.path}
-                                            onDragStart={handleDragStart}
-                                            onDragOver={handleDragOver}
-                                            onDragEnter={handleDragEnter}
-                                            onDragLeave={handleDragLeave}
-                                            onDrop={handleDrop}
-                                            isInspectMode={isInspectMode}
-                                        />
-                                    ))}
-                                    
-                                    {allFiles.length === 0 && !creatingFolder && (
+                                    {!creatingFolder && (
                                         <div style={EMPTY_DIRECTORY_STYLE}>
                                             <div style={LARGE_ICON_STYLE}>📁</div>
                                             <div className="text-technical">Directory is empty</div>

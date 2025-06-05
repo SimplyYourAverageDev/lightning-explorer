@@ -328,23 +328,23 @@ func (a *App) GetDriveInfoOptimized() interface{} {
 	return serialized
 }
 
-// SetSerializationMode forces MessagePack Base64 mode only - no JSON allowed
+// SetSerializationMode forces MessagePack binary mode only - no JSON allowed
 func (a *App) SetSerializationMode(mode int) bool {
-	// FORCE MessagePack Base64 mode only - reject any other modes
-	if mode != 2 {
-		log.Printf("❌ Rejected serialization mode %d - only MessagePack Base64 (mode 2) is allowed", mode)
+	// FORCE MessagePack binary mode only - reject any other modes
+	if mode != 3 {
+		log.Printf("❌ Rejected serialization mode %d - only MessagePack binary (mode 3) is allowed", mode)
 		return false
 	}
 
-	SetSerializationMode(SerializationMsgPackBase64)
-	log.Println("🔄 Confirmed MessagePack Base64 serialization mode (forced)")
+	SetSerializationMode(SerializationMsgPackBinary)
+	log.Println("🔄 Confirmed MessagePack binary serialization mode (forced)")
 	return true
 }
 
-// GetSerializationMode always returns MessagePack Base64 mode (forced)
+// GetSerializationMode always returns MessagePack binary mode (forced)
 func (a *App) GetSerializationMode() int {
-	// Always return MessagePack Base64 mode - no other modes allowed
-	return 2 // SerializationMsgPackBase64
+	// Always return MessagePack binary mode - no other modes allowed
+	return 3 // SerializationMsgPackBinary
 }
 
 // BenchmarkSerialization runs a benchmark comparison between JSON and MessagePack

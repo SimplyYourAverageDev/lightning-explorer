@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "preact/hooks";
 import { NavigateToPathOptimized } from "../../wailsjs/go/backend/App";
 import { EventsOn, EventsOff } from "../../wailsjs/runtime/runtime";
-import { log, error } from "../utils/logger";
+import { log, error, logHydration, logBatch } from "../utils/logger";
 import { serializationUtils } from "../utils/serialization";
 
 export function useNavigation(setError, setNavigationStats) {
@@ -255,10 +255,11 @@ export function useNavigation(setError, setNavigationStats) {
         }
     }, [currentPath, navigateToPath]);
 
-    // HYDRATION FIX: Listen for progressive hydration events with bounds checking
+    // HYDRATION FIX: Listen for batched hydration events with optimized state updates
     useEffect(() => {
+        // Handle individual file hydration (legacy - for compatibility)
         const unsubscribeHydrate = EventsOn("DirectoryHydrate", (fileInfo) => {
-            log(`🔄 Hydrating file: ${fileInfo.name}`);
+            logHydration(`🔄 Hydrating individual file: ${fileInfo.name}`);
             
             setDirectoryContents(prev => {
                 if (!prev) return prev;
@@ -269,7 +270,7 @@ export function useNavigation(setError, setNavigationStats) {
                 
                 // Only process hydration for files in the current directory
                 if (currentDir !== fileDir) {
-                    log(`🚫 Ignoring hydration for ${fileInfo.path} - not in current directory ${currentDir}`);
+                    logHydration(`🚫 Ignoring hydration for ${fileInfo.path} - not in current directory ${currentDir}`);
                     return prev;
                 }
                 
@@ -293,6 +294,73 @@ export function useNavigation(setError, setNavigationStats) {
             });
         });
 
+        // Handle batched hydration (optimized for performance)
+        const unsubscribeBatch = EventsOn("DirectoryBatch", (batchFiles) => {
+            logBatch(`🔄 Hydrating batch of ${batchFiles.length} files`);
+            
+            setDirectoryContents(prev => {
+                if (!prev || !batchFiles.length) return prev;
+                
+                // SECURITY FIX: Validate batch is for current directory
+                const currentDir = prev.currentPath;
+                const firstFile = batchFiles[0];
+                const fileDir = firstFile.path ? firstFile.path.substring(0, firstFile.path.lastIndexOf('/') || firstFile.path.lastIndexOf('\\')) : '';
+                
+                // Only process batch for files in the current directory
+                if (currentDir !== fileDir) {
+                    logBatch(`🚫 Ignoring batch hydration - not in current directory ${currentDir}`);
+                    return prev;
+                }
+                
+                // Create a map for efficient lookups
+                const batchMap = new Map();
+                batchFiles.forEach(file => {
+                    batchMap.set(file.path, file);
+                });
+                
+                // Efficiently update existing files and add new ones
+                const allFiles = [...prev.directories, ...prev.files];
+                const updatedFiles = [];
+                const newFiles = [];
+                
+                // Update existing files
+                allFiles.forEach(file => {
+                    if (batchMap.has(file.path)) {
+                        updatedFiles.push(batchMap.get(file.path));
+                        batchMap.delete(file.path); // Remove from map to track new files
+                    } else {
+                        updatedFiles.push(file);
+                    }
+                });
+                
+                // Add any remaining files from batch (new files)
+                batchMap.forEach(file => newFiles.push(file));
+                
+                // Combine all files
+                const finalFiles = [...updatedFiles, ...newFiles];
+                
+                // Split back into directories and files with efficient filtering
+                const directories = [];
+                const files = [];
+                
+                finalFiles.forEach(file => {
+                    if (file.isDir) {
+                        directories.push(file);
+                    } else {
+                        files.push(file);
+                    }
+                });
+                
+                return {
+                    ...prev,
+                    directories,
+                    files,
+                    totalDirs: directories.length,
+                    totalFiles: files.length
+                };
+            });
+        });
+
         const unsubscribeComplete = EventsOn("DirectoryComplete", (data) => {
             log(`✅ Directory hydration completed: ${data.path} (${data.totalFiles} files processed)`);
             
@@ -305,6 +373,7 @@ export function useNavigation(setError, setNavigationStats) {
         
         return () => {
             EventsOff("DirectoryHydrate");
+            EventsOff("DirectoryBatch");
             EventsOff("DirectoryComplete");
         };
     }, [setNavigationStats]);

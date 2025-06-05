@@ -37,13 +37,9 @@
     overflow-y: auto;
     overflow-x: hidden;
     
-    /* Optimize scrolling performance */
+    /* Restore proper scrolling behavior */
     scroll-behavior: smooth;
     overscroll-behavior: contain;
-    
-    /* GPU acceleration */
-    transform: translateZ(0);
-    will-change: scroll-position;
     
     /* Prevent horizontal scrollbar issues */
     max-width: 100%;
@@ -61,8 +57,7 @@
     right: 0;
     bottom: 0;
     background: rgba(250, 250, 250, 0.9);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    /* Removed backdrop-filter for better performance */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -71,116 +66,90 @@
     z-index: 100;
     color: var(--zen-text-tertiary);
     
-    /* Instant appearance */
-    animation: fadeInFast 150ms ease-out;
+    /* Instant appearance - reduced animation */
+    opacity: 1;
 }
 
-@keyframes fadeInFast {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Responsive header elements */
+/* Responsive header elements - removed animations for performance */
 .app-header {
-    transition: background-color 150ms ease;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: var(--zen-surface-elevated);
+    border-bottom: 1px solid var(--zen-border-light);
+    padding: var(--zen-space-lg) var(--zen-space-xl);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--zen-space-lg);
+    min-height: 4rem;
+    /* Removed transitions for performance */
 }
 
-.app-header.loading {
-    background-color: rgba(248, 249, 250, 0.95);
-}
-
-/* Fast loading spinner with zen design */
-.loading-spinner {
-    width: 1.5rem;
-    height: 1.5rem;
-    border: 2px solid var(--zen-border);
-    border-top: 2px solid var(--zen-primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    
-    /* Smooth animation */
-    transform-origin: center;
-    will-change: transform;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Instant visual feedback for navigation */
-.nav-segment, .sidebar-item {
-    transition: all 150ms ease;
-    cursor: pointer;
-    border-radius: var(--zen-radius);
-}
-
-.nav-segment:hover, .sidebar-item:hover:not(.active) {
-    background-color: var(--zen-surface-hover);
+.app-title {
+    font-size: var(--zen-text-xl);
+    font-weight: 600;
     color: var(--zen-text-primary);
-    transform: translateX(2px);
+    flex-shrink: 0;
 }
 
-.nav-segment:active, .sidebar-item:active:not(.active) {
-    transform: translateX(1px);
-    background-color: var(--zen-surface-active);
-}
-
-/* Enhanced active sidebar item hover feedback */
-.sidebar-item.active:hover {
-    background-color: var(--zen-primary-alpha-hover);
-    transform: translateX(2px);
-}
-
-.sidebar-item.active:active {
-    background-color: var(--zen-primary-alpha);
-    transform: translateX(1px);
-}
-
-/* File item hover effects for instant feedback */
+/* Performance-optimized file items - removed expensive effects */
 .file-item {
-    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
-    cursor: pointer;
-    border-radius: var(--zen-radius-md);
-    min-height: 3.5rem;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--zen-space-lg);
     padding: var(--zen-space-lg);
+    border-radius: var(--zen-radius-md);
+    cursor: pointer;
     border: 1px solid transparent;
+    min-height: 3.5rem;
+    background: transparent;
     box-sizing: border-box;
+    
+    /* PERFORMANCE: Minimal transitions only for essential feedback */
+    transition: background-color 100ms ease-out, border-color 100ms ease-out;
+    
+    /* Optimize rendering */
+    contain: layout style paint;
+    overflow: hidden;
 }
 
+/* Essential hover feedback - no transforms or expensive effects */
 .file-item:hover:not(.selected) {
-    background-color: rgba(79, 70, 229, 0.04);
+    background-color: var(--zen-surface-hover);
     border-color: var(--zen-border);
-    /* Pure color-based feedback - no transforms to prevent overlapping */
 }
 
+/* Active state feedback - pure color based */
 .file-item:active:not(.selected) {
     background-color: var(--zen-surface-active);
-    /* Pure color-based feedback - no transforms to prevent overlapping */
+    opacity: 0.8;
 }
 
-/* Selected state with zen styling */
+/* Selected state with zen styling - no transforms */
 .file-item.selected {
     background-color: var(--zen-primary-alpha);
     border-color: var(--zen-primary);
     color: var(--zen-primary);
-    /* Pure color-based feedback - no transforms to prevent overlapping */
 }
 
-/* Enhanced selected state hover feedback */
+/* Enhanced selected state hover feedback - color only */
 .file-item.selected:hover {
     background-color: var(--zen-primary-alpha-hover);
     border-color: var(--zen-primary);
-    /* Pure color-based feedback - no dimension changes */
 }
 
 .file-item.selected:active {
     background-color: var(--zen-primary-alpha);
     border-color: var(--zen-primary);
     opacity: 0.8;
-    /* Pure color-based feedback - no transforms to prevent overlapping */
+}
+
+/* PERFORMANCE: Simplified drag over states - reduced animations */
+.file-item.drag-over {
+    background-color: rgba(0, 255, 136, 0.1) !important;
+    border-color: rgba(0, 255, 136, 0.6) !important;
+    border-style: dashed !important;
+    border-width: 2px !important;
+    /* Removed transform and animations for performance */
 }
 
 /* Internal drag and drop feedback */
@@ -188,28 +157,8 @@
     position: relative;
 }
 
-/* Enhanced drag over states for folders */
-.file-item.drag-over {
-    background-color: rgba(0, 255, 136, 0.1) !important;
-    border-color: rgba(0, 255, 136, 0.6) !important;
-    border-style: dashed !important;
-    border-width: 2px !important;
-    transform: scale(1.02);
-    box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
-    animation: dragOverGlow 1s ease-in-out infinite alternate;
-}
-
-@keyframes dragOverGlow {
-    from { box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2); }
-    to { box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4); }
-}
-
-
-
-/* Optimized breadcrumb transitions */
+/* Optimized breadcrumb - reduced scroll effects */
 .nav-breadcrumb {
-    /* Smooth scrolling for long paths */
-    scroll-behavior: smooth;
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
@@ -226,29 +175,63 @@
     display: none;
 }
 
-/* Toolbar button responsiveness */
-.toolbar-btn {
-    transition: all 150ms ease;
+.nav-segment {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--zen-space-sm) var(--zen-space-md);
     border-radius: var(--zen-radius);
+    cursor: pointer;
+    font-size: var(--zen-text-sm);
+    /* Simplified transitions */
+    transition: background-color 100ms ease-out;
+    color: var(--zen-text-secondary);
+}
+
+.nav-segment:hover {
+    background: var(--zen-surface-hover);
+    color: var(--zen-text-primary);
+}
+
+.nav-segment.current {
+    color: var(--zen-primary);
+    font-weight: 600;
+    background: var(--zen-primary-alpha);
+}
+
+.separator {
+    color: var(--zen-text-tertiary);
+    margin: 0 var(--zen-space-sm);
+    font-size: var(--zen-text-xs);
+    font-weight: 400;
+    flex-shrink: 0;
+}
+
+/* Simplified toolbar */
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--zen-space-md);
+    padding: var(--zen-space-lg) var(--zen-space-xl);
+    background: var(--zen-surface);
+    border-bottom: 1px solid var(--zen-border-light);
+}
+
+.toolbar-btn {
     padding: var(--zen-space-sm) var(--zen-space-lg);
     border: 1px solid var(--zen-border);
-    background: transparent;
+    border-radius: var(--zen-radius);
+    background: var(--zen-surface);
     color: var(--zen-text-secondary);
-    min-height: 2.25rem;
+    cursor: pointer;
+    font-size: var(--zen-text-sm);
+    /* Minimal transitions */
+    transition: background-color 100ms ease-out, border-color 100ms ease-out;
 }
 
-.toolbar-btn:hover:not(:disabled) {
-    background-color: var(--zen-surface-hover);
+.toolbar-btn:hover {
+    background: var(--zen-surface-hover);
     border-color: var(--zen-border-focus);
     color: var(--zen-text-primary);
-    transform: translateY(-1px);
-    box-shadow: var(--zen-shadow-sm);
-}
-
-.toolbar-btn:active:not(:disabled) {
-    transform: translateY(0);
-    background-color: var(--zen-surface-active);
-    box-shadow: none;
 }
 
 .toolbar-btn:disabled {
@@ -256,60 +239,21 @@
     cursor: not-allowed;
 }
 
-/* Context menu instant appearance with zen styling */
-.context-menu {
-    animation: contextMenuAppear 150ms ease-out;
-    transform-origin: top left;
-    background: var(--zen-surface);
-    border: 1px solid var(--zen-border);
-    border-radius: var(--zen-radius-md);
-    box-shadow: var(--zen-shadow-lg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    padding: var(--zen-space-sm);
+.toolbar-btn.active {
+    background: var(--zen-primary-alpha);
+    border-color: var(--zen-primary);
+    color: var(--zen-primary);
 }
 
-@keyframes contextMenuAppear {
-    from {
-        opacity: 0;
-        transform: scale(0.95) translateY(-5px);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-/* Status bar with zen styling */
-.status-bar {
-    transition: background-color 150ms ease;
-    background: var(--zen-surface);
-    border-top: 1px solid var(--zen-border-light);
-    color: var(--zen-text-secondary);
-    font-size: var(--zen-text-xs);
-    padding: var(--zen-space-md) var(--zen-space-xl);
-}
-
-/* Error message with zen styling */
+/* Simplified error handling */
 .error-message {
-    animation: slideInFromTop 200ms ease-out;
     background: rgba(220, 38, 38, 0.1);
     border-left: 4px solid var(--zen-error);
     color: var(--zen-error);
     border-radius: var(--zen-radius);
     margin: var(--zen-space-lg);
     padding: var(--zen-space-lg) var(--zen-space-xl);
-}
-
-@keyframes slideInFromTop {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    /* Removed animations */
 }
 
 /* Dark mode support */
@@ -323,7 +267,7 @@
     }
 }
 
-/* Reduced motion support */
+/* Reduced motion support - disable all animations */
 @media (prefers-reduced-motion: reduce) {
     * {
         animation-duration: 0.01ms !important;
@@ -337,19 +281,26 @@
     }
 }
 
-/* Global override to prevent file item hover overlapping */
+/* Global performance override for virtualized lists */
 .virtualized-file-list .file-item,
 .file-list .file-item {
     /* Ensure all file items are contained and don't expand */
     contain: layout style paint !important;
     overflow: hidden !important;
+    
+    /* CRITICAL: No transforms or box-shadows in large lists */
+    transform: none !important;
+    box-shadow: none !important;
+    will-change: auto !important;
 }
 
+/* Override any hover effects that might cause expansion */
 .virtualized-file-list .file-item:hover,
 .virtualized-file-list .file-item:active,
 .virtualized-file-list .file-item.selected,
 .virtualized-file-list .file-item.selected:hover {
-    /* Absolutely no transforms in virtualized lists */
+    /* Absolutely no transforms or shadows in virtualized lists */
     transform: none !important;
     box-shadow: none !important;
+    will-change: auto !important;
 } 

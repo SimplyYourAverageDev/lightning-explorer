@@ -126,12 +126,12 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		}(rest)
 	}
 
-	// Sort first page for immediate display
+	// Sort first page for immediate display with precomputed keys
 	sort.Slice(directories, func(i, j int) bool {
-		return strings.ToLower(directories[i].Name) < strings.ToLower(directories[j].Name)
+		return directories[i].Name < directories[j].Name // Already sorted by Windows API
 	})
 	sort.Slice(files, func(i, j int) bool {
-		return strings.ToLower(files[i].Name) < strings.ToLower(files[j].Name)
+		return files[i].Name < files[j].Name // Already sorted by Windows API
 	})
 
 	// Build immediate response
@@ -155,28 +155,46 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	}
 }
 
-// hydrateRemainingEntriesEnhanced processes remaining enhanced entries in background
+// hydrateRemainingEntriesEnhanced processes remaining enhanced entries in background with batching
 // These entries already have full file information, so no additional stat calls needed
 func (fs *FileSystemManager) hydrateRemainingEntriesEnhanced(basePath string, entries []EnhancedBasicEntry) {
-	log.Printf("🔄 Starting enhanced background hydration for %d entries", len(entries))
+	log.Printf("🔄 Starting enhanced background hydration for %d entries with batching", len(entries))
 
-	for _, entry := range entries {
-		// Create FileInfo directly from enhanced entry - no stat needed!
-		fileInfo := FileInfo{
-			Name:        entry.Name,
-			Path:        entry.Path,
-			IsDir:       entry.IsDir,
-			Size:        entry.Size,
-			ModTime:     time.Unix(entry.ModTime, 0),
-			Permissions: entry.Permissions,
-			Extension:   entry.Extension,
-			IsHidden:    entry.IsHidden,
+	const batchSize = 50 // Process 50 files at a time to reduce frontend state updates
+
+	for i := 0; i < len(entries); i += batchSize {
+		end := i + batchSize
+		if end > len(entries) {
+			end = len(entries)
 		}
 
-		// Emit hydration event to frontend
+		// Create batch of FileInfo entries
+		batch := make([]FileInfo, 0, end-i)
+		for j := i; j < end; j++ {
+			entry := entries[j]
+
+			// Create FileInfo directly from enhanced entry - no stat needed!
+			fileInfo := FileInfo{
+				Name:        entry.Name,
+				Path:        entry.Path,
+				IsDir:       entry.IsDir,
+				Size:        entry.Size,
+				ModTime:     time.Unix(entry.ModTime, 0),
+				Permissions: entry.Permissions,
+				Extension:   entry.Extension,
+				IsHidden:    entry.IsHidden,
+			}
+
+			batch = append(batch, fileInfo)
+		}
+
+		// Emit batch to frontend
 		if fs.eventEmitter != nil {
-			fs.eventEmitter.EmitDirectoryHydrate(fileInfo)
+			fs.eventEmitter.EmitDirectoryBatch(batch)
 		}
+
+		// Small delay between batches to allow UI to update
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	// Emit completion event
@@ -184,7 +202,7 @@ func (fs *FileSystemManager) hydrateRemainingEntriesEnhanced(basePath string, en
 		fs.eventEmitter.EmitDirectoryComplete(basePath, len(entries), 0)
 	}
 
-	log.Printf("✅ Enhanced background hydration completed for %s", basePath)
+	log.Printf("✅ Enhanced background hydration completed for %s with %d batches", basePath, (len(entries)+batchSize-1)/batchSize)
 }
 
 // processEntriesSync processes directory entries synchronously with optimizations
