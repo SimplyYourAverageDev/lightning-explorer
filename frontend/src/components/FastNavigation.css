@@ -183,6 +183,29 @@
     /* Pure color-based feedback - no transforms to prevent overlapping */
 }
 
+/* Internal drag and drop feedback */
+.file-explorer.dragging-active {
+    position: relative;
+}
+
+/* Enhanced drag over states for folders */
+.file-item.drag-over {
+    background-color: rgba(0, 255, 136, 0.1) !important;
+    border-color: rgba(0, 255, 136, 0.6) !important;
+    border-style: dashed !important;
+    border-width: 2px !important;
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+    animation: dragOverGlow 1s ease-in-out infinite alternate;
+}
+
+@keyframes dragOverGlow {
+    from { box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2); }
+    to { box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4); }
+}
+
+
+
 /* Optimized breadcrumb transitions */
 .nav-breadcrumb {
     /* Smooth scrolling for long paths */

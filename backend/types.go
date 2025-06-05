@@ -7,38 +7,38 @@ import (
 
 // FileInfo represents file/directory information
 type FileInfo struct {
-	Name        string    `json:"name"`
-	Path        string    `json:"path"`
-	IsDir       bool      `json:"isDir"`
-	Size        int64     `json:"size"`
-	ModTime     time.Time `json:"modTime"`
-	Permissions string    `json:"permissions"`
-	Extension   string    `json:"extension"`
-	IsHidden    bool      `json:"isHidden"`
+	Name        string    `json:"name" msgpack:"name"`
+	Path        string    `json:"path" msgpack:"path"`
+	IsDir       bool      `json:"isDir" msgpack:"isDir"`
+	Size        int64     `json:"size" msgpack:"size"`
+	ModTime     time.Time `json:"modTime" msgpack:"modTime"`
+	Permissions string    `json:"permissions" msgpack:"permissions"`
+	Extension   string    `json:"extension" msgpack:"extension"`
+	IsHidden    bool      `json:"isHidden" msgpack:"isHidden"`
 }
 
 // DirectoryContents represents the contents of a directory
 type DirectoryContents struct {
-	CurrentPath string     `json:"currentPath"`
-	ParentPath  string     `json:"parentPath"`
-	Files       []FileInfo `json:"files"`
-	Directories []FileInfo `json:"directories"`
-	TotalFiles  int        `json:"totalFiles"`
-	TotalDirs   int        `json:"totalDirs"`
+	CurrentPath string     `json:"currentPath" msgpack:"currentPath"`
+	ParentPath  string     `json:"parentPath" msgpack:"parentPath"`
+	Files       []FileInfo `json:"files" msgpack:"files"`
+	Directories []FileInfo `json:"directories" msgpack:"directories"`
+	TotalFiles  int        `json:"totalFiles" msgpack:"totalFiles"`
+	TotalDirs   int        `json:"totalDirs" msgpack:"totalDirs"`
 }
 
 // NavigationResponse represents navigation result
 type NavigationResponse struct {
-	Success bool              `json:"success"`
-	Message string            `json:"message"`
-	Data    DirectoryContents `json:"data"`
+	Success bool              `json:"success" msgpack:"success"`
+	Message string            `json:"message" msgpack:"message"`
+	Data    DirectoryContents `json:"data" msgpack:"data"`
 }
 
 // DriveInfo represents information about a system drive
 type DriveInfo struct {
-	Path   string `json:"path"`
-	Letter string `json:"letter"`
-	Name   string `json:"name"`
+	Path   string `json:"path" msgpack:"path"`
+	Letter string `json:"letter" msgpack:"letter"`
+	Name   string `json:"name" msgpack:"name"`
 }
 
 // Interfaces for dependency injection and better testability
@@ -104,12 +104,13 @@ type TerminalManagerInterface interface {
 
 // App struct - Main application structure with dependency injection
 type App struct {
-	ctx        context.Context
-	filesystem FileSystemManagerInterface
-	fileOps    FileOperationsManagerInterface
-	platform   PlatformManagerInterface
-	drives     DriveManagerInterface
-	terminal   TerminalManagerInterface
+	ctx           context.Context
+	filesystem    FileSystemManagerInterface
+	fileOps       FileOperationsManagerInterface
+	platform      PlatformManagerInterface
+	drives        DriveManagerInterface
+	terminal      TerminalManagerInterface
+	serialization *SerializationUtils
 }
 
 // FileSystemManager implementation

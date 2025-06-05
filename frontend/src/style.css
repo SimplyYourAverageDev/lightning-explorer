@@ -719,6 +719,41 @@ body {
 }
 
 /* Print styles */
+/* Inspect mode styles */
+.file-explorer.inspect-mode {
+  cursor: crosshair;
+}
+
+.file-explorer.inspect-mode * {
+  cursor: crosshair !important;
+}
+
+.file-explorer.inspect-mode .file-item {
+  outline: 1px dashed rgba(255, 107, 53, 0.3);
+  outline-offset: 2px;
+}
+
+.file-explorer.inspect-mode .file-item:hover {
+  outline: 2px solid #ff6b35;
+  outline-offset: 2px;
+  background: rgba(255, 107, 53, 0.1) !important;
+}
+
+.inspect-menu {
+  background: #1a1a1a !important;
+  border: 1px solid #444 !important;
+  color: #fff !important;
+  z-index: 10000;
+}
+
+.inspect-menu .context-menu-item {
+  color: #fff;
+}
+
+.inspect-menu .context-menu-item:hover {
+  background: #333;
+}
+
 @media print {
   .toolbar,
   .sidebar,

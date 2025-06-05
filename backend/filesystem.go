@@ -80,21 +80,42 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		rest = filteredEntries[pageSize:]
 	}
 
-	// Convert first page to FileInfo with minimal data
+	// Convert first page to FileInfo with COMPLETE data including file sizes
 	files := make([]FileInfo, 0, pageSize/2)
 	directories := make([]FileInfo, 0, pageSize/2)
 
 	for _, entry := range firstPage {
-		// Create minimal FileInfo for immediate display
-		fileInfo := FileInfo{
-			Name:        entry.Name,
-			Path:        entry.Path,
-			IsDir:       entry.IsDir,
-			Extension:   entry.Extension,
-			IsHidden:    entry.IsHidden,
-			Size:        0,           // Defer size calculation
-			ModTime:     time.Time{}, // Defer mod time
-			Permissions: "",          // Defer permissions
+		// Get complete file info including size for first page
+		var fileInfo FileInfo
+		if info, err := os.Stat(entry.Path); err == nil {
+			// Create complete FileInfo with actual size and timestamps
+			fileInfo = FileInfo{
+				Name:        entry.Name,
+				Path:        entry.Path,
+				IsDir:       entry.IsDir,
+				Extension:   entry.Extension,
+				IsHidden:    entry.IsHidden,
+				Size:        info.Size(),          // Include actual file size
+				ModTime:     info.ModTime(),       // Include actual mod time
+				Permissions: info.Mode().String(), // Include permissions
+			}
+			// Debug log to verify file sizes are being calculated
+			if !entry.IsDir && info.Size() > 0 {
+				log.Printf("📊 File size calculated: %s = %d bytes", entry.Name, info.Size())
+			}
+		} else {
+			// Fallback to basic info if stat fails
+			log.Printf("⚠️ Failed to stat %s: %v", entry.Path, err)
+			fileInfo = FileInfo{
+				Name:        entry.Name,
+				Path:        entry.Path,
+				IsDir:       entry.IsDir,
+				Extension:   entry.Extension,
+				IsHidden:    entry.IsHidden,
+				Size:        0,           // Only fallback to 0 on error
+				ModTime:     time.Time{}, // Only fallback to empty time on error
+				Permissions: "",          // Only fallback to empty permissions on error
+			}
 		}
 
 		if entry.IsDir {
@@ -130,7 +151,11 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 
 	// Start background hydration if we have remaining entries
 	if len(rest) > 0 {
-		go fs.hydrateRemainingEntries(path, rest)
+		go func(entries []BasicEntry) {
+			// Give UI a chance to render first on Windows
+			time.Sleep(200 * time.Millisecond)
+			fs.hydrateRemainingEntries(path, entries)
+		}(rest)
 	}
 
 	processingTime := time.Since(startTime)

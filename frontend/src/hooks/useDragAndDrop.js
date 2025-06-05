@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "preact/hooks";
 import { CopyFiles, MoveFiles } from "../../wailsjs/go/backend/App";
+import { serializationUtils } from "../utils/serialization";
+import { log, warn, error } from "../utils/logger";
 
 export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, clearSelection, handleRefresh) => {
     const [dragState, setDragState] = useState({
@@ -14,9 +16,9 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
     const dragPreviewRef = useRef(null);
     const dragTimeoutRef = useRef(null);
 
-    // Start drag operation
+    // Simplified drag start for internal-only operations
     const handleDragStart = useCallback((event, file) => {
-        console.log('🎯 Drag started for:', file.name);
+        log('🎯 Internal drag started for:', file.name);
 
         // Get all selected files or just the dragged file
         let draggedFiles = [];
@@ -35,24 +37,29 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
         // Set drag operation based on modifier keys
         const operation = event.ctrlKey ? 'copy' : 'move';
 
-        // Create drag data
-        const dragData = {
+        // Set up data transfer for internal Lightning Explorer operations only
+        const dataTransfer = event.dataTransfer;
+        
+        // Set drag effects for internal operations only
+        dataTransfer.effectAllowed = 'copyMove';
+        
+        // Lightning Explorer internal format (MessagePack)
+        const internalDragData = {
             files: draggedPaths,
             operation: operation,
             source: currentPath,
-            fileNames: draggedFiles.map(f => f.name)
+            fileNames: draggedFiles.map(f => f.name),
+            isInternal: true
         };
+        
+        const serializedData = serializationUtils.serialize(internalDragData);
+        dataTransfer.setData('application/msgpack-base64', serializedData);
 
-        // Set drag effect
-        event.dataTransfer.effectAllowed = event.ctrlKey ? 'copy' : 'move';
-        event.dataTransfer.setData('application/json', JSON.stringify(dragData));
-        event.dataTransfer.setData('text/plain', draggedFiles.map(f => f.name).join(', '));
-
-        // Create custom drag preview
+        // Create simple drag preview
         const dragPreview = createDragPreview(draggedFiles, operation);
         if (dragPreview) {
             document.body.appendChild(dragPreview);
-            event.dataTransfer.setDragImage(dragPreview, 20, 20);
+            dataTransfer.setDragImage(dragPreview, 20, 20);
             dragPreviewRef.current = dragPreview;
         }
 
@@ -66,12 +73,19 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
             dragStartPosition: { x: event.clientX, y: event.clientY }
         });
 
-        console.log(`🎯 Dragging ${draggedFiles.length} items with operation: ${operation}`);
+        log(`🎯 Internal drag: ${draggedFiles.length} items, operation: ${operation}`);
     }, [currentPath, selectedFiles, allFiles]);
 
-    // Handle drag over folder
+    // Simplified drag over for internal operations only
     const handleDragOver = useCallback((event, targetFolder) => {
-        if (!dragState.isDragging || !targetFolder.isDir) return;
+        if (!dragState.isDragging) return;
+
+        if (!targetFolder?.isDir) {
+            // Not over a folder, prevent drop
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'none';
+            return;
+        }
 
         event.preventDefault();
         
@@ -92,7 +106,7 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
 
     // Handle drag enter
     const handleDragEnter = useCallback((event, targetFolder) => {
-        if (!targetFolder.isDir) return;
+        if (!targetFolder?.isDir) return;
         
         event.preventDefault();
         
@@ -107,7 +121,7 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
 
     // Handle drag leave
     const handleDragLeave = useCallback((event, targetFolder) => {
-        if (!targetFolder.isDir) return;
+        if (!targetFolder?.isDir) return;
 
         // Clear any existing timeout first
         if (dragTimeoutRef.current) {
@@ -131,7 +145,7 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
                 }
             } catch (e) {
                 // Handle any errors in rect calculation
-                console.warn('Drag leave calculation error:', e);
+                warn('Drag leave calculation error:', e);
             }
             
             // Clear timeout reference after execution
@@ -139,7 +153,7 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
         }, 100);
     }, []);
 
-    // Handle drop operation
+    // Simplified drop handler for internal operations only
     const handleDrop = useCallback(async (event, targetFolder, dragData) => {
         event.preventDefault();
         
@@ -149,31 +163,53 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
             dragTimeoutRef.current = null;
         }
         
-        if (!targetFolder.isDir) {
-            console.warn('⚠️ Cannot drop on non-directory:', targetFolder.name);
+        if (!targetFolder?.isDir) {
+            warn('⚠️ Cannot drop on non-directory:', targetFolder?.name);
             return;
         }
 
-        const { files: sourcePaths, operation, source } = dragData;
+        // Only process internal Lightning Explorer drag data
+        let internalData = null;
+        try {
+            const msgpackData = event.dataTransfer.getData('application/msgpack-base64');
+            if (msgpackData) {
+                internalData = serializationUtils.deserialize(msgpackData);
+                log('📦 Using internal MessagePack drag data');
+            }
+        } catch (err) {
+            log('📦 No internal drag data found');
+        }
+
+        // Only proceed if we have internal Lightning Explorer data
+        if (!internalData || !internalData.isInternal) {
+            log('⚠️ Only internal Lightning Explorer drag operations are supported');
+            return;
+        }
+
+        const sourcePaths = internalData.files;
+        const operation = internalData.operation;
+        const source = internalData.source;
         
         // Input validation
         if (!sourcePaths || !Array.isArray(sourcePaths) || sourcePaths.length === 0) {
-            console.warn('⚠️ Invalid source paths for drop operation');
+            error('⚠️ No valid source paths found in drop data');
+            setError('No valid files found in drop data');
             return;
         }
         
         if (!targetFolder.path || typeof targetFolder.path !== 'string') {
-            console.warn('⚠️ Invalid target folder path');
+            error('⚠️ Invalid target folder path');
+            setError('Invalid drop target');
             return;
         }
         
         // Prevent dropping on itself or into same directory
         if (source === targetFolder.path) {
-            console.log('ℹ️ Dropping in same directory, ignoring');
+            log('ℹ️ Dropping in same directory, ignoring');
             return;
         }
 
-        // SECURITY FIX: Enhanced validation to prevent dangerous drops
+        // Security validation to prevent dangerous drops
         const isInvalidDrop = sourcePaths.some(srcPath => {
             if (!srcPath || typeof srcPath !== 'string') return true;
             
@@ -197,8 +233,8 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
         }
 
         try {
-            console.log(`🎯 Dropping ${sourcePaths.length} items into:`, targetFolder.path);
-            console.log(`📋 Operation: ${operation}`);
+            log(`🎯 Processing internal drop: ${sourcePaths.length} items into:`, targetFolder.path);
+            log(`📋 Operation: ${operation}`);
 
             let success = false;
 
@@ -209,7 +245,7 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
             }
 
             if (success) {
-                console.log(`✅ ${operation} operation successful`);
+                log(`✅ ${operation} operation successful`);
                 
                 // If we moved files, clear selection
                 if (operation === 'move') {
@@ -226,14 +262,14 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
             }
 
         } catch (err) {
-            console.error(`❌ Error during ${operation} operation:`, err);
+            error(`❌ Error during ${operation} operation:`, err);
             setError(`Failed to ${operation} files: ${err.message}`);
         }
     }, [setError, clearSelection, handleRefresh]);
 
-    // Handle drag end
+    // Drag end with cleanup
     const handleDragEnd = useCallback(() => {
-        console.log('🎯 Drag operation ended');
+        log('🎯 Internal drag operation ended');
 
         // Clean up drag preview
         if (dragPreviewRef.current) {
@@ -241,12 +277,12 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
                 document.body.removeChild(dragPreviewRef.current);
             } catch (e) {
                 // Preview might have already been removed
-                console.warn('Drag preview cleanup warning:', e);
+                warn('Drag preview cleanup warning:', e);
             }
             dragPreviewRef.current = null;
         }
 
-        // CRITICAL FIX: Clear timeout to prevent memory leaks
+        // Clear timeout to prevent memory leaks
         if (dragTimeoutRef.current) {
             clearTimeout(dragTimeoutRef.current);
             dragTimeoutRef.current = null;
@@ -263,7 +299,7 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
         });
     }, []);
 
-    // MEMORY LEAK FIX: Add cleanup effect for component unmount
+    // Cleanup effect for component unmount
     useEffect(() => {
         return () => {
             // Cleanup on unmount
@@ -283,7 +319,7 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
         };
     }, []);
 
-    // Create custom drag preview
+    // Create simple drag preview for internal operations only
     const createDragPreview = (files, operation) => {
         const preview = document.createElement('div');
         preview.style.cssText = `
@@ -292,28 +328,33 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
             left: -1000px;
             background: var(--blueprint-surface);
             border: 1px solid var(--blueprint-border);
-            border-radius: 4px;
-            padding: 8px 12px;
+            border-radius: 6px;
+            padding: 10px 14px;
             font-size: 12px;
             font-family: 'JetBrains Mono', monospace;
             color: var(--blueprint-text);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
             z-index: 1000;
             pointer-events: none;
             display: flex;
             align-items: center;
-            gap: 8px;
-            max-width: 300px;
+            gap: 10px;
+            max-width: 350px;
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(0, 255, 136, 0.3);
         `;
 
-        const icon = operation === 'copy' ? '📄' : '🔄';
+        const icon = operation === 'copy' ? '📋' : '🔄';
         const action = operation === 'copy' ? 'Copy' : 'Move';
         
+        let content = '';
         if (files.length === 1) {
-            preview.innerHTML = `${icon} ${action} "${files[0].name}"`;
+            content = `${icon} ${action} "${files[0].name}"`;
         } else {
-            preview.innerHTML = `${icon} ${action} ${files.length} items`;
+            content = `${icon} ${action} ${files.length} items`;
         }
+        
+        preview.innerHTML = content;
 
         return preview;
     };

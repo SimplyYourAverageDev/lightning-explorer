@@ -6,14 +6,19 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:optimized": "cross-env NODE_ENV=production vite build",
+    "compress:assets": "echo 'Brotli compression requires brotli CLI tool. Install with: npm install -g brotli'",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@msgpack/msgpack": "^3.1.2",
     "preact": "^10.10.1"
   },
   "devDependencies": {
+    "@preact/compat": "^18.3.1",
     "@preact/preset-vite": "^2.3.0",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^7.0.3",
     "postcss": "^8.5.4",
     "tailwindcss": "3",
     "vite": "^3.0.7"

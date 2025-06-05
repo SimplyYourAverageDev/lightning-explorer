@@ -1,12 +1,17 @@
 import { useState, useCallback } from "preact/hooks";
 
-export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, showDialog, fileOperations, currentPath, onCreateFolder) {
+export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, showDialog, fileOperations, currentPath, onCreateFolder, isInspectMode = false) {
     // Context menu states
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, files: [] });
     const [emptySpaceContextMenu, setEmptySpaceContextMenu] = useState({ visible: false, x: 0, y: 0 });
 
     // Context menu handlers
     const handleContextMenu = useCallback((event, file) => {
+        // In inspect mode, don't show custom context menus
+        if (isInspectMode) {
+            return false;
+        }
+        
         const selectedFileObjects = Array.from(selectedFiles).map(index => allFiles[index]);
         
         const contextFiles = selectedFiles.size > 0 && selectedFileObjects.some(f => f.path === file.path) 
@@ -19,20 +24,29 @@ export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, 
             y: event.clientY,
             files: contextFiles
         });
-    }, [selectedFiles, allFiles]);
+        
+        return true;
+    }, [selectedFiles, allFiles, isInspectMode]);
 
     const closeContextMenu = useCallback(() => {
         setContextMenu({ visible: false, x: 0, y: 0, files: [] });
     }, []);
 
     const handleEmptySpaceContextMenu = useCallback((event) => {
+        // In inspect mode, don't show custom context menus
+        if (isInspectMode) {
+            return false;
+        }
+        
         event.preventDefault();
         setEmptySpaceContextMenu({
             visible: true,
             x: event.clientX,
             y: event.clientY
         });
-    }, []);
+        
+        return true;
+    }, [isInspectMode]);
 
     const closeEmptySpaceContextMenu = useCallback(() => {
         setEmptySpaceContextMenu({ visible: false, x: 0, y: 0 });

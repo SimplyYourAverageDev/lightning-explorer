@@ -6,6 +6,7 @@ export { usePerformanceMonitoring } from './usePerformanceMonitoring';
 export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { useDragAndDrop } from './useDragAndDrop';
 export { useFolderCreation } from './useFolderCreation';
+export { useInspectMode } from './useInspectMode';
 
 
 // Re-export existing hooks

@@ -3,8 +3,10 @@ import { memo } from "preact/compat";
 import { GetHomeDirectory } from "../../wailsjs/go/backend/App";
 
 // Memoized Sidebar component
-const Sidebar = memo(({ currentPath, onNavigate, drives = [] }) => {
+const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) => {
     const [homeDir, setHomeDir] = useState('');
+    const [drivesExpanded, setDrivesExpanded] = useState(false);
+    const [loadingDrives, setLoadingDrives] = useState(false);
     
     useEffect(() => {
         GetHomeDirectory().then(setHomeDir);
@@ -28,6 +30,18 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [] }) => {
         onNavigate(path);
     }, [onNavigate]);
     
+    const handleDriveExpand = useCallback(async () => {
+        if (!drivesExpanded && onDriveExpand) {
+            setLoadingDrives(true);
+            try {
+                await onDriveExpand();
+            } finally {
+                setLoadingDrives(false);
+            }
+        }
+        setDrivesExpanded(!drivesExpanded);
+    }, [drivesExpanded, onDriveExpand]);
+    
     return (
         <div className="sidebar" onSelectStart={(e) => e.preventDefault()}>
             <div className="sidebar-section">
@@ -44,10 +58,25 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [] }) => {
                 ))}
             </div>
             
-            {drives.length > 0 && (
-                <div className="sidebar-section">
-                    <div className="sidebar-title">Drives</div>
-                    {drives.map((drive) => (
+            {/* Lazy-loaded drives section */}
+            <div className="sidebar-section">
+                <div 
+                    className="sidebar-title sidebar-expandable"
+                    onClick={handleDriveExpand}
+                    style={{
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                    }}
+                >
+                    Drives
+                    <span style={{ fontSize: '0.8rem' }}>
+                        {loadingDrives ? '⏳' : (drivesExpanded ? '▼' : '▶')}
+                    </span>
+                </div>
+                {drivesExpanded && drives.length > 0 && (
+                    drives.map((drive) => (
                         <div 
                             key={drive.path}
                             className={`sidebar-item ${currentPath === drive.path ? 'active' : ''}`}
@@ -56,9 +85,14 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [] }) => {
                             <span className="sidebar-icon">💽</span>
                             {drive.name}
                         </div>
-                    ))}
-                </div>
-            )}
+                    ))
+                )}
+                {drivesExpanded && drives.length === 0 && !loadingDrives && (
+                    <div className="sidebar-item disabled" style={{ color: '#666', fontStyle: 'italic' }}>
+                        No drives found
+                    </div>
+                )}
+            </div>
         </div>
     );
 });

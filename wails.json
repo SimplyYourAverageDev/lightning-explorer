@@ -3,7 +3,7 @@
   "name": "lightning_explorer",
   "outputfilename": "lightning_explorer",
   "frontend:install": "bun install",
-  "frontend:build": "bun run build",
+  "frontend:build": "bun run build:optimized",
   "frontend:dev:watcher": "bun run dev",
   "frontend:dev:serverUrl": "auto",
   "author": {

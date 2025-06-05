@@ -14,13 +14,16 @@ func NewApp() *App {
 	drives := NewDriveManager()
 	terminal := NewTerminalManager()
 
-	return &App{
-		filesystem: filesystem,
-		fileOps:    fileOps,
-		platform:   platform,
-		drives:     drives,
-		terminal:   terminal,
+	app := &App{
+		filesystem:    filesystem,
+		fileOps:       fileOps,
+		platform:      platform,
+		drives:        drives,
+		terminal:      terminal,
+		serialization: GetSerializationUtils(),
 	}
+
+	return app
 }
 
 // Startup is called when the app starts. The context is saved
@@ -53,23 +56,27 @@ func (a *App) GetSystemRoots() []string {
 	return a.platform.GetSystemRoots()
 }
 
-// NavigateToPath navigates to a specific path
+// NavigateToPath - DEPRECATED: Use NavigateToPathOptimized (MessagePack) instead
 func (a *App) NavigateToPath(path string) NavigationResponse {
+	log.Printf("⚠️ DEPRECATED API called: NavigateToPath - Use NavigateToPathOptimized instead")
 	return a.filesystem.NavigateToPath(path)
 }
 
-// NavigateUp navigates to the parent directory
+// NavigateUp - DEPRECATED: Use NavigateToPathOptimized (MessagePack) instead
 func (a *App) NavigateUp(currentPath string) NavigationResponse {
+	log.Printf("⚠️ DEPRECATED API called: NavigateUp - Use NavigateToPathOptimized instead")
 	return a.filesystem.NavigateUp(currentPath)
 }
 
-// ListDirectory lists the contents of a directory
+// ListDirectory - DEPRECATED: Use ListDirectoryOptimized (MessagePack) instead
 func (a *App) ListDirectory(path string) NavigationResponse {
+	log.Printf("⚠️ DEPRECATED API called: ListDirectory - Use ListDirectoryOptimized instead")
 	return a.filesystem.ListDirectory(path)
 }
 
-// GetFileDetails returns detailed information about a file
+// GetFileDetails - DEPRECATED: Use GetFileDetailsOptimized (MessagePack) instead
 func (a *App) GetFileDetails(filePath string) FileInfo {
+	log.Printf("⚠️ DEPRECATED API called: GetFileDetails - Use GetFileDetailsOptimized instead")
 	fileInfo, err := a.filesystem.GetFileInfo(filePath)
 	if err != nil {
 		log.Printf("Error getting file details: %v", err)
@@ -138,8 +145,9 @@ func (a *App) DeletePath(path string) NavigationResponse {
 	}
 }
 
-// GetDriveInfo returns information about available drives
+// GetDriveInfo - DEPRECATED: Use GetDriveInfoOptimized (MessagePack) instead
 func (a *App) GetDriveInfo() []map[string]interface{} {
+	log.Printf("⚠️ DEPRECATED API called: GetDriveInfo - Use GetDriveInfoOptimized instead")
 	drives := a.drives.GetDriveInfo()
 
 	// Convert to the expected format for backward compatibility
@@ -239,4 +247,133 @@ func (a *App) PrefetchDirectory(path string) NavigationResponse {
 	}
 
 	return response
+}
+
+// Enhanced API methods with MessagePack support
+
+// NavigateToPathOptimized returns navigation data using MessagePack encoding
+func (a *App) NavigateToPathOptimized(path string) interface{} {
+	response := a.filesystem.NavigateToPath(path)
+
+	// Log size comparison for performance monitoring
+	LogSerializationComparison(response, "NavigateToPath")
+
+	serialized, err := a.serialization.SerializeNavigationResponse(response)
+	if err != nil {
+		log.Printf("❌ Serialization error: %v", err)
+		return response // Fall back to regular JSON
+	}
+
+	return serialized
+}
+
+// ListDirectoryOptimized returns directory listing using MessagePack encoding
+func (a *App) ListDirectoryOptimized(path string) interface{} {
+	response := a.filesystem.ListDirectory(path)
+
+	// Log size comparison for performance monitoring
+	LogSerializationComparison(response, "ListDirectory")
+
+	serialized, err := a.serialization.SerializeNavigationResponse(response)
+	if err != nil {
+		log.Printf("❌ Serialization error: %v", err)
+		return response // Fall back to regular JSON
+	}
+
+	return serialized
+}
+
+// GetFileDetailsOptimized returns file details using MessagePack encoding
+func (a *App) GetFileDetailsOptimized(filePath string) interface{} {
+	fileInfo, err := a.filesystem.GetFileInfo(filePath)
+	if err != nil {
+		log.Printf("Error getting file details: %v", err)
+		return FileInfo{}
+	}
+
+	// Log size comparison for performance monitoring
+	LogSerializationComparison(fileInfo, "FileInfo")
+
+	serialized, serializeErr := a.serialization.SerializeFileInfo(fileInfo)
+	if serializeErr != nil {
+		log.Printf("❌ Serialization error: %v", serializeErr)
+		return fileInfo // Fall back to regular JSON
+	}
+
+	return serialized
+}
+
+// GetDriveInfoOptimized returns drive information using MessagePack encoding
+func (a *App) GetDriveInfoOptimized() interface{} {
+	drives := a.drives.GetDriveInfo()
+
+	// Log size comparison for performance monitoring
+	LogSerializationComparison(drives, "DriveInfo")
+
+	serialized, err := a.serialization.SerializeDriveInfoSlice(drives)
+	if err != nil {
+		log.Printf("❌ Serialization error: %v", err)
+		// Fall back to legacy format
+		var result []map[string]interface{}
+		for _, drive := range drives {
+			result = append(result, map[string]interface{}{
+				"path":   drive.Path,
+				"letter": drive.Letter,
+				"name":   drive.Name,
+			})
+		}
+		return result
+	}
+
+	return serialized
+}
+
+// SetSerializationMode forces MessagePack Base64 mode only - no JSON allowed
+func (a *App) SetSerializationMode(mode int) bool {
+	// FORCE MessagePack Base64 mode only - reject any other modes
+	if mode != 2 {
+		log.Printf("❌ Rejected serialization mode %d - only MessagePack Base64 (mode 2) is allowed", mode)
+		return false
+	}
+
+	SetSerializationMode(SerializationMsgPackBase64)
+	log.Println("🔄 Confirmed MessagePack Base64 serialization mode (forced)")
+	return true
+}
+
+// GetSerializationMode always returns MessagePack Base64 mode (forced)
+func (a *App) GetSerializationMode() int {
+	// Always return MessagePack Base64 mode - no other modes allowed
+	return 2 // SerializationMsgPackBase64
+}
+
+// BenchmarkSerialization runs a benchmark comparison between JSON and MessagePack
+func (a *App) BenchmarkSerialization(path string) map[string]interface{} {
+	response := a.filesystem.ListDirectory(path)
+
+	if !response.Success {
+		return map[string]interface{}{
+			"error": "Failed to read directory for benchmark",
+		}
+	}
+
+	sizes := BenchmarkSerializationSizes(response)
+
+	result := map[string]interface{}{
+		"path":        path,
+		"sizes":       sizes,
+		"files_count": response.Data.TotalFiles,
+		"dirs_count":  response.Data.TotalDirs,
+	}
+
+	if jsonSize, exists := sizes["json"]; exists {
+		if msgPackSize, exists := sizes["msgpack"]; exists {
+			reduction := float64(jsonSize-msgPackSize) / float64(jsonSize) * 100
+			result["size_reduction_percent"] = reduction
+			result["msgpack_advantage"] = reduction > 0
+		}
+	}
+
+	log.Printf("📊 Serialization benchmark for %s completed", path)
+	return result
 }

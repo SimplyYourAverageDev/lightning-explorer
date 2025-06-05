@@ -4,3 +4,5 @@ globs:
 alwaysApply: true
 ---
 This Project is a Wails V2 Project (App) that uses Preact to build an alternative File Explorer for Windows 11 Systems. The UI Design is Retro and 8-bit styled yet also extremely zen and minimalist!
+
+[app.jsx](mdc:frontend/src/app.jsx)

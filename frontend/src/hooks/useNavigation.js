@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "preact/hooks";
-import { NavigateToPath } from "../../wailsjs/go/backend/App";
+import { NavigateToPathOptimized } from "../../wailsjs/go/backend/App";
 import { EventsOn, EventsOff } from "../../wailsjs/runtime/runtime";
 import { log, error } from "../utils/logger";
+import { serializationUtils } from "../utils/serialization";
 
 export function useNavigation(setError, setNavigationStats) {
     const [currentPath, setCurrentPath] = useState('');
@@ -142,8 +143,11 @@ export function useNavigation(setError, setNavigationStats) {
             // Store timeout ID for cleanup
             navigationTimeoutRef.current = timeoutId;
             
-            const navigationPromise = NavigateToPath(path);
-            const response = await Promise.race([navigationPromise, timeoutPromise]);
+            const navigationPromise = NavigateToPathOptimized(path);
+            const rawResponse = await Promise.race([navigationPromise, timeoutPromise]);
+            
+            // Deserialize MessagePack response
+            const response = serializationUtils.deserialize(rawResponse);
             
             // Clear timeout on successful completion
             if (navigationTimeoutRef.current) {
@@ -319,4 +323,4 @@ export function useNavigation(setError, setNavigationStats) {
         handleNavigateUp,
         handleRefresh
     };
-} 
+}

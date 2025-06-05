@@ -2,6 +2,7 @@ import { useMemo, useCallback, useRef, useEffect } from "preact/hooks";
 import { memo } from "preact/compat";
 import { getFileIcon, getFileType } from "../utils/fileUtils.js";
 import { log, error } from "../utils/logger";
+import { serializationUtils } from "../utils/serialization";
 
 // Local utility functions (moved from formatUtils)
 const formatDate = (dateString) => {
@@ -10,6 +11,11 @@ const formatDate = (dateString) => {
 };
 
 const formatFileSize = (size) => {
+    // Handle edge cases: undefined, null, or negative sizes
+    if (size === undefined || size === null || size < 0) {
+        return "0 B";
+    }
+    
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
     let unitIndex = 0;
     let fileSize = size;
@@ -40,6 +46,7 @@ const FileItem = memo(({
     onDragLeave, 
     onDrop, 
     isDragOver,
+    isInspectMode = false
 
 }) => {
     const icon = useMemo(() => getFileIcon(file.name, file.isDir), [file.name, file.isDir]);
@@ -59,6 +66,11 @@ const FileItem = memo(({
     const handleClick = useCallback((event) => {
         const clickStartTime = PERFORMANCE_LOGGING ? performance.now() : 0;
         log('📋 File clicked:', file.name, 'Path:', file.path, 'IsDir:', file.isDir, 'IsSelected:', isSelected);
+        
+        // In inspect mode, don't handle normal file clicks
+        if (isInspectMode) {
+            return;
+        }
         
         if (isLoading) return;
         
@@ -106,10 +118,15 @@ const FileItem = memo(({
             }
             clickCountRef.current = 0;
         }, DOUBLE_CLICK_DELAY);
-    }, [file, isLoading, isSelected, fileIndex, onOpen, onSelect]);
+    }, [file, isLoading, isSelected, fileIndex, onOpen, onSelect, isInspectMode]);
     
     const handleDoubleClick = useCallback((event) => {
         log('🔍 File double-clicked:', file.name, 'Path:', file.path, 'IsDir:', file.isDir);
+        
+        // In inspect mode, don't handle normal file double-clicks
+        if (isInspectMode) {
+            return;
+        }
         
         if (isLoading) return;
         
@@ -133,7 +150,7 @@ const FileItem = memo(({
         lastOpenTimeRef.current = now;
         clickCountRef.current = 0;
         onOpen(file);
-    }, [file, isLoading, onOpen]);
+    }, [file, isLoading, onOpen, isInspectMode]);
     
     // Cleanup timeout on unmount
     useEffect(() => {
@@ -145,8 +162,14 @@ const FileItem = memo(({
     }, []);
     
     const handleRightClick = useCallback((event) => {
-        event.preventDefault();
         log('🖱️ Right-click on:', file.name, 'IsSelected:', isSelected);
+        
+        // In inspect mode, allow native context menu
+        if (isInspectMode) {
+            return; // Don't prevent default, allow native context menu
+        }
+        
+        event.preventDefault();
         
         if (!isLoading) {
             // If file is not selected, select it first
@@ -157,7 +180,7 @@ const FileItem = memo(({
             // Show context menu
             onContextMenu(event, file);
         }
-    }, [file, isLoading, isSelected, fileIndex, onSelect, onContextMenu]);
+    }, [file, isLoading, isSelected, fileIndex, onSelect, onContextMenu, isInspectMode]);
     
     const handleDragStart = useCallback((event) => {
         if (isLoading) {
@@ -208,15 +231,10 @@ const FileItem = memo(({
         
         event.preventDefault();
         
-        try {
-            const dragData = JSON.parse(event.dataTransfer.getData('application/json'));
-            log('📂 Drop on folder:', file.name, 'Items:', dragData.files?.length, 'Operation:', dragData.operation);
-            
-            if (onDrop) {
-                onDrop(event, file, dragData);
-            }
-        } catch (err) {
-            error('❌ Error parsing drag data:', err);
+        // Enhanced drop handler that works with the new drag and drop system
+        // The actual parsing logic is now handled in the enhanced useDragAndDrop hook
+        if (onDrop) {
+            onDrop(event, file, null); // Pass null for dragData since it's parsed in the hook
         }
     }, [file, isLoading, onDrop]);
     
@@ -250,8 +268,9 @@ const FileItem = memo(({
                         <span>DIR</span>
                     ) : (
                         <>
-                            <span>{formatFileSize(file.size)}</span>
-                            <span>{formatDate(file.modTime)}</span>
+                            <span className="file-size">{formatFileSize(file.size)}</span>
+                            <span className="file-separator"> • </span>
+                            <span className="file-date">{formatDate(file.modTime)}</span>
                         </>
                     )}
                 </div>
