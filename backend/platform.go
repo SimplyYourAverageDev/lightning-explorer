@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 )
@@ -36,209 +35,70 @@ func (p *PlatformManager) GetCurrentWorkingDirectory() string {
 	return cwd
 }
 
-// GetSystemRoots returns system root paths (drives on Windows, / on Unix)
+// GetSystemRoots returns Windows system root paths (drives)
 func (p *PlatformManager) GetSystemRoots() []string {
-	var roots []string
-
-	switch runtime.GOOS {
-	case "windows":
-		// Use the optimized Windows-specific method
-		return p.GetSystemRootsWindows()
-	default:
-		// Unix-like systems start from root
-		roots = append(roots, "/")
-	}
-	return roots
+	// Use the optimized Windows-specific method
+	return p.GetSystemRootsWindows()
 }
 
-// OpenInSystemExplorer opens the given path in the system's default file manager
+// OpenInSystemExplorer opens the given path in Windows Explorer
 func (p *PlatformManager) OpenInSystemExplorer(path string) bool {
-	var cmd string
-	var args []string
-
-	switch runtime.GOOS {
-	case "windows":
-		cmd = "explorer"
-		args = []string{path}
-	case "darwin":
-		cmd = "open"
-		args = []string{path}
-	case "linux":
-		cmd = "xdg-open"
-		args = []string{path}
-	default:
-		log.Printf("OpenInSystemExplorer not supported on %s", runtime.GOOS)
-		return false
-	}
+	cmd := "explorer"
+	args := []string{path}
 
 	err := exec.Command(cmd, args...).Start()
 	if err != nil {
-		log.Printf("Error opening in system explorer: %v", err)
+		log.Printf("Error opening in Windows Explorer: %v", err)
 		return false
 	}
 	return true
 }
 
-// OpenFile opens a file with its default application
+// OpenFile opens a file with its default Windows application
 func (p *PlatformManager) OpenFile(filePath string) bool {
-	log.Printf("Opening file with default application: %s", filePath)
+	log.Printf("Opening file with default Windows application: %s", filePath)
 
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "windows":
-		// Use rundll32 with shell32.dll to open file without showing command prompt
-		cmd = exec.Command("rundll32.exe", "shell32.dll,ShellExec_RunDLL", filePath)
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	case "darwin":
-		cmd = exec.Command("open", filePath)
-	case "linux":
-		cmd = exec.Command("xdg-open", filePath)
-	default:
-		log.Printf("Unsupported operating system: %s", runtime.GOOS)
-		return false
-	}
+	// Use rundll32 with shell32.dll to open file without showing command prompt
+	cmd := exec.Command("rundll32.exe", "shell32.dll,ShellExec_RunDLL", filePath)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 
 	err := cmd.Start()
 	if err != nil {
-		log.Printf("Error opening file: %v", err)
+		log.Printf("Error opening file with Windows default application: %v", err)
 		return false
 	}
 
-	log.Printf("Successfully opened file: %s", filePath)
+	log.Printf("Successfully opened file with Windows default application: %s", filePath)
 	return true
 }
 
 // IsHiddenWindows checks if a file has the Windows hidden attribute
 func (p *PlatformManager) IsHiddenWindows(filePath string) bool {
-	if runtime.GOOS != "windows" {
-		return false
-	}
-
 	// Use native Windows API instead of attrib command
 	return p.IsHiddenWindowsNative(filePath)
 }
 
-// IsHiddenMac checks if a file is hidden on macOS
-func (p *PlatformManager) IsHiddenMac(filePath string) bool {
-	if runtime.GOOS != "darwin" {
-		return false
-	}
-
-	fileName := filepath.Base(filePath)
-	// Files starting with dot are hidden on macOS
-	return strings.HasPrefix(fileName, ".")
-}
-
-// IsHiddenLinux checks if a file is hidden on Linux
-func (p *PlatformManager) IsHiddenLinux(filePath string) bool {
-	if runtime.GOOS != "linux" {
-		return false
-	}
-
-	fileName := filepath.Base(filePath)
-	// Files starting with dot are hidden on Linux
-	return strings.HasPrefix(fileName, ".")
-}
-
-// IsHidden checks if a file/directory is hidden using OS-specific methods
+// IsHidden checks if a file/directory is hidden using Windows methods
 func (p *PlatformManager) IsHidden(filePath string) bool {
-	// Check for dot prefix (universal Unix convention)
+	// Check for dot prefix (common convention, but not typical on Windows)
 	fileName := filepath.Base(filePath)
 	if strings.HasPrefix(fileName, ".") {
 		return true
 	}
 
-	// Check OS-specific hidden attributes
-	switch runtime.GOOS {
-	case "windows":
-		return p.IsHiddenWindows(filePath)
-	case "darwin":
-		return p.IsHiddenMac(filePath)
-	case "linux":
-		return p.IsHiddenLinux(filePath)
-	default:
-		return false
-	}
+	// Check Windows-specific hidden attributes
+	return p.IsHiddenWindows(filePath)
 }
 
 // HideFileWindows sets the hidden attribute on Windows using native API
 func (p *PlatformManager) HideFileWindows(filePath string) bool {
-	if runtime.GOOS != "windows" {
-		return false
-	}
-
 	// Use native Windows API instead of attrib command
 	return p.HideFileWindowsNative(filePath)
 }
 
-// HideFileMac hides file on macOS by adding a dot prefix (if not already hidden)
-func (p *PlatformManager) HideFileMac(filePath string) bool {
-	if runtime.GOOS != "darwin" {
-		return false
-	}
-
-	log.Printf("Hiding file on macOS: %s", filePath)
-
-	fileName := filepath.Base(filePath)
-	if strings.HasPrefix(fileName, ".") {
-		log.Printf("File is already hidden: %s", filePath)
-		return true
-	}
-
-	dir := filepath.Dir(filePath)
-	newPath := filepath.Join(dir, "."+fileName)
-
-	err := os.Rename(filePath, newPath)
-	if err != nil {
-		log.Printf("Failed to hide file on macOS: %v", err)
-		return false
-	}
-
-	log.Printf("Successfully hid file on macOS: %s -> %s", filePath, newPath)
-	return true
-}
-
-// HideFileLinux hides file on Linux by adding a dot prefix (if not already hidden)
-func (p *PlatformManager) HideFileLinux(filePath string) bool {
-	if runtime.GOOS != "linux" {
-		return false
-	}
-
-	log.Printf("Hiding file on Linux: %s", filePath)
-
-	fileName := filepath.Base(filePath)
-	if strings.HasPrefix(fileName, ".") {
-		log.Printf("File is already hidden: %s", filePath)
-		return true
-	}
-
-	dir := filepath.Dir(filePath)
-	newPath := filepath.Join(dir, "."+fileName)
-
-	err := os.Rename(filePath, newPath)
-	if err != nil {
-		log.Printf("Failed to hide file on Linux: %v", err)
-		return false
-	}
-
-	log.Printf("Successfully hid file on Linux: %s -> %s", filePath, newPath)
-	return true
-}
-
-// HideFile sets the hidden attribute on a file using OS-specific methods
+// HideFile sets the hidden attribute on a file using Windows methods
 func (p *PlatformManager) HideFile(filePath string) bool {
-	switch runtime.GOOS {
-	case "windows":
-		return p.HideFileWindows(filePath)
-	case "darwin":
-		return p.HideFileMac(filePath)
-	case "linux":
-		return p.HideFileLinux(filePath)
-	default:
-		log.Printf("Hide file not supported on %s", runtime.GOOS)
-		return false
-	}
+	return p.HideFileWindows(filePath)
 }
 
 // GetExtension returns the file extension in lowercase

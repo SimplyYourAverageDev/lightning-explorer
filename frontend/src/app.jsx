@@ -1,12 +1,21 @@
 import './components/FastNavigation.css';
 import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import { Suspense } from "preact/compat";
+
+// Import core Wails API synchronously - no dynamic imports for critical startup code
 import { 
-    OpenInSystemExplorer
+    OpenInSystemExplorer,
+    GetHomeDirectory,
+    NavigateToPathOptimized,
+    ListDirectoryOptimized,
+    GetDriveInfoOptimized
 } from "../wailsjs/go/backend/App";
 
-// Import MessagePack utilities - dynamically loaded for better startup
+// Import MessagePack utilities synchronously - needed immediately for API calls
 import { EnhancedAPI, SerializationMode, serializationUtils } from "./utils/serialization";
+
+// Import core utilities synchronously - needed for immediate file filtering and processing
+import { filterFiles, getFileType, getFileIcon } from "./utils/fileUtils";
 
 // Import optimized utilities
 import { log, warn, error } from "./utils/logger";
@@ -51,14 +60,7 @@ import {
     useInspectMode
 } from "./hooks";
 
-// Lazy load heavy utilities for better startup performance
-let fileUtilsPromise = null;
-const getFileUtils = () => {
-    if (!fileUtilsPromise) {
-        fileUtilsPromise = import("./utils/fileUtils");
-    }
-    return fileUtilsPromise;
-};
+// File utilities are now imported synchronously at the top for immediate availability
 
 // Main App component
 export function App() {
@@ -140,18 +142,16 @@ export function App() {
         handleInputBlur
     } = useFolderCreation(currentPath, handleRefresh, setError);
 
-    // Computed values - use lazy loaded file utils
-    const [fileUtilsModule, setFileUtilsModule] = useState(null);
-    
+    // Computed values - use synchronously imported file utils for immediate availability
     const filteredDirectories = useMemo(() => {
-        if (!directoryContents || !fileUtilsModule) return [];
-        return fileUtilsModule.filterFiles(directoryContents.directories, showHiddenFiles);
-    }, [directoryContents, showHiddenFiles, fileUtilsModule]);
+        if (!directoryContents) return [];
+        return filterFiles(directoryContents.directories, showHiddenFiles);
+    }, [directoryContents, showHiddenFiles]);
     
     const filteredFiles = useMemo(() => {
-        if (!directoryContents || !fileUtilsModule) return [];
-        return fileUtilsModule.filterFiles(directoryContents.files, showHiddenFiles);
-    }, [directoryContents, showHiddenFiles, fileUtilsModule]);
+        if (!directoryContents) return [];
+        return filterFiles(directoryContents.files, showHiddenFiles);
+    }, [directoryContents, showHiddenFiles]);
     
     const allFiles = useMemo(() => 
         [...filteredDirectories, ...filteredFiles], 
@@ -277,37 +277,23 @@ export function App() {
         closeEmptySpaceContextMenu
     });
 
-    // OPTIMIZATION 1: Defer heavy work until after first paint
+    // OPTIMIZATION 1: Immediate initialization with synchronous imports
     useEffect(() => {
-        log('🚀 Lightning Explorer mounting - UI First!');
+        log('🚀 Lightning Explorer mounting - Synchronous API initialization!');
         
-        // Allow UI to render first with setTimeout(0)
-        setTimeout(() => {
-            initializeApp();
-        }, 0);
+        // Initialize enhanced API immediately since utilities are now synchronous
+        initializeEnhancedAPI();
         
-        // Off-peak initialization for enhanced API - use requestIdleCallback if available
+        // Initialize app immediately - no artificial delays needed
+        initializeApp();
+        
+        // Parallelize non-dependent async work using requestIdleCallback
         if (typeof requestIdleCallback !== 'undefined') {
             requestIdleCallback(() => {
-                initializeEnhancedAPI();
+                // Preload rarely used components during idle time
+                import('./components/InspectMenu');
+                import('./components/PerformanceDashboard');
             });
-        } else {
-            setTimeout(initializeEnhancedAPI, 200);
-        }
-        
-        // Load file utils asynchronously 
-        if (typeof requestIdleCallback !== 'undefined') {
-            requestIdleCallback(() => {
-                getFileUtils().then(module => {
-                    setFileUtilsModule(module);
-                });
-            });
-        } else {
-            setTimeout(() => {
-                getFileUtils().then(module => {
-                    setFileUtilsModule(module);
-                });
-            }, 100);
         }
     }, []);
 
@@ -336,25 +322,29 @@ export function App() {
         try {
             setError('');
             
-            // Use MessagePack optimized API for home directory
+            // Use MessagePack optimized API for home directory (with fallback)
+            let homeDir = null;
             if (enhancedAPI) {
-                const homeDirResponse = await enhancedAPI.getHomeDirectory();
-                if (homeDirResponse && homeDirResponse.success && homeDirResponse.home_directory) {
-                    await navigateToPath(homeDirResponse.home_directory, 'init');
-                    setIsAppInitialized(true);
-                } else {
-                    setError('Unable to determine starting directory');
+                try {
+                    const homeDirResponse = await enhancedAPI.getHomeDirectory();
+                    if (homeDirResponse && homeDirResponse.success && homeDirResponse.home_directory) {
+                        homeDir = homeDirResponse.home_directory;
+                    }
+                } catch (apiErr) {
+                    warn('⚠️ Enhanced API failed, using fallback:', apiErr);
                 }
+            }
+            
+            // Fallback to synchronously imported regular API if enhanced API fails
+            if (!homeDir) {
+                homeDir = await GetHomeDirectory();
+            }
+            
+            if (homeDir) {
+                await navigateToPath(homeDir, 'init');
+                setIsAppInitialized(true);
             } else {
-                // Fallback to regular API if enhanced API not available
-                const { GetHomeDirectory } = await import("../wailsjs/go/backend/App");
-                const homeDir = await GetHomeDirectory();
-                if (homeDir) {
-                    await navigateToPath(homeDir, 'init');
-                    setIsAppInitialized(true);
-                } else {
-                    setError('Unable to determine starting directory');
-                }
+                setError('Unable to determine starting directory');
             }
         } catch (err) {
             error('❌ Error initializing app:', err);
@@ -365,8 +355,14 @@ export function App() {
     // Serialization mode handlers - MessagePack forced, no user switching
     const initializeEnhancedAPI = async () => {
         try {
-            // Import the Wails API
-            const wailsAPI = await import("../wailsjs/go/backend/App");
+            // Use synchronously imported Wails API
+            const wailsAPI = {
+                GetHomeDirectory,
+                NavigateToPathOptimized,
+                ListDirectoryOptimized,
+                GetDriveInfoOptimized,
+                OpenInSystemExplorer
+            };
             
             // Create enhanced API instance
             const enhancedAPIInstance = new EnhancedAPI(wailsAPI, serializationUtils);
@@ -376,7 +372,7 @@ export function App() {
             await enhancedAPIInstance.setSerializationMode(SerializationMode.MSGPACK_BASE64);
             serializationUtils.setMode(SerializationMode.MSGPACK_BASE64);
             
-            log(`🔧 Enhanced API initialized with MessagePack Base64 mode (forced)`);
+            log(`🔧 Enhanced API initialized with MessagePack Base64 mode (synchronous imports)`);
         } catch (err) {
             warn('⚠️ Enhanced API initialization failed, falling back to standard API:', err);
         }
@@ -435,7 +431,7 @@ export function App() {
                 <div style={HEADER_STATS_STYLE}>
                     {showLoadingIndicator && <div className="loading-spinner"></div>}
                     <span className="text-technical">
-                        {directoryContents && fileUtilsModule ? 
+                        {directoryContents ? 
                             `${filteredDirectories.length} dirs • ${filteredFiles.length} files${!showHiddenFiles ? ' (hidden filtered)' : ''}${selectedFiles.size > 0 ? ` • ${selectedFiles.size} selected` : ''}` : 
                             (isAppInitialized ? 'Loading...' : 'Ready')
                         }
@@ -547,42 +543,33 @@ export function App() {
                                     <div className="text-technical">Loading directory...</div>
                                 </div>
                             </div>
-                        ) : directoryContents && fileUtilsModule ? (
+                        ) : directoryContents ? (
                             allFiles.length > 20 ? (
-                                // Use virtual scrolling for large directories with Suspense wrapper
-                                <Suspense fallback={
-                                    <div className="loading-overlay">
-                                        <div style={LOADING_OVERLAY_STYLE}>
-                                            <div className="loading-spinner" style={LOADING_SPINNER_LARGE_STYLE}></div>
-                                            <div className="text-technical">Loading file list...</div>
-                                        </div>
-                                    </div>
-                                }>
-                                    <VirtualizedFileList
-                                        files={allFiles}
-                                        selectedFiles={selectedFiles}
-                                        onFileSelect={handleFileSelect}
-                                        onFileOpen={handleFileOpen}
-                                        onContextMenu={handleContextMenu}
-                                        isLoading={false} // Never show loading in file items
-                                        clipboardFiles={clipboardFiles}
-                                        clipboardOperation={clipboardOperation}
-                                        dragState={dragState}
-                                        onDragStart={handleDragStart}
-                                        onDragOver={handleDragOver}
-                                        onDragEnter={handleDragEnter}
-                                        onDragLeave={handleDragLeave}
-                                        onDrop={handleDrop}
-                                        creatingFolder={creatingFolder}
-                                        tempFolderName={tempFolderName}
-                                        editInputRef={editInputRef}
-                                        onFolderKeyDown={handleKeyDown}
-                                        onFolderInputChange={handleInputChange}
-                                        onFolderInputBlur={handleInputBlur}
-                                        onEmptySpaceContextMenu={handleEmptySpaceContextMenu}
-                                        isInspectMode={isInspectMode}
-                                    />
-                                </Suspense>
+                                // Use virtual scrolling for large directories - now bundled synchronously
+                                <VirtualizedFileList
+                                    files={allFiles}
+                                    selectedFiles={selectedFiles}
+                                    onFileSelect={handleFileSelect}
+                                    onFileOpen={handleFileOpen}
+                                    onContextMenu={handleContextMenu}
+                                    isLoading={false} // Never show loading in file items
+                                    clipboardFiles={clipboardFiles}
+                                    clipboardOperation={clipboardOperation}
+                                    dragState={dragState}
+                                    onDragStart={handleDragStart}
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={handleDragEnter}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                    creatingFolder={creatingFolder}
+                                    tempFolderName={tempFolderName}
+                                    editInputRef={editInputRef}
+                                    onFolderKeyDown={handleKeyDown}
+                                    onFolderInputChange={handleInputChange}
+                                    onFolderInputBlur={handleInputBlur}
+                                    onEmptySpaceContextMenu={handleEmptySpaceContextMenu}
+                                    isInspectMode={isInspectMode}
+                                />
                             ) : (
                                 // Use normal rendering for small directories
                                 <div 
@@ -683,13 +670,15 @@ export function App() {
                 onClose={closeDialog}
             />
             
-            <InspectMenu
-                visible={inspectMenu.visible}
-                x={inspectMenu.x}
-                y={inspectMenu.y}
-                element={inspectMenu.element}
-                onClose={closeInspectMenu}
-            />
+            <Suspense fallback={null}>
+                <InspectMenu
+                    visible={inspectMenu.visible}
+                    x={inspectMenu.x}
+                    y={inspectMenu.y}
+                    element={inspectMenu.element}
+                    onClose={closeInspectMenu}
+                />
+            </Suspense>
             
             {/* Performance Dashboard */}
             <Suspense fallback={null}>

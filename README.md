@@ -1,6 +1,6 @@
 # Lightning Explorer
 
-A blazing-fast, minimalist file explorer for **Windows 11**, built with Wails V2 (Go + Preact). Engineered for performance and a responsive user experience.
+A blazing-fast, minimalist file explorer for ONLY **Windows 11** (Sorry, Linux and MacOS's File Explorer is already good enouh), built with Wails V2 (Go + Preact). Engineered for performance and a responsive user experience.
 
 ## ✨ Features
 

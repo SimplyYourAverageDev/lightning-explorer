@@ -75,8 +75,6 @@ type PlatformManagerInterface interface {
 	GetSystemRoots() []string
 	OpenInSystemExplorer(path string) bool
 	IsHiddenWindows(filePath string) bool
-	IsHiddenMac(filePath string) bool
-	IsHiddenLinux(filePath string) bool
 	IsHidden(filePath string) bool
 	GetExtension(name string) string
 	HideFile(filePath string) bool

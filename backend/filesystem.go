@@ -25,10 +25,10 @@ func (fs *FileSystemManager) SetContext(ctx context.Context) {
 	fs.eventEmitter = NewEventEmitter(ctx)
 }
 
-// ListDirectory lists the contents of a directory with streaming optimization
+// ListDirectory lists the contents of a directory with Windows-optimized streaming
 func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	startTime := time.Now()
-	log.Printf("📂 Listing directory with streaming: %s", path)
+	log.Printf("📂 Listing directory with Windows-optimized streaming: %s", path)
 
 	if path == "" {
 		path = fs.platform.GetHomeDirectory()
@@ -53,8 +53,14 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		}
 	}
 
-	// Use optimized enumeration
-	basicEntries, err := listDirectoryBasic(path)
+	// Get parent path
+	parentPath := filepath.Dir(path)
+	if parentPath == path {
+		parentPath = ""
+	}
+
+	// Use Windows-optimized enhanced directory listing with FindFirstFileExW
+	enhancedEntries, err := listDirectoryBasicEnhanced(path)
 	if err != nil {
 		return NavigationResponse{
 			Success: false,
@@ -62,9 +68,11 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		}
 	}
 
+	log.Printf("🚀 Using Windows enhanced directory listing for %s", path)
+
 	// Filter out skipped files
-	var filteredEntries []BasicEntry
-	for _, entry := range basicEntries {
+	var filteredEntries []EnhancedBasicEntry
+	for _, entry := range enhancedEntries {
 		if !fs.shouldSkipFile(entry.Name) {
 			filteredEntries = append(filteredEntries, entry)
 		}
@@ -73,49 +81,33 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	// Split into first page and rest for background processing
 	const pageSize = 100
 	firstPage := filteredEntries
-	var rest []BasicEntry
+	var rest []EnhancedBasicEntry
 
 	if len(filteredEntries) > pageSize {
 		firstPage = filteredEntries[:pageSize]
 		rest = filteredEntries[pageSize:]
 	}
 
-	// Convert first page to FileInfo with COMPLETE data including file sizes
+	// Convert first page to FileInfo - NO ADDITIONAL STAT CALLS NEEDED!
 	files := make([]FileInfo, 0, pageSize/2)
 	directories := make([]FileInfo, 0, pageSize/2)
 
 	for _, entry := range firstPage {
-		// Get complete file info including size for first page
-		var fileInfo FileInfo
-		if info, err := os.Stat(entry.Path); err == nil {
-			// Create complete FileInfo with actual size and timestamps
-			fileInfo = FileInfo{
-				Name:        entry.Name,
-				Path:        entry.Path,
-				IsDir:       entry.IsDir,
-				Extension:   entry.Extension,
-				IsHidden:    entry.IsHidden,
-				Size:        info.Size(),          // Include actual file size
-				ModTime:     info.ModTime(),       // Include actual mod time
-				Permissions: info.Mode().String(), // Include permissions
-			}
-			// Debug log to verify file sizes are being calculated
-			if !entry.IsDir && info.Size() > 0 {
-				log.Printf("📊 File size calculated: %s = %d bytes", entry.Name, info.Size())
-			}
-		} else {
-			// Fallback to basic info if stat fails
-			log.Printf("⚠️ Failed to stat %s: %v", entry.Path, err)
-			fileInfo = FileInfo{
-				Name:        entry.Name,
-				Path:        entry.Path,
-				IsDir:       entry.IsDir,
-				Extension:   entry.Extension,
-				IsHidden:    entry.IsHidden,
-				Size:        0,           // Only fallback to 0 on error
-				ModTime:     time.Time{}, // Only fallback to empty time on error
-				Permissions: "",          // Only fallback to empty permissions on error
-			}
+		// Create FileInfo directly from enhanced entry data - no stat() needed!
+		fileInfo := FileInfo{
+			Name:        entry.Name,
+			Path:        entry.Path,
+			IsDir:       entry.IsDir,
+			Extension:   entry.Extension,
+			IsHidden:    entry.IsHidden,
+			Size:        entry.Size,
+			ModTime:     time.Unix(entry.ModTime, 0),
+			Permissions: entry.Permissions,
+		}
+
+		// Debug log to verify file sizes are being calculated
+		if !entry.IsDir && entry.Size > 0 {
+			log.Printf("📊 File size from Windows enhanced listing: %s = %d bytes", entry.Name, entry.Size)
 		}
 
 		if entry.IsDir {
@@ -125,6 +117,15 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		}
 	}
 
+	// Start background hydration for remaining enhanced entries
+	if len(rest) > 0 {
+		go func(entries []EnhancedBasicEntry) {
+			// Give UI a chance to render first
+			time.Sleep(200 * time.Millisecond)
+			fs.hydrateRemainingEntriesEnhanced(path, entries)
+		}(rest)
+	}
+
 	// Sort first page for immediate display
 	sort.Slice(directories, func(i, j int) bool {
 		return strings.ToLower(directories[i].Name) < strings.ToLower(directories[j].Name)
@@ -132,12 +133,6 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	sort.Slice(files, func(i, j int) bool {
 		return strings.ToLower(files[i].Name) < strings.ToLower(files[j].Name)
 	})
-
-	// Get parent path
-	parentPath := filepath.Dir(path)
-	if parentPath == path {
-		parentPath = ""
-	}
 
 	// Build immediate response
 	contents := DirectoryContents{
@@ -149,46 +144,31 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		TotalDirs:   len(directories),
 	}
 
-	// Start background hydration if we have remaining entries
-	if len(rest) > 0 {
-		go func(entries []BasicEntry) {
-			// Give UI a chance to render first on Windows
-			time.Sleep(200 * time.Millisecond)
-			fs.hydrateRemainingEntries(path, entries)
-		}(rest)
-	}
-
 	processingTime := time.Since(startTime)
-	log.Printf("✅ First page listed in %v: %s (%d dirs, %d files, %d deferred)",
+	log.Printf("✅ Windows enhanced first page listed in %v: %s (%d dirs, %d files, %d deferred)",
 		processingTime, path, len(directories), len(files), len(rest))
 
 	return NavigationResponse{
 		Success: true,
-		Message: fmt.Sprintf("Directory listed (first page) in %v", processingTime),
+		Message: fmt.Sprintf("Directory listed (Windows enhanced) in %v", processingTime),
 		Data:    contents,
 	}
 }
 
-// hydrateRemainingEntries processes remaining entries in background
-func (fs *FileSystemManager) hydrateRemainingEntries(basePath string, entries []BasicEntry) {
-	log.Printf("🔄 Starting background hydration for %d entries", len(entries))
+// hydrateRemainingEntriesEnhanced processes remaining enhanced entries in background
+// These entries already have full file information, so no additional stat calls needed
+func (fs *FileSystemManager) hydrateRemainingEntriesEnhanced(basePath string, entries []EnhancedBasicEntry) {
+	log.Printf("🔄 Starting enhanced background hydration for %d entries", len(entries))
 
 	for _, entry := range entries {
-		// Get full file info with stat data
-		info, err := os.Stat(entry.Path)
-		if err != nil {
-			log.Printf("⚠️ Failed to stat %s: %v", entry.Path, err)
-			continue
-		}
-
-		// Create complete FileInfo
+		// Create FileInfo directly from enhanced entry - no stat needed!
 		fileInfo := FileInfo{
 			Name:        entry.Name,
 			Path:        entry.Path,
 			IsDir:       entry.IsDir,
-			Size:        info.Size(),
-			ModTime:     info.ModTime(),
-			Permissions: info.Mode().String(),
+			Size:        entry.Size,
+			ModTime:     time.Unix(entry.ModTime, 0),
+			Permissions: entry.Permissions,
 			Extension:   entry.Extension,
 			IsHidden:    entry.IsHidden,
 		}
@@ -204,7 +184,7 @@ func (fs *FileSystemManager) hydrateRemainingEntries(basePath string, entries []
 		fs.eventEmitter.EmitDirectoryComplete(basePath, len(entries), 0)
 	}
 
-	log.Printf("✅ Background hydration completed for %s", basePath)
+	log.Printf("✅ Enhanced background hydration completed for %s", basePath)
 }
 
 // processEntriesSync processes directory entries synchronously with optimizations
@@ -227,7 +207,7 @@ func (fs *FileSystemManager) processEntriesSync(path string, entries []os.DirEnt
 	return files, directories
 }
 
-// processEntriesConcurrent processes directory entries concurrently with worker pool
+// processEntriesConcurrent processes directory entries concurrently with worker pool (legacy - not used with Windows enhanced listing)
 func (fs *FileSystemManager) processEntriesConcurrent(path string, entries []os.DirEntry) ([]FileInfo, []FileInfo) {
 	// Optimized worker pool size based on entry count and CPU cores
 	numWorkers := 6 // Sweet spot for most systems
