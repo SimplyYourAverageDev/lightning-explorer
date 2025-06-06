@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { memo } from "preact/compat";
-import { serializationUtils } from "../utils/serialization";
+import { GetHomeDirectory } from "../../wailsjs/go/backend/App";
 
 // Memoized Sidebar component
 const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) => {
@@ -9,28 +9,13 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) =
     const [loadingDrives, setLoadingDrives] = useState(false);
     
     useEffect(() => {
-        // Try to use MessagePack optimized API first, fallback to regular API
+        // Get home directory using regular API
         const getHomeDir = async () => {
             try {
-                // Import the enhanced API
-                const { EnhancedAPI } = await import("../utils/serialization");
-                const wailsAPI = await import("../../wailsjs/go/backend/App");
-                const enhancedAPI = new EnhancedAPI(wailsAPI, serializationUtils);
-                
-                const homeDirResponse = await enhancedAPI.getHomeDirectory();
-                if (homeDirResponse && homeDirResponse.success && homeDirResponse.home_directory) {
-                    setHomeDir(homeDirResponse.home_directory);
-                } else {
-                    // Fallback to regular API
-                    const { GetHomeDirectory } = wailsAPI;
-                    const homeDir = await GetHomeDirectory();
-                    setHomeDir(homeDir);
-                }
+                const home = await GetHomeDirectory();
+                setHomeDir(home);
             } catch (err) {
-                // Fallback to regular API on error
-                const { GetHomeDirectory } = await import("../../wailsjs/go/backend/App");
-                const homeDir = await GetHomeDirectory();
-                setHomeDir(homeDir);
+                console.error('Failed to get home directory:', err);
             }
         };
         

@@ -1,0 +1,1363 @@
+diff --git a/backend/app.go b/backend/app.go
+index 0b40f2d..cc867c3 100644
+--- a/backend/app.go
++++ b/backend/app.go
+@@ -5,29 +5,18 @@ import (
+ 	"log"
+ )
+ 
+-// NewApp creates a new App application struct with dependency injection
++// NewApp creates a new App application struct - simplified
+ func NewApp() *App {
+-	// Create all manager instances
+-	platform := NewPlatformManager()
+-	filesystem := NewFileSystemManager(platform)
+-	fileOps := NewFileOperationsManager(platform)
+-	drives := NewDriveManager()
+-	terminal := NewTerminalManager()
+-
+-	app := &App{
+-		filesystem:    filesystem,
+-		fileOps:       fileOps,
+-		platform:      platform,
+-		drives:        drives,
+-		terminal:      terminal,
+-		serialization: GetSerializationUtils(),
++	return &App{
++		filesystem: NewFileSystemManager(NewPlatformManager()),
++		fileOps:    NewFileOperationsManager(NewPlatformManager()),
++		platform:   NewPlatformManager(),
++		drives:     NewDriveManager(),
++		terminal:   NewTerminalManager(),
+ 	}
+-
+-	return app
+ }
+ 
+-// Startup is called when the app starts. The context is saved
+-// so we can call the runtime methods
++// Startup is called when the app starts
+ func (a *App) Startup(ctx context.Context) {
+ 	a.ctx = ctx
+ 
+@@ -36,10 +25,10 @@ func (a *App) Startup(ctx context.Context) {
+ 		fsManager.SetContext(ctx)
+ 	}
+ 
+-	log.Println("🚀 Lightning Explorer backend started with modular architecture")
++	log.Println("🚀 Lightning Explorer backend started")
+ }
+ 
+-// API Methods for Wails Frontend
++// Core API Methods - simplified, no duplicates
+ 
+ // GetHomeDirectory returns the user's home directory
+ func (a *App) GetHomeDirectory() string {
+@@ -56,27 +45,18 @@ func (a *App) GetSystemRoots() []string {
+ 	return a.platform.GetSystemRoots()
+ }
+ 
+-// NavigateToPath - DEPRECATED: Use NavigateToPathOptimized (MessagePack) instead
++// NavigateToPath navigates to a specified path
+ func (a *App) NavigateToPath(path string) NavigationResponse {
+-	log.Printf("⚠️ DEPRECATED API called: NavigateToPath - Use NavigateToPathOptimized instead")
+ 	return a.filesystem.NavigateToPath(path)
+ }
+ 
+-// NavigateUp - DEPRECATED: Use NavigateToPathOptimized (MessagePack) instead
+-func (a *App) NavigateUp(currentPath string) NavigationResponse {
+-	log.Printf("⚠️ DEPRECATED API called: NavigateUp - Use NavigateToPathOptimized instead")
+-	return a.filesystem.NavigateUp(currentPath)
+-}
+-
+-// ListDirectory - DEPRECATED: Use ListDirectoryOptimized (MessagePack) instead
++// ListDirectory lists contents of a directory
+ func (a *App) ListDirectory(path string) NavigationResponse {
+-	log.Printf("⚠️ DEPRECATED API called: ListDirectory - Use ListDirectoryOptimized instead")
+ 	return a.filesystem.ListDirectory(path)
+ }
+ 
+-// GetFileDetails - DEPRECATED: Use GetFileDetailsOptimized (MessagePack) instead
++// GetFileDetails gets detailed information about a file
+ func (a *App) GetFileDetails(filePath string) FileInfo {
+-	log.Printf("⚠️ DEPRECATED API called: GetFileDetails - Use GetFileDetailsOptimized instead")
+ 	fileInfo, err := a.filesystem.GetFileInfo(filePath)
+ 	if err != nil {
+ 		log.Printf("Error getting file details: %v", err)
+@@ -85,27 +65,29 @@ func (a *App) GetFileDetails(filePath string) FileInfo {
+ 	return fileInfo
+ }
+ 
++// File Operations
++
+ // OpenFile opens a file with its default application
+ func (a *App) OpenFile(filePath string) bool {
+ 	return a.fileOps.OpenFile(filePath)
+ }
+ 
+-// OpenInSystemExplorer opens the given path in the system's default file manager
++// OpenInSystemExplorer opens the path in system file manager
+ func (a *App) OpenInSystemExplorer(path string) bool {
+ 	return a.platform.OpenInSystemExplorer(path)
+ }
+ 
+-// CopyFiles copies files from source paths to destination directory
++// CopyFiles copies files to destination directory
+ func (a *App) CopyFiles(sourcePaths []string, destDir string) bool {
+ 	return a.fileOps.CopyFiles(sourcePaths, destDir)
+ }
+ 
+-// MoveFiles moves files from source paths to destination directory
++// MoveFiles moves files to destination directory
+ func (a *App) MoveFiles(sourcePaths []string, destDir string) bool {
+ 	return a.fileOps.MoveFiles(sourcePaths, destDir)
+ }
+ 
+-// DeleteFiles permanently deletes the specified files and directories
++// DeleteFiles permanently deletes files
+ func (a *App) DeleteFiles(filePaths []string) bool {
+ 	return a.fileOps.DeleteFiles(filePaths)
+ }
+@@ -145,50 +127,28 @@ func (a *App) DeletePath(path string) NavigationResponse {
+ 	}
+ }
+ 
+-// GetDriveInfo - DEPRECATED: Use GetDriveInfoOptimized (MessagePack) instead
+-func (a *App) GetDriveInfo() []map[string]interface{} {
+-	log.Printf("⚠️ DEPRECATED API called: GetDriveInfo - Use GetDriveInfoOptimized instead")
+-	drives := a.drives.GetDriveInfo()
+-
+-	// Convert to the expected format for backward compatibility
+-	var result []map[string]interface{}
+-	for _, drive := range drives {
+-		result = append(result, map[string]interface{}{
+-			"path":   drive.Path,
+-			"letter": drive.Letter,
+-			"name":   drive.Name,
+-		})
+-	}
+-
+-	return result
++// GetDriveInfo returns information about system drives
++func (a *App) GetDriveInfo() []DriveInfo {
++	return a.drives.GetDriveInfo()
+ }
+ 
+-// OpenPowerShellHere opens PowerShell 7 in the specified directory
++// Terminal Operations
++
++// OpenPowerShellHere opens PowerShell in the specified directory
+ func (a *App) OpenPowerShellHere(directoryPath string) bool {
+ 	return a.terminal.OpenPowerShellHere(directoryPath)
+ }
+ 
++// Utility Methods
++
+ // FormatFileSize formats file size in human readable format
+ func (a *App) FormatFileSize(size int64) string {
+ 	return a.platform.FormatFileSize(size)
+ }
+ 
+-// Additional API methods for enhanced functionality
+-
+-// GetQuickAccessPaths returns commonly accessed directories for quick navigation
+-func (a *App) GetQuickAccessPaths() []map[string]interface{} {
+-	paths := a.drives.GetQuickAccessPaths()
+-
+-	var result []map[string]interface{}
+-	for _, path := range paths {
+-		result = append(result, map[string]interface{}{
+-			"path":   path.Path,
+-			"letter": path.Letter,
+-			"name":   path.Name,
+-		})
+-	}
+-
+-	return result
++// GetQuickAccessPaths returns commonly accessed directories
++func (a *App) GetQuickAccessPaths() []DriveInfo {
++	return a.drives.GetQuickAccessPaths()
+ }
+ 
+ // OpenTerminalHere opens the system's default terminal in the specified directory
+@@ -201,7 +161,7 @@ func (a *App) GetAvailableTerminals() []string {
+ 	return a.terminal.GetAvailableTerminals()
+ }
+ 
+-// ValidatePath checks if a path is valid and accessible
++// ValidatePath validates if a path exists and is accessible
+ func (a *App) ValidatePath(path string) bool {
+ 	err := a.filesystem.ValidatePath(path)
+ 	return err == nil
+@@ -212,290 +172,22 @@ func (a *App) FileExists(path string) bool {
+ 	return a.filesystem.FileExists(path)
+ }
+ 
+-// IsHidden checks if a file/directory is hidden
++// IsHidden checks if a file or directory is hidden
+ func (a *App) IsHidden(path string) bool {
+ 	return a.platform.IsHidden(path)
+ }
+ 
+-// ExecuteCommand executes a command in the background (useful for scripts)
++// ExecuteCommand executes a command in the specified working directory
+ func (a *App) ExecuteCommand(command string, workingDir string) bool {
+ 	err := a.terminal.ExecuteCommand(command, workingDir)
+ 	return err == nil
+ }
+ 
+-// Health check method for monitoring
++// HealthCheck returns application health status
+ func (a *App) HealthCheck() map[string]interface{} {
+ 	return map[string]interface{}{
+ 		"status":  "healthy",
+-		"modules": []string{"filesystem", "fileops", "platform", "drives", "terminal"},
+-	}
+-}
+-
+-// PrefetchDirectory pre-loads directory contents for faster navigation
+-// This method is called when hovering over folders to improve perceived performance
+-func (a *App) PrefetchDirectory(path string) NavigationResponse {
+-	// Use the same method as NavigateToPath but mark it as prefetch for logging
+-	log.Printf("🔄 Prefetching directory: %s", path)
+-
+-	response := a.filesystem.ListDirectory(path)
+-
+-	if response.Success {
+-		log.Printf("✅ Prefetched directory %s: %d files, %d dirs",
+-			path, response.Data.TotalFiles, response.Data.TotalDirs)
+-	} else {
+-		log.Printf("❌ Failed to prefetch directory %s: %s", path, response.Message)
+-	}
+-
+-	return response
+-}
+-
+-// Enhanced API methods with MessagePack support
+-
+-// NavigateToPathOptimized returns navigation data using MessagePack encoding
+-func (a *App) NavigateToPathOptimized(path string) interface{} {
+-	response := a.filesystem.NavigateToPath(path)
+-
+-	// Log size comparison for performance monitoring
+-	LogSerializationComparison(response, "NavigateToPath")
+-
+-	serialized, err := a.serialization.SerializeNavigationResponse(response)
+-	if err != nil {
+-		log.Printf("❌ Serialization error: %v", err)
+-		return response // Fall back to regular JSON
+-	}
+-
+-	return serialized
+-}
+-
+-// ListDirectoryOptimized returns directory listing using MessagePack encoding
+-func (a *App) ListDirectoryOptimized(path string) interface{} {
+-	response := a.filesystem.ListDirectory(path)
+-
+-	// Log size comparison for performance monitoring
+-	LogSerializationComparison(response, "ListDirectory")
+-
+-	serialized, err := a.serialization.SerializeNavigationResponse(response)
+-	if err != nil {
+-		log.Printf("❌ Serialization error: %v", err)
+-		return response // Fall back to regular JSON
+-	}
+-
+-	return serialized
+-}
+-
+-// GetFileDetailsOptimized returns file details using MessagePack encoding
+-func (a *App) GetFileDetailsOptimized(filePath string) interface{} {
+-	fileInfo, err := a.filesystem.GetFileInfo(filePath)
+-	if err != nil {
+-		log.Printf("Error getting file details: %v", err)
+-		return FileInfo{}
+-	}
+-
+-	// Log size comparison for performance monitoring
+-	LogSerializationComparison(fileInfo, "FileInfo")
+-
+-	serialized, serializeErr := a.serialization.SerializeFileInfo(fileInfo)
+-	if serializeErr != nil {
+-		log.Printf("❌ Serialization error: %v", serializeErr)
+-		return fileInfo // Fall back to regular JSON
+-	}
+-
+-	return serialized
+-}
+-
+-// GetDriveInfoOptimized returns drive information using MessagePack encoding
+-func (a *App) GetDriveInfoOptimized() interface{} {
+-	drives := a.drives.GetDriveInfo()
+-
+-	// Log size comparison for performance monitoring
+-	LogSerializationComparison(drives, "DriveInfo")
+-
+-	serialized, err := a.serialization.SerializeDriveInfoSlice(drives)
+-	if err != nil {
+-		log.Printf("❌ Serialization error: %v", err)
+-		// Fall back to legacy format
+-		var result []map[string]interface{}
+-		for _, drive := range drives {
+-			result = append(result, map[string]interface{}{
+-				"path":   drive.Path,
+-				"letter": drive.Letter,
+-				"name":   drive.Name,
+-			})
+-		}
+-		return result
+-	}
+-
+-	return serialized
+-}
+-
+-// SetSerializationMode forces MessagePack binary mode only - no JSON allowed
+-func (a *App) SetSerializationMode(mode int) bool {
+-	// FORCE MessagePack binary mode only - reject any other modes
+-	if mode != 3 {
+-		log.Printf("❌ Rejected serialization mode %d - only MessagePack binary (mode 3) is allowed", mode)
+-		return false
+-	}
+-
+-	SetSerializationMode(SerializationMsgPackBinary)
+-	log.Println("🔄 Confirmed MessagePack binary serialization mode (forced)")
+-	return true
+-}
+-
+-// GetSerializationMode always returns MessagePack binary mode (forced)
+-func (a *App) GetSerializationMode() int {
+-	// Always return MessagePack binary mode - no other modes allowed
+-	return 3 // SerializationMsgPackBinary
+-}
+-
+-// BenchmarkSerialization runs a benchmark comparison between JSON and MessagePack
+-func (a *App) BenchmarkSerialization(path string) map[string]interface{} {
+-	response := a.filesystem.ListDirectory(path)
+-
+-	if !response.Success {
+-		return map[string]interface{}{
+-			"error": "Failed to read directory for benchmark",
+-		}
+-	}
+-
+-	sizes := BenchmarkSerializationSizes(response)
+-
+-	result := map[string]interface{}{
+-		"path":        path,
+-		"sizes":       sizes,
+-		"files_count": response.Data.TotalFiles,
+-		"dirs_count":  response.Data.TotalDirs,
+-	}
+-
+-	if jsonSize, exists := sizes["json"]; exists {
+-		if msgPackSize, exists := sizes["msgpack"]; exists {
+-			reduction := float64(jsonSize-msgPackSize) / float64(jsonSize) * 100
+-			result["size_reduction_percent"] = reduction
+-			result["msgpack_advantage"] = reduction > 0
+-		}
+-	}
+-
+-	log.Printf("📊 Serialization benchmark for %s completed", path)
+-	return result
+-}
+-
+-// NEW MessagePack-optimized API methods
+-
+-// GetHomeDirectoryOptimized returns the user's home directory with MessagePack optimization
+-func (a *App) GetHomeDirectoryOptimized() interface{} {
+-	homeDir := a.platform.GetHomeDirectory()
+-
+-	// Wrap in a structure for consistent MessagePack serialization
+-	response := map[string]interface{}{
+-		"home_directory": homeDir,
+-		"success":        homeDir != "",
+-	}
+-
+-	// Log size comparison for performance monitoring
+-	LogSerializationComparison(response, "HomeDirectory")
+-
+-	serialized, err := a.serialization.SerializeGeneric(response)
+-	if err != nil {
+-		log.Printf("❌ Serialization error for GetHomeDirectoryOptimized: %v", err)
+-		return response // Fall back to regular JSON
+-	}
+-
+-	return serialized
+-}
+-
+-// CreateDirectoryOptimized creates a new directory with MessagePack response
+-func (a *App) CreateDirectoryOptimized(path, name string) interface{} {
+-	response := a.filesystem.CreateDirectory(path, name)
+-
+-	// Log size comparison for performance monitoring
+-	LogSerializationComparison(response, "CreateDirectory")
+-
+-	serialized, err := a.serialization.SerializeNavigationResponse(response)
+-	if err != nil {
+-		log.Printf("❌ Serialization error for CreateDirectoryOptimized: %v", err)
+-		return response // Fall back to regular JSON
++		"version": "2.0-simplified",
++		"ready":   true,
+ 	}
+-
+-	return serialized
+-}
+-
+-// DeletePathOptimized deletes a file or directory with MessagePack response
+-func (a *App) DeletePathOptimized(path string) interface{} {
+-	success := a.fileOps.DeleteFiles([]string{path})
+-	response := NavigationResponse{
+-		Success: success,
+-		Message: func() string {
+-			if success {
+-				return "Item deleted successfully"
+-			}
+-			return "Failed to delete item"
+-		}(),
+-	}
+-
+-	// Log size comparison for performance monitoring
+-	LogSerializationComparison(response, "DeletePath")
+-
+-	serialized, err := a.serialization.SerializeNavigationResponse(response)
+-	if err != nil {
+-		log.Printf("❌ Serialization error for DeletePathOptimized: %v", err)
+-		return response // Fall back to regular JSON
+-	}
+-
+-	return serialized
+-}
+-
+-// GetQuickAccessPathsOptimized returns commonly accessed directories with MessagePack encoding
+-func (a *App) GetQuickAccessPathsOptimized() interface{} {
+-	paths := a.drives.GetQuickAccessPaths()
+-
+-	// Convert to drive info format for consistent serialization
+-	var driveInfoPaths []DriveInfo
+-	for _, path := range paths {
+-		driveInfoPaths = append(driveInfoPaths, DriveInfo{
+-			Path:   path.Path,
+-			Letter: path.Letter,
+-			Name:   path.Name,
+-		})
+-	}
+-
+-	// Log size comparison for performance monitoring
+-	LogSerializationComparison(driveInfoPaths, "QuickAccessPaths")
+-
+-	serialized, err := a.serialization.SerializeDriveInfoSlice(driveInfoPaths)
+-	if err != nil {
+-		log.Printf("❌ Serialization error for GetQuickAccessPathsOptimized: %v", err)
+-		// Fall back to legacy format
+-		var result []map[string]interface{}
+-		for _, path := range paths {
+-			result = append(result, map[string]interface{}{
+-				"path":   path.Path,
+-				"letter": path.Letter,
+-				"name":   path.Name,
+-			})
+-		}
+-		return result
+-	}
+-
+-	return serialized
+-}
+-
+-// GetSystemRootsOptimized returns system root paths with MessagePack encoding
+-func (a *App) GetSystemRootsOptimized() interface{} {
+-	roots := a.platform.GetSystemRoots()
+-
+-	// Wrap in a structure for consistent MessagePack serialization
+-	response := map[string]interface{}{
+-		"system_roots": roots,
+-		"count":        len(roots),
+-	}
+-
+-	// Log size comparison for performance monitoring
+-	LogSerializationComparison(response, "SystemRoots")
+-
+-	serialized, err := a.serialization.SerializeGeneric(response)
+-	if err != nil {
+-		log.Printf("❌ Serialization error for GetSystemRootsOptimized: %v", err)
+-		return response // Fall back to regular JSON
+-	}
+-
+-	return serialized
+ }
+diff --git a/backend/terminal.go b/backend/terminal.go
+index 37b2267..74339ec 100644
+--- a/backend/terminal.go
++++ b/backend/terminal.go
+@@ -87,11 +87,16 @@ func (t *TerminalManager) openWindowsTerminalOptimized(directoryPath string, ter
+ 		// Try PowerShell 7 first, fallback to Windows PowerShell
+ 		pwshPath := "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+ 		if _, err := os.Stat(pwshPath); err == nil {
++			log.Printf("PowerShell 7 found at: %s", pwshPath)
+ 			executable = pwshPath
++			// PowerShell 7 specific parameters for maximum stability
++			parameters = fmt.Sprintf("-NoExit -NoLogo -NoProfile -WorkingDirectory \"%s\" -Command \"& {Write-Host 'PowerShell 7 ready in:' (Get-Location).Path -ForegroundColor Green}\"", securePath)
+ 		} else {
++			log.Printf("PowerShell 7 not found at %s, error: %v. Falling back to Windows PowerShell", pwshPath, err)
+ 			executable = "powershell.exe"
++			// Windows PowerShell 5.1 parameters
++			parameters = "-NoExit -NoLogo -NoProfile -Command \"& {Write-Host 'Windows PowerShell ready in:' (Get-Location).Path -ForegroundColor Green}\""
+ 		}
+-		parameters = "-NoExit"
+ 	case "cmd":
+ 		executable = "cmd.exe"
+ 		parameters = "/K"
+@@ -130,7 +135,9 @@ func (t *TerminalManager) openWindowsTerminalOptimized(directoryPath string, ter
+ 	}
+ 
+ 	var directoryUTF16 *uint16
+-	if terminalType != "wt" { // For wt, directory is passed in parameters
++	// Only pass directory to ShellExecuteW if we're not using -WorkingDirectory parameter
++	useDirectoryParam := terminalType != "wt" && !strings.Contains(executable, "pwsh.exe")
++	if useDirectoryParam {
+ 		directoryUTF16, err = syscall.UTF16PtrFromString(securePath)
+ 		if err != nil {
+ 			log.Printf("Failed to convert directory to UTF16: %v", err)
+@@ -150,6 +157,7 @@ func (t *TerminalManager) openWindowsTerminalOptimized(directoryPath string, ter
+ 
+ 	if ret <= 32 {
+ 		log.Printf("ShellExecuteW failed with return code %d: %v", ret, err)
++		log.Printf("Failed command was: %s %s", executable, parameters)
+ 		return t.openWindowsTerminalFallback(securePath, terminalType)
+ 	}
+ 
+@@ -194,19 +202,44 @@ func (t *TerminalManager) openWindowsTerminal(directoryPath string) bool {
+ 
+ 	// Check if PowerShell 7 exists, fallback to Windows PowerShell if not
+ 	if _, err := os.Stat(pwshPath); os.IsNotExist(err) {
+-		log.Printf("PowerShell 7 not found, falling back to Windows PowerShell")
++		log.Printf("PowerShell 7 not found at %s, error: %v. Falling back to Windows PowerShell", pwshPath, err)
+ 		pwshPath = "powershell.exe"
++	} else if err != nil {
++		log.Printf("Error checking PowerShell 7 at %s: %v. Falling back to Windows PowerShell", pwshPath, err)
++		pwshPath = "powershell.exe"
++	} else {
++		log.Printf("PowerShell 7 found at: %s", pwshPath)
+ 	}
+ 
+ 	log.Printf("Using PowerShell executable: %s", pwshPath)
+ 
+-	// Use the most reliable method: -NoExit without -Command, just set working directory
+-	cmd := exec.Command(pwshPath, "-NoExit")
++	// Use enhanced arguments for better PowerShell 7 compatibility and persistence
++	var args []string
++	if strings.Contains(pwshPath, "pwsh.exe") {
++		// PowerShell 7 specific arguments for maximum stability
++		args = []string{
++			"-NoExit",
++			"-NoLogo",
++			"-NoProfile",
++			"-WorkingDirectory", securePath,
++			"-Command", "& {Write-Host 'PowerShell 7 ready in:' (Get-Location).Path -ForegroundColor Green}",
++		}
++	} else {
++		// Windows PowerShell 5.1 arguments
++		args = []string{
++			"-NoExit",
++			"-NoLogo",
++			"-NoProfile",
++			"-Command", "& {Write-Host 'Windows PowerShell ready in:' (Get-Location).Path -ForegroundColor Green}",
++		}
++	}
++
++	cmd := exec.Command(pwshPath, args...)
+ 
+ 	// Set the working directory for the process - this is secure!
+ 	cmd.Dir = securePath
+ 
+-	// Create new console window that stays open
++	// Create new console window that stays open with better flags
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+ 		HideWindow:    false,      // We want to show PowerShell window
+ 		CreationFlags: 0x00000010, // CREATE_NEW_CONSOLE - create new console window
+@@ -253,10 +286,11 @@ func (t *TerminalManager) securePath(directoryPath string) (string, error) {
+ 	}
+ 
+ 	// Additional security: Check for dangerous characters that could be used in injection
+-	dangerousChars := []string{";", "&", "|", "`", "$", "(", ")", "{", "}", "[", "]", "<", ">", "\"", "'", "\\", "\n", "\r", "\t"}
++	// Note: Backslashes are valid in Windows paths, so we exclude them from the check
++	dangerousChars := []string{";", "&", "|", "`", "$", "(", ")", "{", "}", "[", "]", "<", ">", "\"", "'", "\n", "\r", "\t"}
+ 	for _, char := range dangerousChars {
+ 		if strings.Contains(cleanPath, char) {
+-			return "", fmt.Errorf("directory path contains potentially dangerous characters")
++			return "", fmt.Errorf("directory path contains potentially dangerous characters: %s", char)
+ 		}
+ 	}
+ 
+diff --git a/backend/types.go b/backend/types.go
+index 4209ee0..b334ddf 100644
+--- a/backend/types.go
++++ b/backend/types.go
+@@ -102,13 +102,12 @@ type TerminalManagerInterface interface {
+ 
+ // App struct - Main application structure with dependency injection
+ type App struct {
+-	ctx           context.Context
+-	filesystem    FileSystemManagerInterface
+-	fileOps       FileOperationsManagerInterface
+-	platform      PlatformManagerInterface
+-	drives        DriveManagerInterface
+-	terminal      TerminalManagerInterface
+-	serialization *SerializationUtils
++	ctx        context.Context
++	filesystem FileSystemManagerInterface
++	fileOps    FileOperationsManagerInterface
++	platform   PlatformManagerInterface
++	drives     DriveManagerInterface
++	terminal   TerminalManagerInterface
+ }
+ 
+ // FileSystemManager implementation
+diff --git a/frontend/src/app.jsx b/frontend/src/app.jsx
+index d509eac..de6619b 100644
+--- a/frontend/src/app.jsx
++++ b/frontend/src/app.jsx
+@@ -2,23 +2,61 @@ import './components/FastNavigation.css';
+ import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
+ import { Suspense } from "preact/compat";
+ 
+-// Import core Wails API synchronously - no dynamic imports for critical startup code
++// Import core Wails API
+ import { 
+     OpenInSystemExplorer,
+     GetHomeDirectory,
+-    NavigateToPathOptimized,
+-    ListDirectoryOptimized,
+-    GetDriveInfoOptimized
++    NavigateToPath,
++    ListDirectory,
++    GetDriveInfo
+ } from "../wailsjs/go/backend/App";
+ 
+-// Import MessagePack utilities synchronously - needed immediately for API calls
+-import { EnhancedAPI, SerializationMode, serializationUtils } from "./utils/serialization";
+-
+ // Import core utilities synchronously - needed for immediate file filtering and processing
+ import { filterFiles, getFileType, getFileIcon } from "./utils/fileUtils";
+ 
+-// Import optimized utilities
+-import { log, warn, error } from "./utils/logger";
++// Sorting utility function - inline for immediate availability
++const sortFiles = (files, sortBy, sortOrder) => {
++    if (!files || files.length === 0) return files;
++    
++    const sorted = [...files].sort((a, b) => {
++        let aValue, bValue;
++        
++        switch (sortBy) {
++            case 'name':
++                aValue = a.name.toLowerCase();
++                bValue = b.name.toLowerCase();
++                break;
++            case 'size':
++                // Directories get size 0 for sorting
++                aValue = a.isDir ? 0 : (a.size || 0);
++                bValue = b.isDir ? 0 : (b.size || 0);
++                break;
++            case 'type':
++                // Sort by file extension, directories first
++                if (a.isDir && !b.isDir) return -1;
++                if (!a.isDir && b.isDir) return 1;
++                aValue = a.isDir ? 'folder' : (a.name.split('.').pop() || '').toLowerCase();
++                bValue = b.isDir ? 'folder' : (b.name.split('.').pop() || '').toLowerCase();
++                break;
++            case 'modified':
++                aValue = new Date(a.modTime || 0);
++                bValue = new Date(b.modTime || 0);
++                break;
++            default:
++                aValue = a.name.toLowerCase();
++                bValue = b.name.toLowerCase();
++        }
++        
++        if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
++        if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
++        return 0;
++    });
++    
++    return sorted;
++};
++
++// Import utilities
++import { log, error } from "./utils/logger";
+ import { 
+     HEADER_STATS_STYLE,
+     PERFORMANCE_INDICATOR_STYLE,
+@@ -69,15 +107,12 @@ export function App() {
+     const [error, setError] = useState('');
+     const [drives, setDrives] = useState([]);
+     const [showHiddenFiles, setShowHiddenFiles] = useState(false);
++    const [sortBy, setSortBy] = useState('name'); // name, size, type, modified
++    const [sortOrder, setSortOrder] = useState('asc'); // asc, desc
+     
+     // Startup state to control when heavy operations run
+     const [isAppInitialized, setIsAppInitialized] = useState(false);
+     const [isDriveDataLoaded, setIsDriveDataLoaded] = useState(false);
+-    
+-    // MessagePack integration state - FORCE MessagePack binary mode
+-    const [serializationMode, setSerializationModeState] = useState(SerializationMode.MSGPACK_BINARY);
+-    const [enhancedAPI, setEnhancedAPI] = useState(null);
+-    const [benchmarkResults, setBenchmarkResults] = useState(null);
+ 
+     // Custom hooks
+     const { navigationStats, setNavigationStats } = usePerformanceMonitoring();
+@@ -146,13 +181,15 @@ export function App() {
+     // Computed values - use synchronously imported file utils for immediate availability
+     const filteredDirectories = useMemo(() => {
+         if (!directoryContents) return [];
+-        return filterFiles(directoryContents.directories, showHiddenFiles);
+-    }, [directoryContents, showHiddenFiles]);
++        const filtered = filterFiles(directoryContents.directories, showHiddenFiles);
++        return sortFiles(filtered, sortBy, sortOrder);
++    }, [directoryContents, showHiddenFiles, sortBy, sortOrder]);
+     
+     const filteredFiles = useMemo(() => {
+         if (!directoryContents) return [];
+-        return filterFiles(directoryContents.files, showHiddenFiles);
+-    }, [directoryContents, showHiddenFiles]);
++        const filtered = filterFiles(directoryContents.files, showHiddenFiles);
++        return sortFiles(filtered, sortBy, sortOrder);
++    }, [directoryContents, showHiddenFiles, sortBy, sortOrder]);
+     
+     const allFiles = useMemo(() => 
+         [...filteredDirectories, ...filteredFiles], 
+@@ -219,6 +256,18 @@ export function App() {
+         }
+     }, [currentPath]);
+ 
++    // Sort handlers
++    const handleSortChange = useCallback((newSortBy) => {
++        if (sortBy === newSortBy) {
++            // Toggle sort order if same sort type
++            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
++        } else {
++            // New sort type, default to ascending
++            setSortBy(newSortBy);
++            setSortOrder('asc');
++        }
++    }, [sortBy, sortOrder]);
++
+     // Clipboard operations
+     const handleCopySelected = useCallback(() => {
+         const selectedFileObjects = Array.from(selectedFiles).map(index => allFiles[index]);
+@@ -278,14 +327,11 @@ export function App() {
+         closeEmptySpaceContextMenu
+     });
+ 
+-    // OPTIMIZATION 1: Immediate initialization with synchronous imports
++    // Initialize the application
+     useEffect(() => {
+-        log('🚀 Lightning Explorer mounting - Synchronous API initialization!');
+-        
+-        // Initialize enhanced API immediately since utilities are now synchronous
+-        initializeEnhancedAPI();
++        log('🚀 Lightning Explorer mounting');
+         
+-        // Initialize app immediately - no artificial delays needed
++        // Initialize app
+         initializeApp();
+         
+         // Parallelize non-dependent async work using requestIdleCallback
+@@ -298,48 +344,26 @@ export function App() {
+         }
+     }, []);
+ 
+-    // Load drives using MessagePack optimized API only
++    // Load drives using regular API
+     const loadDrives = useCallback(async () => {
+         if (isDriveDataLoaded) return drives;
+         
+         try {
+-            // Always use MessagePack optimized API - no fallback
+-            if (!enhancedAPI) {
+-                warn('⚠️ Enhanced API not initialized, cannot load drives');
+-                return [];
+-            }
+-            
+-            const driveList = await enhancedAPI.getDriveInfo();
++            const driveList = await GetDriveInfo();
+             setDrives(driveList);
+             setIsDriveDataLoaded(true);
+             return driveList;
+         } catch (err) {
+-            error('❌ Failed to load drive information with MessagePack API:', err);
++            error('❌ Failed to load drive information:', err);
+             return [];
+         }
+-    }, [isDriveDataLoaded, drives, enhancedAPI]);
++    }, [isDriveDataLoaded, drives]);
+ 
+     const initializeApp = async () => {
+         try {
+             setError('');
+             
+-            // Use MessagePack optimized API for home directory (with fallback)
+-            let homeDir = null;
+-            if (enhancedAPI) {
+-                try {
+-                    const homeDirResponse = await enhancedAPI.getHomeDirectory();
+-                    if (homeDirResponse && homeDirResponse.success && homeDirResponse.home_directory) {
+-                        homeDir = homeDirResponse.home_directory;
+-                    }
+-                } catch (apiErr) {
+-                    warn('⚠️ Enhanced API failed, using fallback:', apiErr);
+-                }
+-            }
+-            
+-            // Fallback to synchronously imported regular API if enhanced API fails
+-            if (!homeDir) {
+-                homeDir = await GetHomeDirectory();
+-            }
++            const homeDir = await GetHomeDirectory();
+             
+             if (homeDir) {
+                 await navigateToPath(homeDir, 'init');
+@@ -353,30 +377,7 @@ export function App() {
+         }
+     };
+ 
+-    // Serialization mode handlers - MessagePack forced, no user switching
+-    const initializeEnhancedAPI = async () => {
+-        try {
+-            // Use synchronously imported Wails API
+-            const wailsAPI = {
+-                GetHomeDirectory,
+-                NavigateToPathOptimized,
+-                ListDirectoryOptimized,
+-                GetDriveInfoOptimized,
+-                OpenInSystemExplorer
+-            };
+-            
+-            // Create enhanced API instance
+-            const enhancedAPIInstance = new EnhancedAPI(wailsAPI, serializationUtils);
+-            setEnhancedAPI(enhancedAPIInstance);
+-            
+-            // MessagePack binary mode is now the default on backend
+-            serializationUtils.setMode(SerializationMode.MSGPACK_BINARY);
+-            
+-            log(`🔧 Enhanced API initialized with MessagePack binary mode (synchronous imports)`);
+-        } catch (err) {
+-            warn('⚠️ Enhanced API initialization failed, falling back to standard API:', err);
+-        }
+-    };
++
+ 
+     // Clear selection when path changes
+     useEffect(() => {
+@@ -486,6 +487,40 @@ export function App() {
+                         >
+                             {showHiddenFiles ? '👁️' : '🙈'} Hidden
+                         </button>
++                        
++                        {/* Sort dropdown */}
++                        <div className="sort-dropdown">
++                            <button className="toolbar-btn sort-btn" disabled={!currentPath}>
++                                📊 Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
++                                {sortOrder === 'desc' ? ' ↓' : ' ↑'}
++                            </button>
++                            <div className="sort-dropdown-content">
++                                <button 
++                                    className={`sort-option ${sortBy === 'name' ? 'active' : ''}`}
++                                    onClick={() => handleSortChange('name')}
++                                >
++                                    📝 Name {sortBy === 'name' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
++                                </button>
++                                <button 
++                                    className={`sort-option ${sortBy === 'size' ? 'active' : ''}`}
++                                    onClick={() => handleSortChange('size')}
++                                >
++                                    📏 Size {sortBy === 'size' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
++                                </button>
++                                <button 
++                                    className={`sort-option ${sortBy === 'type' ? 'active' : ''}`}
++                                    onClick={() => handleSortChange('type')}
++                                >
++                                    🏷️ Type {sortBy === 'type' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
++                                </button>
++                                <button 
++                                    className={`sort-option ${sortBy === 'modified' ? 'active' : ''}`}
++                                    onClick={() => handleSortChange('modified')}
++                                >
++                                    🕒 Modified {sortBy === 'modified' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
++                                </button>
++                            </div>
++                        </div>
+ 
+                     </div>
+                     
+@@ -659,14 +694,7 @@ export function App() {
+                 />
+             </Suspense>
+             
+-            {/* Performance Dashboard */}
+-            <Suspense fallback={null}>
+-                <PerformanceDashboard
+-                    benchmarkResults={benchmarkResults}
+-                    navigationStats={navigationStats}
+-                    serializationMode={serializationMode}
+-                />
+-            </Suspense>
++
+             
+             {/* Status bar */}
+             <div className="status-bar">
+diff --git a/frontend/src/components/PerformanceDashboard.jsx b/frontend/src/components/PerformanceDashboard.jsx
+index c6b406d..94f2ae1 100644
+--- a/frontend/src/components/PerformanceDashboard.jsx
++++ b/frontend/src/components/PerformanceDashboard.jsx
+@@ -151,13 +151,13 @@ export function PerformanceDashboard({ benchmarkResults, navigationStats, serial
+                 </div>
+             </div>
+ 
+-            {navigationStats && (
++            {navigationStats && typeof navigationStats === 'object' && (
+                 <div className="perf-section" style={{ marginBottom: '0.5rem' }}>
+                     <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>📈 Navigation Stats:</div>
+-                    <div>• Last navigation: {Math.round(navigationStats.lastNavigationTime)}ms</div>
+-                    <div>• Total navigations: {navigationStats.totalNavigations}</div>
++                    <div>• Last navigation: {Math.round(Number(navigationStats.lastNavigationTime) || 0)}ms</div>
++                    <div>• Total navigations: {Number(navigationStats.totalNavigations) || 0}</div>
+                     {navigationStats.averageTime && (
+-                        <div>• Average time: {Math.round(navigationStats.averageTime)}ms</div>
++                        <div>• Average time: {Math.round(Number(navigationStats.averageTime) || 0)}ms</div>
+                     )}
+                 </div>
+             )}
+diff --git a/frontend/src/components/Sidebar.jsx b/frontend/src/components/Sidebar.jsx
+index 96f7380..9d2fbf9 100644
+--- a/frontend/src/components/Sidebar.jsx
++++ b/frontend/src/components/Sidebar.jsx
+@@ -1,6 +1,6 @@
+ import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+ import { memo } from "preact/compat";
+-import { serializationUtils } from "../utils/serialization";
++import { GetHomeDirectory } from "../../wailsjs/go/backend/App";
+ 
+ // Memoized Sidebar component
+ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) => {
+@@ -9,28 +9,13 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) =
+     const [loadingDrives, setLoadingDrives] = useState(false);
+     
+     useEffect(() => {
+-        // Try to use MessagePack optimized API first, fallback to regular API
++        // Get home directory using regular API
+         const getHomeDir = async () => {
+             try {
+-                // Import the enhanced API
+-                const { EnhancedAPI } = await import("../utils/serialization");
+-                const wailsAPI = await import("../../wailsjs/go/backend/App");
+-                const enhancedAPI = new EnhancedAPI(wailsAPI, serializationUtils);
+-                
+-                const homeDirResponse = await enhancedAPI.getHomeDirectory();
+-                if (homeDirResponse && homeDirResponse.success && homeDirResponse.home_directory) {
+-                    setHomeDir(homeDirResponse.home_directory);
+-                } else {
+-                    // Fallback to regular API
+-                    const { GetHomeDirectory } = wailsAPI;
+-                    const homeDir = await GetHomeDirectory();
+-                    setHomeDir(homeDir);
+-                }
++                const home = await GetHomeDirectory();
++                setHomeDir(home);
+             } catch (err) {
+-                // Fallback to regular API on error
+-                const { GetHomeDirectory } = await import("../../wailsjs/go/backend/App");
+-                const homeDir = await GetHomeDirectory();
+-                setHomeDir(homeDir);
++                console.error('Failed to get home directory:', err);
+             }
+         };
+         
+diff --git a/frontend/src/hooks/useNavigation.js b/frontend/src/hooks/useNavigation.js
+index 36ce04c..8ec55d3 100644
+--- a/frontend/src/hooks/useNavigation.js
++++ b/frontend/src/hooks/useNavigation.js
+@@ -1,8 +1,7 @@
+ import { useState, useCallback, useRef, useEffect } from "preact/hooks";
+-import { NavigateToPathOptimized } from "../../wailsjs/go/backend/App";
++import { NavigateToPath } from "../../wailsjs/go/backend/App";
+ import { EventsOn, EventsOff } from "../../wailsjs/runtime/runtime";
+-import { log, error, logHydration, logBatch } from "../utils/logger";
+-import { serializationUtils } from "../utils/serialization";
++import { log, error } from "../utils/logger";
+ 
+ export function useNavigation(setError, setNavigationStats) {
+     const [currentPath, setCurrentPath] = useState('');
+@@ -143,11 +142,8 @@ export function useNavigation(setError, setNavigationStats) {
+             // Store timeout ID for cleanup
+             navigationTimeoutRef.current = timeoutId;
+             
+-            const navigationPromise = NavigateToPathOptimized(path);
+-            const rawResponse = await Promise.race([navigationPromise, timeoutPromise]);
+-            
+-            // Deserialize MessagePack response
+-            const response = serializationUtils.deserialize(rawResponse);
++            const navigationPromise = NavigateToPath(path);
++            const response = await Promise.race([navigationPromise, timeoutPromise]);
+             
+             // Clear timeout on successful completion
+             if (navigationTimeoutRef.current) {
+diff --git a/frontend/src/hooks/usePerformanceMonitoring.js b/frontend/src/hooks/usePerformanceMonitoring.js
+index 32647e0..e46cfc0 100644
+--- a/frontend/src/hooks/usePerformanceMonitoring.js
++++ b/frontend/src/hooks/usePerformanceMonitoring.js
+@@ -7,8 +7,29 @@ export function usePerformanceMonitoring() {
+         lastNavigationTime: 0
+     });
+ 
++    const safeSetNavigationStats = (updater) => {
++        setNavigationStats(prev => {
++            // Ensure prev is always a valid object
++            const safePrev = (prev && typeof prev === 'object') ? prev : {
++                totalNavigations: 0,
++                averageTime: 0,
++                lastNavigationTime: 0
++            };
++            
++            const newStats = typeof updater === 'function' ? updater(safePrev) : updater;
++            
++            // Ensure the result is a valid object with numeric values
++            return {
++                totalNavigations: Number(newStats?.totalNavigations) || 0,
++                averageTime: Number(newStats?.averageTime) || 0,
++                lastNavigationTime: Number(newStats?.lastNavigationTime) || 0,
++                ...newStats
++            };
++        });
++    };
++
+     return {
+         navigationStats,
+-        setNavigationStats
++        setNavigationStats: safeSetNavigationStats
+     };
+ } 
+\ No newline at end of file
+diff --git a/frontend/src/style.css b/frontend/src/style.css
+index d97dcd1..3da5255 100644
+--- a/frontend/src/style.css
++++ b/frontend/src/style.css
+@@ -262,6 +262,76 @@ body {
+   color: var(--zen-primary);
+ }
+ 
++/* Sort dropdown styles - Retro 8-bit style */
++.sort-dropdown {
++  position: relative;
++  display: inline-block;
++}
++
++.sort-dropdown:hover .sort-dropdown-content {
++  display: block;
++  opacity: 1;
++  transform: translateY(0);
++}
++
++.sort-dropdown-content {
++  display: none;
++  position: absolute;
++  top: 100%;
++  left: 0;
++  min-width: 200px;
++  background: var(--zen-surface);
++  border: 1px solid var(--zen-border);
++  border-radius: var(--zen-radius);
++  box-shadow: var(--zen-shadow-lg);
++  z-index: 1000;
++  padding: var(--zen-space-sm);
++  margin-top: var(--zen-space-xs);
++  opacity: 0;
++  transform: translateY(-8px);
++  transition: all 150ms ease;
++  backdrop-filter: blur(8px);
++  -webkit-backdrop-filter: blur(8px);
++}
++
++.sort-option {
++  display: flex;
++  align-items: center;
++  width: 100%;
++  padding: var(--zen-space-md) var(--zen-space-lg);
++  border: none;
++  background: transparent;
++  color: var(--zen-text-secondary);
++  font-family: inherit;
++  font-size: var(--zen-text-sm);
++  cursor: pointer;
++  border-radius: var(--zen-radius-sm);
++  transition: all 150ms ease;
++  text-align: left;
++  gap: var(--zen-space-sm);
++}
++
++.sort-option:hover {
++  background: var(--zen-surface-hover);
++  color: var(--zen-text-primary);
++  transform: translateX(2px);
++}
++
++.sort-option.active {
++  background: var(--zen-primary-alpha);
++  color: var(--zen-primary);
++  font-weight: 500;
++}
++
++.sort-option:active {
++  transform: translateX(1px);
++  background: var(--zen-surface-active);
++}
++
++.sort-btn {
++  position: relative;
++}
++
+ /* Breadcrumb navigation - Clean and clickable */
+ .nav-breadcrumb {
+   display: flex;
+diff --git a/frontend/wailsjs/go/backend/App.d.ts b/frontend/wailsjs/go/backend/App.d.ts
+index 6083360..4146eaa 100644
+--- a/frontend/wailsjs/go/backend/App.d.ts
++++ b/frontend/wailsjs/go/backend/App.d.ts
+@@ -2,20 +2,14 @@
+ // This file is automatically generated. DO NOT EDIT
+ import {backend} from '../models';
+ 
+-export function BenchmarkSerialization(arg1:string):Promise<Record<string, any>>;
+-
+ export function CopyFiles(arg1:Array<string>,arg2:string):Promise<boolean>;
+ 
+ export function CreateDirectory(arg1:string,arg2:string):Promise<backend.NavigationResponse>;
+ 
+-export function CreateDirectoryOptimized(arg1:string,arg2:string):Promise<any>;
+-
+ export function DeleteFiles(arg1:Array<string>):Promise<boolean>;
+ 
+ export function DeletePath(arg1:string):Promise<backend.NavigationResponse>;
+ 
+-export function DeletePathOptimized(arg1:string):Promise<any>;
+-
+ export function ExecuteCommand(arg1:string,arg2:string):Promise<boolean>;
+ 
+ export function FileExists(arg1:string):Promise<boolean>;
+@@ -26,28 +20,16 @@ export function GetAvailableTerminals():Promise<Array<string>>;
+ 
+ export function GetCurrentWorkingDirectory():Promise<string>;
+ 
+-export function GetDriveInfo():Promise<Array<Record<string, any>>>;
+-
+-export function GetDriveInfoOptimized():Promise<any>;
++export function GetDriveInfo():Promise<Array<backend.DriveInfo>>;
+ 
+ export function GetFileDetails(arg1:string):Promise<backend.FileInfo>;
+ 
+-export function GetFileDetailsOptimized(arg1:string):Promise<any>;
+-
+ export function GetHomeDirectory():Promise<string>;
+ 
+-export function GetHomeDirectoryOptimized():Promise<any>;
+-
+-export function GetQuickAccessPaths():Promise<Array<Record<string, any>>>;
+-
+-export function GetQuickAccessPathsOptimized():Promise<any>;
+-
+-export function GetSerializationMode():Promise<number>;
++export function GetQuickAccessPaths():Promise<Array<backend.DriveInfo>>;
+ 
+ export function GetSystemRoots():Promise<Array<string>>;
+ 
+-export function GetSystemRootsOptimized():Promise<any>;
+-
+ export function HealthCheck():Promise<Record<string, any>>;
+ 
+ export function HideFiles(arg1:Array<string>):Promise<boolean>;
+@@ -56,18 +38,12 @@ export function IsHidden(arg1:string):Promise<boolean>;
+ 
+ export function ListDirectory(arg1:string):Promise<backend.NavigationResponse>;
+ 
+-export function ListDirectoryOptimized(arg1:string):Promise<any>;
+-
+ export function MoveFiles(arg1:Array<string>,arg2:string):Promise<boolean>;
+ 
+ export function MoveFilesToRecycleBin(arg1:Array<string>):Promise<boolean>;
+ 
+ export function NavigateToPath(arg1:string):Promise<backend.NavigationResponse>;
+ 
+-export function NavigateToPathOptimized(arg1:string):Promise<any>;
+-
+-export function NavigateUp(arg1:string):Promise<backend.NavigationResponse>;
+-
+ export function OpenFile(arg1:string):Promise<boolean>;
+ 
+ export function OpenInSystemExplorer(arg1:string):Promise<boolean>;
+@@ -76,10 +52,6 @@ export function OpenPowerShellHere(arg1:string):Promise<boolean>;
+ 
+ export function OpenTerminalHere(arg1:string):Promise<boolean>;
+ 
+-export function PrefetchDirectory(arg1:string):Promise<backend.NavigationResponse>;
+-
+ export function RenameFile(arg1:string,arg2:string):Promise<boolean>;
+ 
+-export function SetSerializationMode(arg1:number):Promise<boolean>;
+-
+ export function ValidatePath(arg1:string):Promise<boolean>;
+diff --git a/frontend/wailsjs/go/backend/App.js b/frontend/wailsjs/go/backend/App.js
+index 780f84a..6175ab1 100644
+--- a/frontend/wailsjs/go/backend/App.js
++++ b/frontend/wailsjs/go/backend/App.js
+@@ -2,10 +2,6 @@
+ // Cynhyrchwyd y ffeil hon yn awtomatig. PEIDIWCH Â MODIWL
+ // This file is automatically generated. DO NOT EDIT
+ 
+-export function BenchmarkSerialization(arg1) {
+-  return window['go']['backend']['App']['BenchmarkSerialization'](arg1);
+-}
+-
+ export function CopyFiles(arg1, arg2) {
+   return window['go']['backend']['App']['CopyFiles'](arg1, arg2);
+ }
+@@ -14,10 +10,6 @@ export function CreateDirectory(arg1, arg2) {
+   return window['go']['backend']['App']['CreateDirectory'](arg1, arg2);
+ }
+ 
+-export function CreateDirectoryOptimized(arg1, arg2) {
+-  return window['go']['backend']['App']['CreateDirectoryOptimized'](arg1, arg2);
+-}
+-
+ export function DeleteFiles(arg1) {
+   return window['go']['backend']['App']['DeleteFiles'](arg1);
+ }
+@@ -26,10 +18,6 @@ export function DeletePath(arg1) {
+   return window['go']['backend']['App']['DeletePath'](arg1);
+ }
+ 
+-export function DeletePathOptimized(arg1) {
+-  return window['go']['backend']['App']['DeletePathOptimized'](arg1);
+-}
+-
+ export function ExecuteCommand(arg1, arg2) {
+   return window['go']['backend']['App']['ExecuteCommand'](arg1, arg2);
+ }
+@@ -54,46 +42,22 @@ export function GetDriveInfo() {
+   return window['go']['backend']['App']['GetDriveInfo']();
+ }
+ 
+-export function GetDriveInfoOptimized() {
+-  return window['go']['backend']['App']['GetDriveInfoOptimized']();
+-}
+-
+ export function GetFileDetails(arg1) {
+   return window['go']['backend']['App']['GetFileDetails'](arg1);
+ }
+ 
+-export function GetFileDetailsOptimized(arg1) {
+-  return window['go']['backend']['App']['GetFileDetailsOptimized'](arg1);
+-}
+-
+ export function GetHomeDirectory() {
+   return window['go']['backend']['App']['GetHomeDirectory']();
+ }
+ 
+-export function GetHomeDirectoryOptimized() {
+-  return window['go']['backend']['App']['GetHomeDirectoryOptimized']();
+-}
+-
+ export function GetQuickAccessPaths() {
+   return window['go']['backend']['App']['GetQuickAccessPaths']();
+ }
+ 
+-export function GetQuickAccessPathsOptimized() {
+-  return window['go']['backend']['App']['GetQuickAccessPathsOptimized']();
+-}
+-
+-export function GetSerializationMode() {
+-  return window['go']['backend']['App']['GetSerializationMode']();
+-}
+-
+ export function GetSystemRoots() {
+   return window['go']['backend']['App']['GetSystemRoots']();
+ }
+ 
+-export function GetSystemRootsOptimized() {
+-  return window['go']['backend']['App']['GetSystemRootsOptimized']();
+-}
+-
+ export function HealthCheck() {
+   return window['go']['backend']['App']['HealthCheck']();
+ }
+@@ -110,10 +74,6 @@ export function ListDirectory(arg1) {
+   return window['go']['backend']['App']['ListDirectory'](arg1);
+ }
+ 
+-export function ListDirectoryOptimized(arg1) {
+-  return window['go']['backend']['App']['ListDirectoryOptimized'](arg1);
+-}
+-
+ export function MoveFiles(arg1, arg2) {
+   return window['go']['backend']['App']['MoveFiles'](arg1, arg2);
+ }
+@@ -126,14 +86,6 @@ export function NavigateToPath(arg1) {
+   return window['go']['backend']['App']['NavigateToPath'](arg1);
+ }
+ 
+-export function NavigateToPathOptimized(arg1) {
+-  return window['go']['backend']['App']['NavigateToPathOptimized'](arg1);
+-}
+-
+-export function NavigateUp(arg1) {
+-  return window['go']['backend']['App']['NavigateUp'](arg1);
+-}
+-
+ export function OpenFile(arg1) {
+   return window['go']['backend']['App']['OpenFile'](arg1);
+ }
+@@ -150,18 +102,10 @@ export function OpenTerminalHere(arg1) {
+   return window['go']['backend']['App']['OpenTerminalHere'](arg1);
+ }
+ 
+-export function PrefetchDirectory(arg1) {
+-  return window['go']['backend']['App']['PrefetchDirectory'](arg1);
+-}
+-
+ export function RenameFile(arg1, arg2) {
+   return window['go']['backend']['App']['RenameFile'](arg1, arg2);
+ }
+ 
+-export function SetSerializationMode(arg1) {
+-  return window['go']['backend']['App']['SetSerializationMode'](arg1);
+-}
+-
+ export function ValidatePath(arg1) {
+   return window['go']['backend']['App']['ValidatePath'](arg1);
+ }
+diff --git a/frontend/wailsjs/go/models.ts b/frontend/wailsjs/go/models.ts
+index f89f5c2..2b2bbbf 100644
+--- a/frontend/wailsjs/go/models.ts
++++ b/frontend/wailsjs/go/models.ts
+@@ -85,6 +85,22 @@ export namespace backend {
+ 		    return a;
+ 		}
+ 	}
++	export class DriveInfo {
++	    path: string;
++	    letter: string;
++	    name: string;
++	
++	    static createFrom(source: any = {}) {
++	        return new DriveInfo(source);
++	    }
++	
++	    constructor(source: any = {}) {
++	        if ('string' === typeof source) source = JSON.parse(source);
++	        this.path = source["path"];
++	        this.letter = source["letter"];
++	        this.name = source["name"];
++	    }
++	}
+ 	
+ 	export class NavigationResponse {
+ 	    success: boolean;

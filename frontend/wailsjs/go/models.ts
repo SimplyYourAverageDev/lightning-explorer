@@ -85,6 +85,22 @@ export namespace backend {
 		    return a;
 		}
 	}
+	export class DriveInfo {
+	    path: string;
+	    letter: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DriveInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.letter = source["letter"];
+	        this.name = source["name"];
+	    }
+	}
 	
 	export class NavigationResponse {
 	    success: boolean;

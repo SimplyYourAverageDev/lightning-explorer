@@ -87,11 +87,16 @@ func (t *TerminalManager) openWindowsTerminalOptimized(directoryPath string, ter
 		// Try PowerShell 7 first, fallback to Windows PowerShell
 		pwshPath := "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
 		if _, err := os.Stat(pwshPath); err == nil {
+			log.Printf("PowerShell 7 found at: %s", pwshPath)
 			executable = pwshPath
+			// PowerShell 7 specific parameters for maximum stability
+			parameters = fmt.Sprintf("-NoExit -NoLogo -NoProfile -WorkingDirectory \"%s\" -Command \"& {Write-Host 'PowerShell 7 ready in:' (Get-Location).Path -ForegroundColor Green}\"", securePath)
 		} else {
+			log.Printf("PowerShell 7 not found at %s, error: %v. Falling back to Windows PowerShell", pwshPath, err)
 			executable = "powershell.exe"
+			// Windows PowerShell 5.1 parameters
+			parameters = "-NoExit -NoLogo -NoProfile -Command \"& {Write-Host 'Windows PowerShell ready in:' (Get-Location).Path -ForegroundColor Green}\""
 		}
-		parameters = "-NoExit"
 	case "cmd":
 		executable = "cmd.exe"
 		parameters = "/K"
@@ -130,7 +135,9 @@ func (t *TerminalManager) openWindowsTerminalOptimized(directoryPath string, ter
 	}
 
 	var directoryUTF16 *uint16
-	if terminalType != "wt" { // For wt, directory is passed in parameters
+	// Only pass directory to ShellExecuteW if we're not using -WorkingDirectory parameter
+	useDirectoryParam := terminalType != "wt" && !strings.Contains(executable, "pwsh.exe")
+	if useDirectoryParam {
 		directoryUTF16, err = syscall.UTF16PtrFromString(securePath)
 		if err != nil {
 			log.Printf("Failed to convert directory to UTF16: %v", err)
@@ -150,6 +157,7 @@ func (t *TerminalManager) openWindowsTerminalOptimized(directoryPath string, ter
 
 	if ret <= 32 {
 		log.Printf("ShellExecuteW failed with return code %d: %v", ret, err)
+		log.Printf("Failed command was: %s %s", executable, parameters)
 		return t.openWindowsTerminalFallback(securePath, terminalType)
 	}
 
@@ -194,19 +202,44 @@ func (t *TerminalManager) openWindowsTerminal(directoryPath string) bool {
 
 	// Check if PowerShell 7 exists, fallback to Windows PowerShell if not
 	if _, err := os.Stat(pwshPath); os.IsNotExist(err) {
-		log.Printf("PowerShell 7 not found, falling back to Windows PowerShell")
+		log.Printf("PowerShell 7 not found at %s, error: %v. Falling back to Windows PowerShell", pwshPath, err)
 		pwshPath = "powershell.exe"
+	} else if err != nil {
+		log.Printf("Error checking PowerShell 7 at %s: %v. Falling back to Windows PowerShell", pwshPath, err)
+		pwshPath = "powershell.exe"
+	} else {
+		log.Printf("PowerShell 7 found at: %s", pwshPath)
 	}
 
 	log.Printf("Using PowerShell executable: %s", pwshPath)
 
-	// Use the most reliable method: -NoExit without -Command, just set working directory
-	cmd := exec.Command(pwshPath, "-NoExit")
+	// Use enhanced arguments for better PowerShell 7 compatibility and persistence
+	var args []string
+	if strings.Contains(pwshPath, "pwsh.exe") {
+		// PowerShell 7 specific arguments for maximum stability
+		args = []string{
+			"-NoExit",
+			"-NoLogo",
+			"-NoProfile",
+			"-WorkingDirectory", securePath,
+			"-Command", "& {Write-Host 'PowerShell 7 ready in:' (Get-Location).Path -ForegroundColor Green}",
+		}
+	} else {
+		// Windows PowerShell 5.1 arguments
+		args = []string{
+			"-NoExit",
+			"-NoLogo",
+			"-NoProfile",
+			"-Command", "& {Write-Host 'Windows PowerShell ready in:' (Get-Location).Path -ForegroundColor Green}",
+		}
+	}
+
+	cmd := exec.Command(pwshPath, args...)
 
 	// Set the working directory for the process - this is secure!
 	cmd.Dir = securePath
 
-	// Create new console window that stays open
+	// Create new console window that stays open with better flags
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow:    false,      // We want to show PowerShell window
 		CreationFlags: 0x00000010, // CREATE_NEW_CONSOLE - create new console window
@@ -253,10 +286,11 @@ func (t *TerminalManager) securePath(directoryPath string) (string, error) {
 	}
 
 	// Additional security: Check for dangerous characters that could be used in injection
-	dangerousChars := []string{";", "&", "|", "`", "$", "(", ")", "{", "}", "[", "]", "<", ">", "\"", "'", "\\", "\n", "\r", "\t"}
+	// Note: Backslashes are valid in Windows paths, so we exclude them from the check
+	dangerousChars := []string{";", "&", "|", "`", "$", "(", ")", "{", "}", "[", "]", "<", ">", "\"", "'", "\n", "\r", "\t"}
 	for _, char := range dangerousChars {
 		if strings.Contains(cleanPath, char) {
-			return "", fmt.Errorf("directory path contains potentially dangerous characters")
+			return "", fmt.Errorf("directory path contains potentially dangerous characters: %s", char)
 		}
 	}
 

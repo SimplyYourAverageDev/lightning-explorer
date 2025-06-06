@@ -5,29 +5,18 @@ import (
 	"log"
 )
 
-// NewApp creates a new App application struct with dependency injection
+// NewApp creates a new App application struct - simplified
 func NewApp() *App {
-	// Create all manager instances
-	platform := NewPlatformManager()
-	filesystem := NewFileSystemManager(platform)
-	fileOps := NewFileOperationsManager(platform)
-	drives := NewDriveManager()
-	terminal := NewTerminalManager()
-
-	app := &App{
-		filesystem:    filesystem,
-		fileOps:       fileOps,
-		platform:      platform,
-		drives:        drives,
-		terminal:      terminal,
-		serialization: GetSerializationUtils(),
+	return &App{
+		filesystem: NewFileSystemManager(NewPlatformManager()),
+		fileOps:    NewFileOperationsManager(NewPlatformManager()),
+		platform:   NewPlatformManager(),
+		drives:     NewDriveManager(),
+		terminal:   NewTerminalManager(),
 	}
-
-	return app
 }
 
-// Startup is called when the app starts. The context is saved
-// so we can call the runtime methods
+// Startup is called when the app starts
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 
@@ -36,10 +25,10 @@ func (a *App) Startup(ctx context.Context) {
 		fsManager.SetContext(ctx)
 	}
 
-	log.Println("🚀 Lightning Explorer backend started with modular architecture")
+	log.Println("🚀 Lightning Explorer backend started")
 }
 
-// API Methods for Wails Frontend
+// Core API Methods - simplified, no duplicates
 
 // GetHomeDirectory returns the user's home directory
 func (a *App) GetHomeDirectory() string {
@@ -56,27 +45,18 @@ func (a *App) GetSystemRoots() []string {
 	return a.platform.GetSystemRoots()
 }
 
-// NavigateToPath - DEPRECATED: Use NavigateToPathOptimized (MessagePack) instead
+// NavigateToPath navigates to a specified path
 func (a *App) NavigateToPath(path string) NavigationResponse {
-	log.Printf("⚠️ DEPRECATED API called: NavigateToPath - Use NavigateToPathOptimized instead")
 	return a.filesystem.NavigateToPath(path)
 }
 
-// NavigateUp - DEPRECATED: Use NavigateToPathOptimized (MessagePack) instead
-func (a *App) NavigateUp(currentPath string) NavigationResponse {
-	log.Printf("⚠️ DEPRECATED API called: NavigateUp - Use NavigateToPathOptimized instead")
-	return a.filesystem.NavigateUp(currentPath)
-}
-
-// ListDirectory - DEPRECATED: Use ListDirectoryOptimized (MessagePack) instead
+// ListDirectory lists contents of a directory
 func (a *App) ListDirectory(path string) NavigationResponse {
-	log.Printf("⚠️ DEPRECATED API called: ListDirectory - Use ListDirectoryOptimized instead")
 	return a.filesystem.ListDirectory(path)
 }
 
-// GetFileDetails - DEPRECATED: Use GetFileDetailsOptimized (MessagePack) instead
+// GetFileDetails gets detailed information about a file
 func (a *App) GetFileDetails(filePath string) FileInfo {
-	log.Printf("⚠️ DEPRECATED API called: GetFileDetails - Use GetFileDetailsOptimized instead")
 	fileInfo, err := a.filesystem.GetFileInfo(filePath)
 	if err != nil {
 		log.Printf("Error getting file details: %v", err)
@@ -85,27 +65,29 @@ func (a *App) GetFileDetails(filePath string) FileInfo {
 	return fileInfo
 }
 
+// File Operations
+
 // OpenFile opens a file with its default application
 func (a *App) OpenFile(filePath string) bool {
 	return a.fileOps.OpenFile(filePath)
 }
 
-// OpenInSystemExplorer opens the given path in the system's default file manager
+// OpenInSystemExplorer opens the path in system file manager
 func (a *App) OpenInSystemExplorer(path string) bool {
 	return a.platform.OpenInSystemExplorer(path)
 }
 
-// CopyFiles copies files from source paths to destination directory
+// CopyFiles copies files to destination directory
 func (a *App) CopyFiles(sourcePaths []string, destDir string) bool {
 	return a.fileOps.CopyFiles(sourcePaths, destDir)
 }
 
-// MoveFiles moves files from source paths to destination directory
+// MoveFiles moves files to destination directory
 func (a *App) MoveFiles(sourcePaths []string, destDir string) bool {
 	return a.fileOps.MoveFiles(sourcePaths, destDir)
 }
 
-// DeleteFiles permanently deletes the specified files and directories
+// DeleteFiles permanently deletes files
 func (a *App) DeleteFiles(filePaths []string) bool {
 	return a.fileOps.DeleteFiles(filePaths)
 }
@@ -145,50 +127,28 @@ func (a *App) DeletePath(path string) NavigationResponse {
 	}
 }
 
-// GetDriveInfo - DEPRECATED: Use GetDriveInfoOptimized (MessagePack) instead
-func (a *App) GetDriveInfo() []map[string]interface{} {
-	log.Printf("⚠️ DEPRECATED API called: GetDriveInfo - Use GetDriveInfoOptimized instead")
-	drives := a.drives.GetDriveInfo()
-
-	// Convert to the expected format for backward compatibility
-	var result []map[string]interface{}
-	for _, drive := range drives {
-		result = append(result, map[string]interface{}{
-			"path":   drive.Path,
-			"letter": drive.Letter,
-			"name":   drive.Name,
-		})
-	}
-
-	return result
+// GetDriveInfo returns information about system drives
+func (a *App) GetDriveInfo() []DriveInfo {
+	return a.drives.GetDriveInfo()
 }
 
-// OpenPowerShellHere opens PowerShell 7 in the specified directory
+// Terminal Operations
+
+// OpenPowerShellHere opens PowerShell in the specified directory
 func (a *App) OpenPowerShellHere(directoryPath string) bool {
 	return a.terminal.OpenPowerShellHere(directoryPath)
 }
+
+// Utility Methods
 
 // FormatFileSize formats file size in human readable format
 func (a *App) FormatFileSize(size int64) string {
 	return a.platform.FormatFileSize(size)
 }
 
-// Additional API methods for enhanced functionality
-
-// GetQuickAccessPaths returns commonly accessed directories for quick navigation
-func (a *App) GetQuickAccessPaths() []map[string]interface{} {
-	paths := a.drives.GetQuickAccessPaths()
-
-	var result []map[string]interface{}
-	for _, path := range paths {
-		result = append(result, map[string]interface{}{
-			"path":   path.Path,
-			"letter": path.Letter,
-			"name":   path.Name,
-		})
-	}
-
-	return result
+// GetQuickAccessPaths returns commonly accessed directories
+func (a *App) GetQuickAccessPaths() []DriveInfo {
+	return a.drives.GetQuickAccessPaths()
 }
 
 // OpenTerminalHere opens the system's default terminal in the specified directory
@@ -201,7 +161,7 @@ func (a *App) GetAvailableTerminals() []string {
 	return a.terminal.GetAvailableTerminals()
 }
 
-// ValidatePath checks if a path is valid and accessible
+// ValidatePath validates if a path exists and is accessible
 func (a *App) ValidatePath(path string) bool {
 	err := a.filesystem.ValidatePath(path)
 	return err == nil
@@ -212,290 +172,22 @@ func (a *App) FileExists(path string) bool {
 	return a.filesystem.FileExists(path)
 }
 
-// IsHidden checks if a file/directory is hidden
+// IsHidden checks if a file or directory is hidden
 func (a *App) IsHidden(path string) bool {
 	return a.platform.IsHidden(path)
 }
 
-// ExecuteCommand executes a command in the background (useful for scripts)
+// ExecuteCommand executes a command in the specified working directory
 func (a *App) ExecuteCommand(command string, workingDir string) bool {
 	err := a.terminal.ExecuteCommand(command, workingDir)
 	return err == nil
 }
 
-// Health check method for monitoring
+// HealthCheck returns application health status
 func (a *App) HealthCheck() map[string]interface{} {
 	return map[string]interface{}{
 		"status":  "healthy",
-		"modules": []string{"filesystem", "fileops", "platform", "drives", "terminal"},
+		"version": "2.0-simplified",
+		"ready":   true,
 	}
-}
-
-// PrefetchDirectory pre-loads directory contents for faster navigation
-// This method is called when hovering over folders to improve perceived performance
-func (a *App) PrefetchDirectory(path string) NavigationResponse {
-	// Use the same method as NavigateToPath but mark it as prefetch for logging
-	log.Printf("🔄 Prefetching directory: %s", path)
-
-	response := a.filesystem.ListDirectory(path)
-
-	if response.Success {
-		log.Printf("✅ Prefetched directory %s: %d files, %d dirs",
-			path, response.Data.TotalFiles, response.Data.TotalDirs)
-	} else {
-		log.Printf("❌ Failed to prefetch directory %s: %s", path, response.Message)
-	}
-
-	return response
-}
-
-// Enhanced API methods with MessagePack support
-
-// NavigateToPathOptimized returns navigation data using MessagePack encoding
-func (a *App) NavigateToPathOptimized(path string) interface{} {
-	response := a.filesystem.NavigateToPath(path)
-
-	// Log size comparison for performance monitoring
-	LogSerializationComparison(response, "NavigateToPath")
-
-	serialized, err := a.serialization.SerializeNavigationResponse(response)
-	if err != nil {
-		log.Printf("❌ Serialization error: %v", err)
-		return response // Fall back to regular JSON
-	}
-
-	return serialized
-}
-
-// ListDirectoryOptimized returns directory listing using MessagePack encoding
-func (a *App) ListDirectoryOptimized(path string) interface{} {
-	response := a.filesystem.ListDirectory(path)
-
-	// Log size comparison for performance monitoring
-	LogSerializationComparison(response, "ListDirectory")
-
-	serialized, err := a.serialization.SerializeNavigationResponse(response)
-	if err != nil {
-		log.Printf("❌ Serialization error: %v", err)
-		return response // Fall back to regular JSON
-	}
-
-	return serialized
-}
-
-// GetFileDetailsOptimized returns file details using MessagePack encoding
-func (a *App) GetFileDetailsOptimized(filePath string) interface{} {
-	fileInfo, err := a.filesystem.GetFileInfo(filePath)
-	if err != nil {
-		log.Printf("Error getting file details: %v", err)
-		return FileInfo{}
-	}
-
-	// Log size comparison for performance monitoring
-	LogSerializationComparison(fileInfo, "FileInfo")
-
-	serialized, serializeErr := a.serialization.SerializeFileInfo(fileInfo)
-	if serializeErr != nil {
-		log.Printf("❌ Serialization error: %v", serializeErr)
-		return fileInfo // Fall back to regular JSON
-	}
-
-	return serialized
-}
-
-// GetDriveInfoOptimized returns drive information using MessagePack encoding
-func (a *App) GetDriveInfoOptimized() interface{} {
-	drives := a.drives.GetDriveInfo()
-
-	// Log size comparison for performance monitoring
-	LogSerializationComparison(drives, "DriveInfo")
-
-	serialized, err := a.serialization.SerializeDriveInfoSlice(drives)
-	if err != nil {
-		log.Printf("❌ Serialization error: %v", err)
-		// Fall back to legacy format
-		var result []map[string]interface{}
-		for _, drive := range drives {
-			result = append(result, map[string]interface{}{
-				"path":   drive.Path,
-				"letter": drive.Letter,
-				"name":   drive.Name,
-			})
-		}
-		return result
-	}
-
-	return serialized
-}
-
-// SetSerializationMode forces MessagePack binary mode only - no JSON allowed
-func (a *App) SetSerializationMode(mode int) bool {
-	// FORCE MessagePack binary mode only - reject any other modes
-	if mode != 3 {
-		log.Printf("❌ Rejected serialization mode %d - only MessagePack binary (mode 3) is allowed", mode)
-		return false
-	}
-
-	SetSerializationMode(SerializationMsgPackBinary)
-	log.Println("🔄 Confirmed MessagePack binary serialization mode (forced)")
-	return true
-}
-
-// GetSerializationMode always returns MessagePack binary mode (forced)
-func (a *App) GetSerializationMode() int {
-	// Always return MessagePack binary mode - no other modes allowed
-	return 3 // SerializationMsgPackBinary
-}
-
-// BenchmarkSerialization runs a benchmark comparison between JSON and MessagePack
-func (a *App) BenchmarkSerialization(path string) map[string]interface{} {
-	response := a.filesystem.ListDirectory(path)
-
-	if !response.Success {
-		return map[string]interface{}{
-			"error": "Failed to read directory for benchmark",
-		}
-	}
-
-	sizes := BenchmarkSerializationSizes(response)
-
-	result := map[string]interface{}{
-		"path":        path,
-		"sizes":       sizes,
-		"files_count": response.Data.TotalFiles,
-		"dirs_count":  response.Data.TotalDirs,
-	}
-
-	if jsonSize, exists := sizes["json"]; exists {
-		if msgPackSize, exists := sizes["msgpack"]; exists {
-			reduction := float64(jsonSize-msgPackSize) / float64(jsonSize) * 100
-			result["size_reduction_percent"] = reduction
-			result["msgpack_advantage"] = reduction > 0
-		}
-	}
-
-	log.Printf("📊 Serialization benchmark for %s completed", path)
-	return result
-}
-
-// NEW MessagePack-optimized API methods
-
-// GetHomeDirectoryOptimized returns the user's home directory with MessagePack optimization
-func (a *App) GetHomeDirectoryOptimized() interface{} {
-	homeDir := a.platform.GetHomeDirectory()
-
-	// Wrap in a structure for consistent MessagePack serialization
-	response := map[string]interface{}{
-		"home_directory": homeDir,
-		"success":        homeDir != "",
-	}
-
-	// Log size comparison for performance monitoring
-	LogSerializationComparison(response, "HomeDirectory")
-
-	serialized, err := a.serialization.SerializeGeneric(response)
-	if err != nil {
-		log.Printf("❌ Serialization error for GetHomeDirectoryOptimized: %v", err)
-		return response // Fall back to regular JSON
-	}
-
-	return serialized
-}
-
-// CreateDirectoryOptimized creates a new directory with MessagePack response
-func (a *App) CreateDirectoryOptimized(path, name string) interface{} {
-	response := a.filesystem.CreateDirectory(path, name)
-
-	// Log size comparison for performance monitoring
-	LogSerializationComparison(response, "CreateDirectory")
-
-	serialized, err := a.serialization.SerializeNavigationResponse(response)
-	if err != nil {
-		log.Printf("❌ Serialization error for CreateDirectoryOptimized: %v", err)
-		return response // Fall back to regular JSON
-	}
-
-	return serialized
-}
-
-// DeletePathOptimized deletes a file or directory with MessagePack response
-func (a *App) DeletePathOptimized(path string) interface{} {
-	success := a.fileOps.DeleteFiles([]string{path})
-	response := NavigationResponse{
-		Success: success,
-		Message: func() string {
-			if success {
-				return "Item deleted successfully"
-			}
-			return "Failed to delete item"
-		}(),
-	}
-
-	// Log size comparison for performance monitoring
-	LogSerializationComparison(response, "DeletePath")
-
-	serialized, err := a.serialization.SerializeNavigationResponse(response)
-	if err != nil {
-		log.Printf("❌ Serialization error for DeletePathOptimized: %v", err)
-		return response // Fall back to regular JSON
-	}
-
-	return serialized
-}
-
-// GetQuickAccessPathsOptimized returns commonly accessed directories with MessagePack encoding
-func (a *App) GetQuickAccessPathsOptimized() interface{} {
-	paths := a.drives.GetQuickAccessPaths()
-
-	// Convert to drive info format for consistent serialization
-	var driveInfoPaths []DriveInfo
-	for _, path := range paths {
-		driveInfoPaths = append(driveInfoPaths, DriveInfo{
-			Path:   path.Path,
-			Letter: path.Letter,
-			Name:   path.Name,
-		})
-	}
-
-	// Log size comparison for performance monitoring
-	LogSerializationComparison(driveInfoPaths, "QuickAccessPaths")
-
-	serialized, err := a.serialization.SerializeDriveInfoSlice(driveInfoPaths)
-	if err != nil {
-		log.Printf("❌ Serialization error for GetQuickAccessPathsOptimized: %v", err)
-		// Fall back to legacy format
-		var result []map[string]interface{}
-		for _, path := range paths {
-			result = append(result, map[string]interface{}{
-				"path":   path.Path,
-				"letter": path.Letter,
-				"name":   path.Name,
-			})
-		}
-		return result
-	}
-
-	return serialized
-}
-
-// GetSystemRootsOptimized returns system root paths with MessagePack encoding
-func (a *App) GetSystemRootsOptimized() interface{} {
-	roots := a.platform.GetSystemRoots()
-
-	// Wrap in a structure for consistent MessagePack serialization
-	response := map[string]interface{}{
-		"system_roots": roots,
-		"count":        len(roots),
-	}
-
-	// Log size comparison for performance monitoring
-	LogSerializationComparison(response, "SystemRoots")
-
-	serialized, err := a.serialization.SerializeGeneric(response)
-	if err != nil {
-		log.Printf("❌ Serialization error for GetSystemRootsOptimized: %v", err)
-		return response // Fall back to regular JSON
-	}
-
-	return serialized
 }

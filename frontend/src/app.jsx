@@ -2,23 +2,61 @@ import './components/FastNavigation.css';
 import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import { Suspense } from "preact/compat";
 
-// Import core Wails API synchronously - no dynamic imports for critical startup code
+// Import core Wails API
 import { 
     OpenInSystemExplorer,
     GetHomeDirectory,
-    NavigateToPathOptimized,
-    ListDirectoryOptimized,
-    GetDriveInfoOptimized
+    NavigateToPath,
+    ListDirectory,
+    GetDriveInfo
 } from "../wailsjs/go/backend/App";
-
-// Import MessagePack utilities synchronously - needed immediately for API calls
-import { EnhancedAPI, SerializationMode, serializationUtils } from "./utils/serialization";
 
 // Import core utilities synchronously - needed for immediate file filtering and processing
 import { filterFiles, getFileType, getFileIcon } from "./utils/fileUtils";
 
-// Import optimized utilities
-import { log, warn, error } from "./utils/logger";
+// Sorting utility function - inline for immediate availability
+const sortFiles = (files, sortBy, sortOrder) => {
+    if (!files || files.length === 0) return files;
+    
+    const sorted = [...files].sort((a, b) => {
+        let aValue, bValue;
+        
+        switch (sortBy) {
+            case 'name':
+                aValue = a.name.toLowerCase();
+                bValue = b.name.toLowerCase();
+                break;
+            case 'size':
+                // Directories get size 0 for sorting
+                aValue = a.isDir ? 0 : (a.size || 0);
+                bValue = b.isDir ? 0 : (b.size || 0);
+                break;
+            case 'type':
+                // Sort by file extension, directories first
+                if (a.isDir && !b.isDir) return -1;
+                if (!a.isDir && b.isDir) return 1;
+                aValue = a.isDir ? 'folder' : (a.name.split('.').pop() || '').toLowerCase();
+                bValue = b.isDir ? 'folder' : (b.name.split('.').pop() || '').toLowerCase();
+                break;
+            case 'modified':
+                aValue = new Date(a.modTime || 0);
+                bValue = new Date(b.modTime || 0);
+                break;
+            default:
+                aValue = a.name.toLowerCase();
+                bValue = b.name.toLowerCase();
+        }
+        
+        if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+    });
+    
+    return sorted;
+};
+
+// Import utilities
+import { log, error } from "./utils/logger";
 import { 
     HEADER_STATS_STYLE,
     PERFORMANCE_INDICATOR_STYLE,
@@ -69,15 +107,12 @@ export function App() {
     const [error, setError] = useState('');
     const [drives, setDrives] = useState([]);
     const [showHiddenFiles, setShowHiddenFiles] = useState(false);
+    const [sortBy, setSortBy] = useState('name'); // name, size, type, modified
+    const [sortOrder, setSortOrder] = useState('asc'); // asc, desc
     
     // Startup state to control when heavy operations run
     const [isAppInitialized, setIsAppInitialized] = useState(false);
     const [isDriveDataLoaded, setIsDriveDataLoaded] = useState(false);
-    
-    // MessagePack integration state - FORCE MessagePack binary mode
-    const [serializationMode, setSerializationModeState] = useState(SerializationMode.MSGPACK_BINARY);
-    const [enhancedAPI, setEnhancedAPI] = useState(null);
-    const [benchmarkResults, setBenchmarkResults] = useState(null);
 
     // Custom hooks
     const { navigationStats, setNavigationStats } = usePerformanceMonitoring();
@@ -146,13 +181,15 @@ export function App() {
     // Computed values - use synchronously imported file utils for immediate availability
     const filteredDirectories = useMemo(() => {
         if (!directoryContents) return [];
-        return filterFiles(directoryContents.directories, showHiddenFiles);
-    }, [directoryContents, showHiddenFiles]);
+        const filtered = filterFiles(directoryContents.directories, showHiddenFiles);
+        return sortFiles(filtered, sortBy, sortOrder);
+    }, [directoryContents, showHiddenFiles, sortBy, sortOrder]);
     
     const filteredFiles = useMemo(() => {
         if (!directoryContents) return [];
-        return filterFiles(directoryContents.files, showHiddenFiles);
-    }, [directoryContents, showHiddenFiles]);
+        const filtered = filterFiles(directoryContents.files, showHiddenFiles);
+        return sortFiles(filtered, sortBy, sortOrder);
+    }, [directoryContents, showHiddenFiles, sortBy, sortOrder]);
     
     const allFiles = useMemo(() => 
         [...filteredDirectories, ...filteredFiles], 
@@ -219,6 +256,18 @@ export function App() {
         }
     }, [currentPath]);
 
+    // Sort handlers
+    const handleSortChange = useCallback((newSortBy) => {
+        if (sortBy === newSortBy) {
+            // Toggle sort order if same sort type
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            // New sort type, default to ascending
+            setSortBy(newSortBy);
+            setSortOrder('asc');
+        }
+    }, [sortBy, sortOrder]);
+
     // Clipboard operations
     const handleCopySelected = useCallback(() => {
         const selectedFileObjects = Array.from(selectedFiles).map(index => allFiles[index]);
@@ -278,14 +327,11 @@ export function App() {
         closeEmptySpaceContextMenu
     });
 
-    // OPTIMIZATION 1: Immediate initialization with synchronous imports
+    // Initialize the application
     useEffect(() => {
-        log('🚀 Lightning Explorer mounting - Synchronous API initialization!');
+        log('🚀 Lightning Explorer mounting');
         
-        // Initialize enhanced API immediately since utilities are now synchronous
-        initializeEnhancedAPI();
-        
-        // Initialize app immediately - no artificial delays needed
+        // Initialize app
         initializeApp();
         
         // Parallelize non-dependent async work using requestIdleCallback
@@ -298,48 +344,26 @@ export function App() {
         }
     }, []);
 
-    // Load drives using MessagePack optimized API only
+    // Load drives using regular API
     const loadDrives = useCallback(async () => {
         if (isDriveDataLoaded) return drives;
         
         try {
-            // Always use MessagePack optimized API - no fallback
-            if (!enhancedAPI) {
-                warn('⚠️ Enhanced API not initialized, cannot load drives');
-                return [];
-            }
-            
-            const driveList = await enhancedAPI.getDriveInfo();
+            const driveList = await GetDriveInfo();
             setDrives(driveList);
             setIsDriveDataLoaded(true);
             return driveList;
         } catch (err) {
-            error('❌ Failed to load drive information with MessagePack API:', err);
+            error('❌ Failed to load drive information:', err);
             return [];
         }
-    }, [isDriveDataLoaded, drives, enhancedAPI]);
+    }, [isDriveDataLoaded, drives]);
 
     const initializeApp = async () => {
         try {
             setError('');
             
-            // Use MessagePack optimized API for home directory (with fallback)
-            let homeDir = null;
-            if (enhancedAPI) {
-                try {
-                    const homeDirResponse = await enhancedAPI.getHomeDirectory();
-                    if (homeDirResponse && homeDirResponse.success && homeDirResponse.home_directory) {
-                        homeDir = homeDirResponse.home_directory;
-                    }
-                } catch (apiErr) {
-                    warn('⚠️ Enhanced API failed, using fallback:', apiErr);
-                }
-            }
-            
-            // Fallback to synchronously imported regular API if enhanced API fails
-            if (!homeDir) {
-                homeDir = await GetHomeDirectory();
-            }
+            const homeDir = await GetHomeDirectory();
             
             if (homeDir) {
                 await navigateToPath(homeDir, 'init');
@@ -353,30 +377,7 @@ export function App() {
         }
     };
 
-    // Serialization mode handlers - MessagePack forced, no user switching
-    const initializeEnhancedAPI = async () => {
-        try {
-            // Use synchronously imported Wails API
-            const wailsAPI = {
-                GetHomeDirectory,
-                NavigateToPathOptimized,
-                ListDirectoryOptimized,
-                GetDriveInfoOptimized,
-                OpenInSystemExplorer
-            };
-            
-            // Create enhanced API instance
-            const enhancedAPIInstance = new EnhancedAPI(wailsAPI, serializationUtils);
-            setEnhancedAPI(enhancedAPIInstance);
-            
-            // MessagePack binary mode is now the default on backend
-            serializationUtils.setMode(SerializationMode.MSGPACK_BINARY);
-            
-            log(`🔧 Enhanced API initialized with MessagePack binary mode (synchronous imports)`);
-        } catch (err) {
-            warn('⚠️ Enhanced API initialization failed, falling back to standard API:', err);
-        }
-    };
+
 
     // Clear selection when path changes
     useEffect(() => {
@@ -486,6 +487,40 @@ export function App() {
                         >
                             {showHiddenFiles ? '👁️' : '🙈'} Hidden
                         </button>
+                        
+                        {/* Sort dropdown */}
+                        <div className="sort-dropdown">
+                            <button className="toolbar-btn sort-btn" disabled={!currentPath}>
+                                📊 Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
+                                {sortOrder === 'desc' ? ' ↓' : ' ↑'}
+                            </button>
+                            <div className="sort-dropdown-content">
+                                <button 
+                                    className={`sort-option ${sortBy === 'name' ? 'active' : ''}`}
+                                    onClick={() => handleSortChange('name')}
+                                >
+                                    📝 Name {sortBy === 'name' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                                </button>
+                                <button 
+                                    className={`sort-option ${sortBy === 'size' ? 'active' : ''}`}
+                                    onClick={() => handleSortChange('size')}
+                                >
+                                    📏 Size {sortBy === 'size' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                                </button>
+                                <button 
+                                    className={`sort-option ${sortBy === 'type' ? 'active' : ''}`}
+                                    onClick={() => handleSortChange('type')}
+                                >
+                                    🏷️ Type {sortBy === 'type' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                                </button>
+                                <button 
+                                    className={`sort-option ${sortBy === 'modified' ? 'active' : ''}`}
+                                    onClick={() => handleSortChange('modified')}
+                                >
+                                    🕒 Modified {sortBy === 'modified' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                                </button>
+                            </div>
+                        </div>
 
                     </div>
                     
@@ -659,14 +694,7 @@ export function App() {
                 />
             </Suspense>
             
-            {/* Performance Dashboard */}
-            <Suspense fallback={null}>
-                <PerformanceDashboard
-                    benchmarkResults={benchmarkResults}
-                    navigationStats={navigationStats}
-                    serializationMode={serializationMode}
-                />
-            </Suspense>
+
             
             {/* Status bar */}
             <div className="status-bar">

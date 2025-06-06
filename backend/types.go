@@ -102,13 +102,12 @@ type TerminalManagerInterface interface {
 
 // App struct - Main application structure with dependency injection
 type App struct {
-	ctx           context.Context
-	filesystem    FileSystemManagerInterface
-	fileOps       FileOperationsManagerInterface
-	platform      PlatformManagerInterface
-	drives        DriveManagerInterface
-	terminal      TerminalManagerInterface
-	serialization *SerializationUtils
+	ctx        context.Context
+	filesystem FileSystemManagerInterface
+	fileOps    FileOperationsManagerInterface
+	platform   PlatformManagerInterface
+	drives     DriveManagerInterface
+	terminal   TerminalManagerInterface
 }
 
 // FileSystemManager implementation

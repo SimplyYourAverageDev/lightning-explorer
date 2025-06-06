@@ -151,13 +151,13 @@ export function PerformanceDashboard({ benchmarkResults, navigationStats, serial
                 </div>
             </div>
 
-            {navigationStats && (
+            {navigationStats && typeof navigationStats === 'object' && (
                 <div className="perf-section" style={{ marginBottom: '0.5rem' }}>
                     <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>📈 Navigation Stats:</div>
-                    <div>• Last navigation: {Math.round(navigationStats.lastNavigationTime)}ms</div>
-                    <div>• Total navigations: {navigationStats.totalNavigations}</div>
+                    <div>• Last navigation: {Math.round(Number(navigationStats.lastNavigationTime) || 0)}ms</div>
+                    <div>• Total navigations: {Number(navigationStats.totalNavigations) || 0}</div>
                     {navigationStats.averageTime && (
-                        <div>• Average time: {Math.round(navigationStats.averageTime)}ms</div>
+                        <div>• Average time: {Math.round(Number(navigationStats.averageTime) || 0)}ms</div>
                     )}
                 </div>
             )}
