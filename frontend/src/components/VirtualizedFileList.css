@@ -1,7 +1,6 @@
 /* Virtualized File List Performance Optimizations - Zen Theme */
-/* TEMPORARILY DISABLED - Using normal file list styling instead */
+/* FIXED CSS - Preventing overlap issues */
 
-/*
 .virtualized-file-list {
     /* Use GPU acceleration for smooth scrolling */
     transform: translateZ(0);
@@ -19,24 +18,48 @@
 }
 
 .virtualized-file-list .file-item {
-    /* Optimize positioning for virtual scrolling */
-    contain: layout style paint;
+    /* CRITICAL: Ensure file items are contained and don't overlap */
+    contain: layout style paint !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
     
-    /* Prevent unnecessary reflows */
-    box-sizing: border-box;
+    /* Fixed height to match ITEM_HEIGHT in JS (88px) */
+    height: 88px !important;
+    min-height: 88px !important;
+    max-height: 88px !important;
     
-    /* Use only essential properties for performance - no transform animations */
-    will-change: background-color, border-color;
+    /* Prevent any transforms or shadows that could cause overlap */
+    transform: none !important;
+    box-shadow: none !important;
+    will-change: background-color, border-color !important;
     
-    /* Zen spacing and design */
-    margin-bottom: var(--zen-space-sm);
+    /* Zen spacing and design - constrained */
+    margin: 0 !important;
     border-radius: var(--zen-radius-md);
-    min-height: 3.5rem;
     
-    /* Ensure consistent hover behavior in virtualized list */
+    /* Ensure consistent positioning */
+    position: relative !important;
+    
+    /* Essential transitions only */
     transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
 }
-*/
+
+/* Override any hover effects that might cause expansion */
+.virtualized-file-list .file-item:hover,
+.virtualized-file-list .file-item:active,
+.virtualized-file-list .file-item.selected,
+.virtualized-file-list .file-item.selected:hover {
+    /* Absolutely no transforms, shadows, or size changes */
+    transform: none !important;
+    box-shadow: none !important;
+    scale: none !important;
+    will-change: background-color, border-color !important;
+    
+    /* Keep the same height constraints */
+    height: 88px !important;
+    min-height: 88px !important;
+    max-height: 88px !important;
+}
 
 /* Keep scrollbar optimizations */
 .file-list::-webkit-scrollbar {
@@ -63,26 +86,11 @@
     display: none;
 }
 
-/* Keep performance optimizations but remove custom positioning */
-/*
-.virtual-file-item {
-    position: absolute;
-    width: 100%;
-    
-    /* Prevent text selection during fast scrolling */
-    user-select: none;
-    
-    /* Optimize for frequent updates */
-    contain: layout style paint;
-    
-    /* Prevent subpixel rendering issues */
-    transform: translateZ(0);
-    
-    /* Zen design spacing */
-    padding: var(--zen-space-lg);
-    border-radius: var(--zen-radius-md);
+/* Ensure virtual container positioning is correct */
+.virtualized-file-list > div {
+    position: relative !important;
+    overflow: hidden !important;
 }
-*/
 
 /* Loading state optimizations */
 .file-list .loading-overlay {

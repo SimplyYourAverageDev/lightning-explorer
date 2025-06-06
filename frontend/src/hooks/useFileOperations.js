@@ -161,10 +161,10 @@ export const useFileOperations = (currentPath, setError, clearSelection, handleR
             if (success) {
                 log('✅ Rename operation successful');
                 clearSelection();
-                setTimeout(() => {
-                    log('🔄 Refreshing directory after rename operation');
-                    handleRefresh();
-                }, 50);
+                // Immediately refresh to ensure UI shows updated file paths
+                // This prevents the issue where old paths are cached in file objects
+                log('🔄 Refreshing directory immediately after rename operation');
+                handleRefresh();
                 return true;
             } else {
                 error('❌ Rename operation failed');

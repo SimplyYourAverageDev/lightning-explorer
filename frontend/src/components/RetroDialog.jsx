@@ -41,6 +41,16 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
     const handleInputChange = useCallback((e) => {
         setInputValue(e.target.value);
     }, []);
+
+    const handleInputKeyDown = useCallback((e) => {
+        // Allow Ctrl+A to select all text in the input
+        if (e.ctrlKey && e.key === 'a') {
+            e.preventDefault();
+            if (inputRef.current) {
+                inputRef.current.select();
+            }
+        }
+    }, []);
     
     const handleConfirm = useCallback(() => {
         if (type === 'prompt') {
@@ -90,6 +100,7 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
                                 type="text"
                                 value={inputValue}
                                 onChange={handleInputChange}
+                                onKeyDown={handleInputKeyDown}
                                 className="retro-dialog-input"
                                 placeholder="ENTER VALUE..."
                             />

@@ -57,7 +57,8 @@ import {
     useKeyboardShortcuts,
     useDragAndDrop,
     useFolderCreation,
-    useInspectMode
+    useInspectMode,
+    useFPSTracker
 } from "./hooks";
 
 // File utilities are now imported synchronously at the top for immediate availability

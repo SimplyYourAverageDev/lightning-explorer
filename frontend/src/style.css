@@ -354,6 +354,11 @@ body {
   min-height: 3.5rem;
   background: transparent;
   box-sizing: border-box;
+  
+  /* Prevent overflow and overlapping */
+  overflow: hidden;
+  contain: layout style paint;
+  position: relative;
 }
 
 .file-item:hover:not(.selected) {

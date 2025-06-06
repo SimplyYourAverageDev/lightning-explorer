@@ -11,8 +11,8 @@ import {
     FLEX_CENTER_STYLE
 } from "../utils/styleConstants";
 
-// Virtual scrolling configuration - restored to working values
-const ITEM_HEIGHT = 72; // Simplified height: 3.5rem min-height (56px) + 1rem gap (16px) = 72px
+// Virtual scrolling configuration - Fixed height calculations
+const ITEM_HEIGHT = 88; // Updated: 3.5rem min-height (56px) + 2rem padding (32px) = 88px total
 const BUFFER_SIZE = 10; // Restored buffer for smoother scrolling
 const CONTAINER_HEIGHT = 400; // Default container height
 
@@ -80,7 +80,7 @@ const VirtualizedFileList = memo(({
         return { startIndex, endIndex, visibleCount };
     }, [scrollTop, containerHeight, containerRect.height, files.length]);
     
-    // Get visible items with their absolute positions
+    // Get visible items with their absolute positions - Fixed positioning
     const visibleItems = useMemo(() => {
         const { startIndex, endIndex } = visibleRange;
         const items = [];
@@ -90,7 +90,7 @@ const VirtualizedFileList = memo(({
                 items.push({
                     file: files[i],
                     index: i,
-                    top: i * ITEM_HEIGHT + (creatingFolder ? ITEM_HEIGHT : 0)
+                    top: (i * ITEM_HEIGHT) + (creatingFolder ? ITEM_HEIGHT : 0)
                 });
             }
         }
@@ -163,7 +163,7 @@ const VirtualizedFileList = memo(({
                     </div>
                 )}
                 
-                {/* Render visible items */}
+                {/* Render visible items - Fixed positioning to prevent overlap */}
                 {visibleItems.map(({ file, index, top }) => (
                     <div 
                         key={`${file.path}-${index}`}
@@ -173,7 +173,8 @@ const VirtualizedFileList = memo(({
                             left: 0,
                             right: 0,
                             height: ITEM_HEIGHT,
-                            paddingBottom: '0.5rem'
+                            boxSizing: 'border-box',
+                            overflow: 'hidden'
                         }}
                     >
                         <FileItem

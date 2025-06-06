@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'preact/hooks';
+import { useFPSTracker } from '../hooks/useFPSTracker';
 
 export function PerformanceDashboard({ benchmarkResults, navigationStats, serializationMode }) {
     const [isVisible, setIsVisible] = useState(false);
+    const { fps, averageFps } = useFPSTracker();
+
+    // Function to get FPS color based on performance
+    const getFPSColor = (fpsValue) => {
+        if (fpsValue >= 55) return '#00ff88'; // Green - Excellent
+        if (fpsValue >= 45) return '#88ff00'; // Yellow-Green - Good
+        if (fpsValue >= 30) return '#ffaa00'; // Orange - Fair
+        return '#ff4444'; // Red - Poor
+    };
 
     const getModeLabel = (mode) => {
         // Always return MessagePack Base64 since that's the only mode allowed
@@ -24,10 +34,20 @@ export function PerformanceDashboard({ benchmarkResults, navigationStats, serial
                     borderRadius: '4px',
                     cursor: 'pointer',
                     fontSize: '0.8rem',
-                    zIndex: 1000
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
                 }}
             >
                 📊 Performance
+                <span style={{ 
+                    color: getFPSColor(fps), 
+                    fontWeight: 'bold',
+                    fontSize: '0.75rem'
+                }}>
+                    {fps} FPS
+                </span>
             </button>
         );
     }
@@ -39,14 +59,15 @@ export function PerformanceDashboard({ benchmarkResults, navigationStats, serial
                 position: 'fixed',
                 bottom: '1rem',
                 right: '1rem',
-                width: '300px',
+                width: '350px',
                 background: 'rgba(0,0,0,0.9)',
                 color: 'white',
                 padding: '1rem',
                 borderRadius: '8px',
                 fontSize: '0.8rem',
                 zIndex: 1000,
-                border: '1px solid rgba(255,255,255,0.2)'
+                border: '1px solid rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(10px)'
             }}
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
@@ -81,6 +102,47 @@ export function PerformanceDashboard({ benchmarkResults, navigationStats, serial
                 >
                     ✕
                 </button>
+            </div>
+
+            {/* FPS Section - NEW */}
+            <div className="perf-section" style={{ 
+                marginBottom: '0.5rem',
+                padding: '0.5rem',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '4px',
+                border: `1px solid ${getFPSColor(fps)}40`
+            }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '0.25rem', color: '#ffffff' }}>
+                    🎮 Frame Rate:
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <span style={{ color: getFPSColor(fps), fontWeight: 'bold', fontSize: '1.2rem' }}>
+                            {fps} FPS
+                        </span>
+                        <span style={{ color: '#aaa', marginLeft: '0.5rem', fontSize: '0.75rem' }}>
+                            current
+                        </span>
+                    </div>
+                    <div>
+                        <span style={{ color: getFPSColor(averageFps), fontWeight: 'bold' }}>
+                            {averageFps} FPS
+                        </span>
+                        <span style={{ color: '#aaa', marginLeft: '0.25rem', fontSize: '0.75rem' }}>
+                            avg
+                        </span>
+                    </div>
+                </div>
+                <div style={{ 
+                    marginTop: '0.25rem', 
+                    fontSize: '0.7rem', 
+                    color: '#aaa',
+                    textAlign: 'center'
+                }}>
+                    {fps >= 55 ? '🚀 Excellent' : 
+                     fps >= 45 ? '✅ Good' : 
+                     fps >= 30 ? '⚠️ Fair' : '❌ Poor'} performance
+                </div>
             </div>
 
             <div className="perf-section" style={{ marginBottom: '0.5rem' }}>
@@ -119,16 +181,7 @@ export function PerformanceDashboard({ benchmarkResults, navigationStats, serial
                 </div>
             )}
 
-            <div style={{ 
-                marginTop: '0.5rem', 
-                padding: '0.5rem', 
-                background: 'rgba(0,255,0,0.1)', 
-                borderRadius: '4px',
-                fontSize: '0.7rem',
-                textAlign: 'center'
-            }}>
-                📦 MessagePack Base64 mode enforced for optimal performance!
-            </div>
+
         </div>
     );
 } 
