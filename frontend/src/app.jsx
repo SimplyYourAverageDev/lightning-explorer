@@ -69,15 +69,14 @@ import {
     EMPTY_DIRECTORY_STYLE
 } from "./utils/styleConstants";
 
-// Import our custom components - lazy loaded heavy components
+// Import our custom components
 import {
     Breadcrumb,
     Sidebar,
-    FileItem,
     ContextMenu,
     EmptySpaceContextMenu,
     RetroDialog,
-    VirtualizedFileList, // Now lazy-loaded
+    VirtualizedFileList,
     InlineFolderEditor,
     InspectMenu,
     PerformanceDashboard
@@ -621,13 +620,15 @@ export function App() {
                                 >
                                     {/* Show inline folder editor if creating folder */}
                                     {creatingFolder && (
-                                        <InlineFolderEditor
-                                            tempFolderName={tempFolderName}
-                                            editInputRef={editInputRef}
-                                            onKeyDown={handleKeyDown}
-                                            onChange={handleInputChange}
-                                            onBlur={handleInputBlur}
-                                        />
+                                        <Suspense fallback={null}>
+                                            <InlineFolderEditor
+                                                tempFolderName={tempFolderName}
+                                                editInputRef={editInputRef}
+                                                onKeyDown={handleKeyDown}
+                                                onChange={handleInputChange}
+                                                onBlur={handleInputBlur}
+                                            />
+                                        </Suspense>
                                     )}
                                     
                                     {!creatingFolder && (
@@ -651,38 +652,40 @@ export function App() {
             </div>
             
             {/* Context Menus and Dialog */}
-            <ContextMenu
-                visible={contextMenu.visible}
-                x={contextMenu.x}
-                y={contextMenu.y}
-                files={contextMenu.files}
-                onClose={closeContextMenu}
-                onCopy={handleContextCopy}
-                onCut={handleContextCut}
-                onRename={handleContextRename}
-                onHide={handleContextHide}
-                onPermanentDelete={handlePermanentDelete}
-            />
-            
-            <EmptySpaceContextMenu
-                visible={emptySpaceContextMenu.visible}
-                x={emptySpaceContextMenu.x}
-                y={emptySpaceContextMenu.y}
-                onClose={closeEmptySpaceContextMenu}
-                onOpenPowerShell={handleOpenPowerShell}
-                onCreateFolder={handleCreateFolder}
-            />
-            
-            <RetroDialog
-                isOpen={dialog.isOpen}
-                type={dialog.type}
-                title={dialog.title}
-                message={dialog.message}
-                defaultValue={dialog.defaultValue}
-                onConfirm={dialog.onConfirm}
-                onCancel={dialog.onCancel}
-                onClose={closeDialog}
-            />
+            <Suspense fallback={null}>
+                <ContextMenu
+                    visible={contextMenu.visible}
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    files={contextMenu.files}
+                    onClose={closeContextMenu}
+                    onCopy={handleContextCopy}
+                    onCut={handleContextCut}
+                    onRename={handleContextRename}
+                    onHide={handleContextHide}
+                    onPermanentDelete={handlePermanentDelete}
+                />
+                
+                <EmptySpaceContextMenu
+                    visible={emptySpaceContextMenu.visible}
+                    x={emptySpaceContextMenu.x}
+                    y={emptySpaceContextMenu.y}
+                    onClose={closeEmptySpaceContextMenu}
+                    onOpenPowerShell={handleOpenPowerShell}
+                    onCreateFolder={handleCreateFolder}
+                />
+                
+                <RetroDialog
+                    isOpen={dialog.isOpen}
+                    type={dialog.type}
+                    title={dialog.title}
+                    message={dialog.message}
+                    defaultValue={dialog.defaultValue}
+                    onConfirm={dialog.onConfirm}
+                    onCancel={dialog.onCancel}
+                    onClose={closeDialog}
+                />
+            </Suspense>
             
             <Suspense fallback={null}>
                 <InspectMenu

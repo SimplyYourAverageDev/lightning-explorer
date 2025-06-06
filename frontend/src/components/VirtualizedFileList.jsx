@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from "preact/hooks";
-import { memo } from "preact/compat";
+import { memo, lazy, Suspense } from "preact/compat";
 import { FileItem } from "./FileItem";
-import { InlineFolderEditor } from "./InlineFolderEditor";
 import { rafThrottle } from "../utils/debounce";
 import { log } from "../utils/logger";
 import { 
@@ -10,6 +9,9 @@ import {
     FLEX_COLUMN_STYLE,
     FLEX_CENTER_STYLE
 } from "../utils/styleConstants";
+
+// Lazy load the inline editor as it's not always visible
+const InlineFolderEditor = lazy(() => import('./InlineFolderEditor').then(m => ({ default: m.InlineFolderEditor })));
 
 // Virtual scrolling configuration - Fixed height calculations
 const ITEM_HEIGHT = 88; // Updated: 3.5rem min-height (56px) + 2rem padding (32px) = 88px total
@@ -153,13 +155,15 @@ const VirtualizedFileList = memo(({
                         height: ITEM_HEIGHT,
                         zIndex: 10
                     }}>
-                        <InlineFolderEditor
-                            tempFolderName={tempFolderName}
-                            editInputRef={editInputRef}
-                            onKeyDown={onFolderKeyDown}
-                            onChange={onFolderInputChange}
-                            onBlur={onFolderInputBlur}
-                        />
+                        <Suspense fallback={null}>
+                            <InlineFolderEditor
+                                tempFolderName={tempFolderName}
+                                editInputRef={editInputRef}
+                                onKeyDown={onFolderKeyDown}
+                                onChange={onFolderInputChange}
+                                onBlur={onFolderInputBlur}
+                            />
+                        </Suspense>
                     </div>
                 )}
                 

@@ -4,10 +4,12 @@ import { lazy } from "preact/compat";
 export { Breadcrumb } from './Breadcrumb';
 export { Sidebar } from './Sidebar';
 export { FileItem } from './FileItem';
-export { ContextMenu } from './ContextMenu';
-export { EmptySpaceContextMenu } from './EmptySpaceContextMenu';
-export { RetroDialog } from './RetroDialog';
-export { InlineFolderEditor } from './InlineFolderEditor';
+
+// Components that are not immediately visible are lazy-loaded
+export const ContextMenu = lazy(() => import('./ContextMenu').then(m => ({ default: m.ContextMenu })));
+export const EmptySpaceContextMenu = lazy(() => import('./EmptySpaceContextMenu').then(m => ({ default: m.EmptySpaceContextMenu })));
+export const RetroDialog = lazy(() => import('./RetroDialog').then(m => ({ default: m.RetroDialog })));
+export const InlineFolderEditor = lazy(() => import('./InlineFolderEditor').then(m => ({ default: m.InlineFolderEditor })));
 
 // VirtualizedFileList is critical for large directories - bundle synchronously for better performance
 export { VirtualizedFileList } from './VirtualizedFileList';
