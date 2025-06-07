@@ -199,6 +199,11 @@ func (a *App) ExecuteCommand(command string, workingDir string) bool {
 	return err == nil
 }
 
+// CopyFilePathsToClipboard places the given absolute file paths on the OS clipboard
+func (a *App) CopyFilePathsToClipboard(paths []string) bool {
+	return a.platform.SetClipboardFilePaths(paths)
+}
+
 // HealthCheck returns application health status
 func (a *App) HealthCheck() map[string]interface{} {
 	return map[string]interface{}{

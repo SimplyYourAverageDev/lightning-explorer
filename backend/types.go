@@ -85,6 +85,8 @@ type PlatformManagerInterface interface {
 	IsHiddenWindowsNative(filePath string) bool
 	HideFileWindowsNative(filePath string) bool
 	GetCurrentUserSIDNative() (string, error)
+	// Copies absolute file paths into the OS clipboard (CF_HDROP)
+	SetClipboardFilePaths(paths []string) bool
 }
 
 // DriveManagerInterface defines drive management contract

@@ -19,8 +19,7 @@ var (
 	shell32 = syscall.NewLazyDLL("shell32.dll")
 
 	// Shell32 procedures for enhanced file operations
-	shFileOperationW        = shell32.NewProc("SHFileOperationW")
-	shGetSpecialFolderPathW = shell32.NewProc("SHGetSpecialFolderPathW")
+	shFileOperationW = shell32.NewProc("SHFileOperationW")
 )
 
 // Windows constants for file operations

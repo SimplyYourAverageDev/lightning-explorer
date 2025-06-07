@@ -20,3 +20,8 @@ func (p *PlatformManager) HideFileWindowsNative(filePath string) bool {
 func (p *PlatformManager) GetCurrentUserSIDNative() (string, error) {
 	return "", fmt.Errorf("native SID retrieval only available on Windows")
 }
+
+// No CF_HDROP clipboard on non-Windows
+func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
+	return false
+}

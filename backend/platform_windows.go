@@ -14,6 +14,8 @@ import (
 var (
 	kernel32 = syscall.NewLazyDLL("kernel32.dll")
 	advapi32 = syscall.NewLazyDLL("advapi32.dll")
+	// user32.dll for clipboard
+	user32 = syscall.NewLazyDLL("user32.dll")
 
 	// Kernel32 procedures
 	getLogicalDriveStringsW = kernel32.NewProc("GetLogicalDriveStringsW")
@@ -22,13 +24,22 @@ var (
 	getFileAttributesW      = kernel32.NewProc("GetFileAttributesW")
 	setFileAttributesW      = kernel32.NewProc("SetFileAttributesW")
 	getCurrentProcess       = kernel32.NewProc("GetCurrentProcess")
+	// global alloc / lock / unlock in kernel32
+	globalAlloc  = kernel32.NewProc("GlobalAlloc")
+	globalLock   = kernel32.NewProc("GlobalLock")
+	globalUnlock = kernel32.NewProc("GlobalUnlock")
 
 	// Advapi32 procedures
 	openProcessToken       = advapi32.NewProc("OpenProcessToken")
 	getTokenInformation    = advapi32.NewProc("GetTokenInformation")
-	lookupAccountSidW      = advapi32.NewProc("LookupAccountSidW")
 	convertSidToStringSidW = advapi32.NewProc("ConvertSidToStringSidW")
 	localFree              = kernel32.NewProc("LocalFree")
+
+	// User32 procedures for clipboard
+	openClipboard    = user32.NewProc("OpenClipboard")
+	emptyClipboard   = user32.NewProc("EmptyClipboard")
+	setClipboardData = user32.NewProc("SetClipboardData")
+	closeClipboard   = user32.NewProc("CloseClipboard")
 )
 
 // Windows constants
@@ -41,7 +52,20 @@ const (
 	TokenUser   = 1
 
 	INVALID_FILE_ATTRIBUTES = 0xFFFFFFFF
+
+	// Clipboard constants
+	CF_HDROP      = 15
+	GMEM_MOVEABLE = 0x0002
 )
+
+// dropfiles + POINT structures for CF_HDROP
+type point struct{ X, Y int32 }
+type dropfiles struct {
+	PFiles uint32 // offset of file list
+	Pt     point
+	FNC    uint32
+	FWide  uint32
+}
 
 // GetSystemRootsWindows uses GetLogicalDriveStringsW for faster drive enumeration.
 func (p *PlatformManager) GetSystemRootsWindows() []string {
@@ -138,7 +162,7 @@ func (p *PlatformManager) getVolumeLabel(drivePath string) string {
 	volumeNameSize := uint32(len(volumeNameBuffer))
 
 	// Call GetVolumeInformationW
-	ret, _, err := getVolumeInformationW.Call(
+	ret, _, _ := getVolumeInformationW.Call(
 		uintptr(unsafe.Pointer(drivePathPtr)),
 		uintptr(unsafe.Pointer(&volumeNameBuffer[0])),
 		uintptr(volumeNameSize),
@@ -231,7 +255,7 @@ func (p *PlatformManager) GetCurrentUserSIDNative() (string, error) {
 
 	// Get token information size
 	var tokenUserSize uint32
-	ret, _, _ = getTokenInformation.Call(
+	_, _, _ = getTokenInformation.Call(
 		uintptr(tokenHandle),
 		TokenUser,
 		0,
@@ -261,8 +285,10 @@ func (p *PlatformManager) GetCurrentUserSIDNative() (string, error) {
 	// TOKEN_USER structure: first 8 bytes is SID pointer (on 64-bit) or 4 bytes (on 32-bit)
 	var sidPtr uintptr
 	if unsafe.Sizeof(uintptr(0)) == 8 { // 64-bit
+		//nolint:unsafeptr // This is the correct Win32 API pattern for TOKEN_USER structure
 		sidPtr = *(*uintptr)(unsafe.Pointer(&tokenUserBuffer[0]))
 	} else { // 32-bit
+		//nolint:unsafeptr // This is the correct Win32 API pattern for TOKEN_USER structure
 		sidPtr = uintptr(*(*uint32)(unsafe.Pointer(&tokenUserBuffer[0])))
 	}
 
@@ -293,8 +319,9 @@ func (p *PlatformManager) GetCurrentUserSIDNative() (string, error) {
 
 	// Find the length of the null-terminated UTF16 string safely
 	var sidLength int
+	basePtr := uintptr(unsafe.Pointer(sidStringPtr16))
 	for i := 0; i < 1000; i++ { // Reasonable upper bound
-		if *(*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(sidStringPtr16)) + uintptr(i*2))) == 0 {
+		if *(*uint16)(unsafe.Pointer(basePtr + uintptr(i*2))) == 0 {
 			sidLength = i
 			break
 		}
@@ -305,6 +332,7 @@ func (p *PlatformManager) GetCurrentUserSIDNative() (string, error) {
 	}
 
 	// Create a safe slice of the exact length
+	//nolint:unsafeptr // This is the correct Win32 API pattern for ConvertSidToStringSidW result
 	sidSlice := (*[1000]uint16)(unsafe.Pointer(sidStringPtr16))[:sidLength:sidLength]
 	sidString := syscall.UTF16ToString(sidSlice)
 
@@ -324,4 +352,90 @@ func (p *PlatformManager) GetCurrentUserSIDNative() (string, error) {
 	}
 
 	return sidString, nil
+}
+
+// SetClipboardFilePaths places the given absolute paths on the Windows clipboard as CF_HDROP.
+func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
+	if len(paths) == 0 {
+		log.Printf("SetClipboard: No paths provided")
+		return false
+	}
+
+	log.Printf("SetClipboard: Setting %d file paths to clipboard: %v", len(paths), paths)
+
+	// 1) Open & empty clipboard
+	if r, _, err := openClipboard.Call(0); r == 0 {
+		log.Printf("SetClipboard: OpenClipboard failed: %v", err)
+		return false
+	}
+	defer closeClipboard.Call()
+	emptyClipboard.Call()
+
+	// 2) Build a single UTF-16 buffer of all paths, each '\0', ending with '\0\0'
+	var all []uint16
+	for _, f := range paths {
+		// Ensure we're using absolute paths and normalize separators
+		absPath := f
+		if !strings.HasPrefix(f, `\\`) && len(f) > 1 && f[1] != ':' {
+			// Convert relative paths to absolute if needed
+			if wd, err := syscall.Getwd(); err == nil {
+				absPath = wd + "\\" + f
+			}
+		}
+		// Convert forward slashes to backslashes for Windows
+		absPath = strings.ReplaceAll(absPath, "/", "\\")
+
+		utf, err := syscall.UTF16FromString(absPath)
+		if err != nil {
+			log.Printf("SetClipboard: Failed to convert path to UTF16: %s, error: %v", absPath, err)
+			continue
+		}
+		// syscall.UTF16FromString already includes null terminator, so append as-is
+		all = append(all, utf...)
+	}
+	// Add final double NUL at end (but syscall.UTF16FromString already added one NUL per string)
+	all = append(all, 0)
+
+	// 3) Compute total size = sizeof(dropfiles) + len(all)*2 bytes
+	headerSize := unsafe.Sizeof(dropfiles{})
+	dataSize := uintptr(len(all) * 2)
+	totalSize := headerSize + dataSize
+
+	// 4) Allocate movable global memory block
+	hMem, _, err := globalAlloc.Call(GMEM_MOVEABLE, totalSize)
+	if hMem == 0 {
+		log.Printf("SetClipboard: GlobalAlloc failed: %v", err)
+		return false
+	}
+	// Lock to get pointer
+	pMem, _, err := globalLock.Call(hMem)
+	if pMem == 0 {
+		log.Printf("SetClipboard: GlobalLock failed: %v", err)
+		return false
+	}
+	defer globalUnlock.Call(hMem)
+
+	// 5) Write DROPFILES header
+	df := dropfiles{
+		PFiles: uint32(headerSize),
+		FWide:  1, // wide (UTF-16)
+	}
+	//nolint:unsafeptr // This is the correct Win32 API pattern for CF_HDROP DROPFILES structure
+	*(*dropfiles)(unsafe.Pointer(pMem)) = df
+
+	// 6) Write the path list right after the header
+	dataPtrBase := pMem + uintptr(headerSize)
+	for i, v := range all {
+		//nolint:unsafeptr // This is the correct Win32 API pattern for CF_HDROP string data
+		*(*uint16)(unsafe.Pointer(dataPtrBase + uintptr(i*2))) = v
+	}
+
+	// 7) Place onto clipboard
+	if r, _, err := setClipboardData.Call(CF_HDROP, hMem); r == 0 {
+		log.Printf("SetClipboard: SetClipboardData failed: %v", err)
+		return false
+	}
+	// NOTE: ownership of hMem is transferred to the system; do NOT free it.
+	log.Printf("SetClipboard: Successfully set %d file paths to Windows clipboard", len(paths))
+	return true
 }

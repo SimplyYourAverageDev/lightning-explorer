@@ -134,19 +134,3 @@ func generatePermissionsString(attr uint32, isDir bool) string {
 
 	return strings.Join(perms, "")
 }
-
-// listDirectoryBasic - legacy function for compatibility, now uses enhanced version internally
-func listDirectoryBasic(dir string) ([]BasicEntry, error) {
-	enhancedEntries, err := listDirectoryBasicEnhanced(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert enhanced entries to basic entries for backward compatibility
-	basicEntries := make([]BasicEntry, len(enhancedEntries))
-	for i, entry := range enhancedEntries {
-		basicEntries[i] = entry.BasicEntry
-	}
-
-	return basicEntries, nil
-}

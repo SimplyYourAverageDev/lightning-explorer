@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -203,99 +202,6 @@ func (fs *FileSystemManager) hydrateRemainingEntriesEnhanced(basePath string, en
 	}
 
 	log.Printf("✅ Enhanced background hydration completed for %s with %d batches", basePath, (len(entries)+batchSize-1)/batchSize)
-}
-
-// processEntriesSync processes directory entries synchronously with optimizations
-func (fs *FileSystemManager) processEntriesSync(path string, entries []os.DirEntry, files, directories []FileInfo) ([]FileInfo, []FileInfo) {
-	for _, entry := range entries {
-		// Skip processing certain system files early for performance
-		name := entry.Name()
-		if fs.shouldSkipFile(name) {
-			continue
-		}
-
-		fileInfo := fs.CreateFileInfoOptimized(path, name, entry)
-
-		if fileInfo.IsDir {
-			directories = append(directories, fileInfo)
-		} else {
-			files = append(files, fileInfo)
-		}
-	}
-	return files, directories
-}
-
-// processEntriesConcurrent processes directory entries concurrently with worker pool (legacy - not used with Windows enhanced listing)
-func (fs *FileSystemManager) processEntriesConcurrent(path string, entries []os.DirEntry) ([]FileInfo, []FileInfo) {
-	// Optimized worker pool size based on entry count and CPU cores
-	numWorkers := 6 // Sweet spot for most systems
-	if len(entries) < 200 {
-		numWorkers = 3
-	}
-
-	type workItem struct {
-		entry os.DirEntry
-		index int
-	}
-
-	type result struct {
-		fileInfo FileInfo
-		isDir    bool
-		index    int
-	}
-
-	entryChan := make(chan workItem, len(entries))
-	resultChan := make(chan result, len(entries))
-
-	// Start worker goroutines
-	var wg sync.WaitGroup
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for item := range entryChan {
-				// Skip certain files early
-				if fs.shouldSkipFile(item.entry.Name()) {
-					continue
-				}
-
-				fileInfo := fs.CreateFileInfoOptimized(path, item.entry.Name(), item.entry)
-				resultChan <- result{
-					fileInfo: fileInfo,
-					isDir:    fileInfo.IsDir,
-					index:    item.index,
-				}
-			}
-		}()
-	}
-
-	// Send work items
-	go func() {
-		defer close(entryChan)
-		for i, entry := range entries {
-			entryChan <- workItem{entry: entry, index: i}
-		}
-	}()
-
-	// Close result channel when all workers are done
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
-
-	// Collect results
-	files := make([]FileInfo, 0, len(entries)/2)
-	directories := make([]FileInfo, 0, len(entries)/2)
-
-	for res := range resultChan {
-		if res.isDir {
-			directories = append(directories, res.fileInfo)
-		} else {
-			files = append(files, res.fileInfo)
-		}
-	}
-
-	return files, directories
 }
 
 // shouldSkipFile determines if a file should be skipped for performance

@@ -37,17 +37,6 @@ func (d *DriveManager) getWindowsDrives() []DriveInfo {
 	return platformManager.GetWindowsDrivesOptimized()
 }
 
-// getWindowsDriveType gets the type of Windows drive (if possible)
-func (d *DriveManager) getWindowsDriveType(drive string) string {
-	// This is a simplified implementation
-	// In a more advanced version, you could use Windows API calls
-	// to get detailed drive information like volume labels, types, etc.
-
-	// For now, we'll just return empty string
-	// Future enhancement: Use syscalls to get actual drive type
-	return ""
-}
-
 // getMacVolumes returns macOS volume information
 func (d *DriveManager) getMacVolumes() []DriveInfo {
 	var drives []DriveInfo

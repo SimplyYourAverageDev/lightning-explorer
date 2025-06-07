@@ -1,4 +1,5 @@
 import { useState, useCallback } from "preact/hooks";
+import { CopyFilePathsToClipboard } from "../../wailsjs/go/backend/App";
 
 export const useClipboard = () => {
     const [clipboardFiles, setClipboardFiles] = useState([]);
@@ -7,16 +8,28 @@ export const useClipboard = () => {
     const handleCopy = useCallback((filePaths) => {
         setClipboardFiles(filePaths);
         setClipboardOperation('copy');
-        
-        console.log('📋 Copied to clipboard:', filePaths);
+        CopyFilePathsToClipboard(filePaths).then(success => {
+            if (!success) {
+                console.warn("⚠️ Lightning Explorer: failed to set OS clipboard with file list");
+            }
+        }).catch(err => {
+            console.warn("⚠️ Lightning Explorer: error setting OS clipboard:", err);
+        });
+        console.log('📋 Copied to internal & OS clipboard:', filePaths);
         console.log(`📄 ${filePaths.length} item${filePaths.length === 1 ? '' : 's'} copied`);
     }, []);
 
     const handleCut = useCallback((filePaths) => {
         setClipboardFiles(filePaths);
         setClipboardOperation('cut');
-        
-        console.log('✂️ Cut to clipboard:', filePaths);
+        CopyFilePathsToClipboard(filePaths).then(success => {
+            if (!success) {
+                console.warn("⚠️ Lightning Explorer: failed to set OS clipboard with file list");
+            }
+        }).catch(err => {
+            console.warn("⚠️ Lightning Explorer: error setting OS clipboard:", err);
+        });
+        console.log('✂️ Cut to internal & OS clipboard:', filePaths);
         console.log(`✂️ ${filePaths.length} item${filePaths.length === 1 ? '' : 's'} cut`);
     }, []);
 
