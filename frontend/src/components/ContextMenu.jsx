@@ -17,6 +17,50 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
             return () => document.removeEventListener('mousedown', handleClickOutside);
         }
     }, [visible, onClose]);
+
+    // Add keyboard event handling for context menu shortcuts
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            if (!visible) return;
+            
+            // Don't handle keys if user is typing in an input
+            if (event.target.matches('input, textarea')) return;
+            
+            switch (event.key.toLowerCase()) {
+                case 'c':
+                    event.preventDefault();
+                    onCopy();
+                    break;
+                case 'x':
+                    event.preventDefault();
+                    onCut();
+                    break;
+                case 'h':
+                    event.preventDefault();
+                    onHide();
+                    break;
+                case 'delete':
+                    event.preventDefault();
+                    onPermanentDelete();
+                    break;
+                case 'f2':
+                    if (files.length === 1) {
+                        event.preventDefault();
+                        onRename();
+                    }
+                    break;
+                case 'escape':
+                    event.preventDefault();
+                    onClose();
+                    break;
+            }
+        };
+
+        if (visible) {
+            document.addEventListener('keydown', handleKeyDown);
+            return () => document.removeEventListener('keydown', handleKeyDown);
+        }
+    }, [visible, onCopy, onCut, onHide, onPermanentDelete, onRename, onClose, files.length]);
     
     if (!visible) return null;
     
@@ -31,6 +75,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
                 top: y, 
                 zIndex: 1000 
             }}
+            tabIndex={-1} // Make the menu focusable for better keyboard handling
         >
             <div className="context-menu-item" onClick={onCopy}>
                 <span className="context-menu-icon">[C]</span>

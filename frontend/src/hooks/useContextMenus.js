@@ -83,7 +83,9 @@ export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, 
                 if (newName && newName !== file.name && newName.trim() !== '') {
                     fileOperations.handleRename(file.path, newName.trim());
                 }
-            }
+            },
+            null, // onCancel
+            { isFile: !file.isDir, originalName: file.name } // Extra data for selective text selection
         );
     }, [contextMenu.files, closeContextMenu, showDialog, fileOperations]);
 

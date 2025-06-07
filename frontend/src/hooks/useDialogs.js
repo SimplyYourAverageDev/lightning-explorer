@@ -8,10 +8,11 @@ export function useDialogs() {
         message: '',
         defaultValue: '',
         onConfirm: () => {},
-        onCancel: () => {}
+        onCancel: () => {},
+        metadata: null // Additional metadata for special behaviors
     });
 
-    const showDialog = useCallback((type, title, message, defaultValue = '', onConfirm = () => {}, onCancel = () => {}) => {
+    const showDialog = useCallback((type, title, message, defaultValue = '', onConfirm = () => {}, onCancel = () => {}, metadata = null) => {
         setDialog({
             isOpen: true,
             type,
@@ -25,7 +26,8 @@ export function useDialogs() {
             onCancel: () => {
                 setDialog(prev => ({ ...prev, isOpen: false }));
                 onCancel();
-            }
+            },
+            metadata
         });
     }, []);
 

@@ -120,6 +120,29 @@ export function getExtension(filename) {
     return ext;
 }
 
+/**
+ * Split filename into name and extension for rename operations
+ * Returns object with {name, extension, hasExtension}
+ * @param {string} filename - The filename to split
+ * @returns {Object} - Object with name, extension, and hasExtension properties
+ */
+export function splitFilename(filename) {
+    if (!filename) return { name: '', extension: '', hasExtension: false };
+    
+    const lastDot = filename.lastIndexOf('.');
+    
+    // If no dot found, or dot is at the beginning (hidden file), treat as no extension
+    if (lastDot <= 0) {
+        return { name: filename, extension: '', hasExtension: false };
+    }
+    
+    return {
+        name: filename.slice(0, lastDot),
+        extension: filename.slice(lastDot + 1),
+        hasExtension: true
+    };
+}
+
 // Pre-computed Sets for O(1) lookup performance (much faster than arrays)
 const imageExtensions = new Set([
     'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'tif'

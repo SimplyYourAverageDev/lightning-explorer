@@ -12,7 +12,7 @@ import {
 } from "../wailsjs/go/backend/App";
 
 // Import core utilities synchronously - needed for immediate file filtering and processing
-import { filterFiles, getFileType, getFileIcon } from "./utils/fileUtils";
+import { filterFiles, getFileType, getFileIcon, splitFilename } from "./utils/fileUtils";
 
 // Sorting utility function - inline for immediate availability
 const sortFiles = (files, sortBy, sortOrder) => {
@@ -104,14 +104,45 @@ import {
 export function App() {
     // Basic UI state
     const [error, setError] = useState('');
+    const [errorDetails, setErrorDetails] = useState(null);
+    const [errorDismissTimer, setErrorDismissTimer] = useState(null);
     const [drives, setDrives] = useState([]);
     const [showHiddenFiles, setShowHiddenFiles] = useState(false);
-    const [sortBy, setSortBy] = useState('name'); // name, size, type, modified
-    const [sortOrder, setSortOrder] = useState('asc'); // asc, desc
+    const [sortBy, setSortBy] = useState('name');
+    const [sortOrder, setSortOrder] = useState('asc');
     
     // Startup state to control when heavy operations run
     const [isAppInitialized, setIsAppInitialized] = useState(false);
     const [isDriveDataLoaded, setIsDriveDataLoaded] = useState(false);
+
+    // Enhanced error handling functions
+    const showErrorNotification = useCallback((message, details = null, autoDismiss = true) => {
+        setError(message);
+        setErrorDetails(details);
+        
+        // Clear any existing timer
+        if (errorDismissTimer) {
+            clearTimeout(errorDismissTimer);
+        }
+        
+        // Auto-dismiss after 8 seconds for non-critical errors
+        if (autoDismiss && !details) {
+            const timer = setTimeout(() => {
+                setError('');
+                setErrorDetails(null);
+            }, 8000);
+            setErrorDismissTimer(timer);
+        }
+    }, [errorDismissTimer]);
+
+    const dismissErrorNotification = useCallback(() => {
+        if (errorDismissTimer) {
+            clearTimeout(errorDismissTimer);
+            setErrorDismissTimer(null);
+        }
+        setError('');
+        setErrorDetails(null);
+    }, [errorDismissTimer]);
 
     // Custom hooks
     const { navigationStats, setNavigationStats } = usePerformanceMonitoring();
@@ -134,7 +165,7 @@ export function App() {
         navigateToPath,
         handleNavigateUp,
         handleRefresh
-    } = useNavigation(setError, setNavigationStats);
+    } = useNavigation(showErrorNotification, setNavigationStats);
 
     const { dialog, showDialog, closeDialog } = useDialogs();
 
@@ -158,7 +189,7 @@ export function App() {
     // Initialize file operations hook
     const fileOperations = useFileOperations(
         currentPath, 
-        setError, 
+        showErrorNotification, 
         clearSelection, 
         () => navigateToPath(currentPath), 
         showDialog
@@ -175,7 +206,7 @@ export function App() {
         handleKeyDown,
         handleInputChange,
         handleInputBlur
-    } = useFolderCreation(currentPath, handleRefresh, setError);
+    } = useFolderCreation(currentPath, handleRefresh, showErrorNotification);
 
     // Computed values - use synchronously imported file utils for immediate availability
     const filteredDirectories = useMemo(() => {
@@ -235,7 +266,7 @@ export function App() {
         currentPath,
         selectedFiles,
         allFiles,
-        setError,
+        showErrorNotification,
         clearSelection,
         handleRefresh
     );
@@ -297,16 +328,40 @@ export function App() {
             }
             
             if (!success) {
-                setError('Paste operation failed');
+                showErrorNotification('Paste operation failed');
             } else {
                 // Refresh the directory to show the pasted files immediately
                 handleRefresh();
             }
         } catch (err) {
             error('❌ Error during paste operation:', err);
-            setError('Failed to paste files: ' + err.message);
+            showErrorNotification('Failed to paste files', err.message);
         }
     }, [isPasteAvailable, currentPath, clipboardFiles, clipboardOperation, fileOperations, clearClipboard]);
+
+    // Rename handler for keyboard shortcut
+    const handleRenameSelected = useCallback(() => {
+        if (selectedFiles.size !== 1) return;
+        
+        const selectedIndex = Array.from(selectedFiles)[0];
+        const file = allFiles[selectedIndex];
+        
+        if (!file) return;
+        
+        showDialog(
+            'prompt',
+            'RENAME FILE',
+            `RENAME "${file.name}" TO:`,
+            file.name,
+            (newName) => {
+                if (newName && newName !== file.name && newName.trim() !== '') {
+                    fileOperations.handleRename(file.path, newName.trim());
+                }
+            },
+            null, // onCancel
+            { isFile: !file.isDir, originalName: file.name } // Extra data for selective text selection
+        );
+    }, [selectedFiles, allFiles, showDialog, fileOperations]);
 
     // Keyboard shortcuts
     useKeyboardShortcuts({
@@ -323,7 +378,8 @@ export function App() {
         handleArrowNavigation,
         clearSelection,
         closeContextMenu,
-        closeEmptySpaceContextMenu
+        closeEmptySpaceContextMenu,
+        handleRename: handleRenameSelected
     });
 
     // Initialize the application
@@ -350,13 +406,14 @@ export function App() {
             return driveList;
         } catch (err) {
             error('❌ Failed to load drive information:', err);
+            showErrorNotification('Failed to load drive information', err.message);
             return [];
         }
     }, [isDriveDataLoaded, drives]);
 
     const initializeApp = async () => {
         try {
-            setError('');
+            dismissErrorNotification();
             
             const homeDir = await GetHomeDirectory();
             
@@ -364,11 +421,11 @@ export function App() {
                 await navigateToPath(homeDir, 'init');
                 setIsAppInitialized(true);
             } else {
-                setError('Unable to determine starting directory');
+                showErrorNotification('Unable to determine starting directory', null, false);
             }
         } catch (err) {
             error('❌ Error initializing app:', err);
-            setError('Failed to initialize file explorer: ' + err.message);
+            showErrorNotification('Failed to initialize file explorer', err.message, false);
         }
     };
 
@@ -437,21 +494,48 @@ export function App() {
                         <span className="text-technical" style={PERFORMANCE_INDICATOR_STYLE}>
                             {navigationStats.lastNavigationTime === 0 ? 
                                 'Measuring...' : 
-                                `${Math.round(navigationStats.lastNavigationTime)}ms fresh data`
+                                `${Math.round(navigationStats.lastNavigationTime)}ms load time`
                             }
-                            {` (${navigationStats.totalNavigations} real-time loads)`}
                         </span>
                     )}
                 </div>
             </header>
             
-            {/* Error display */}
+            {/* Modern Error Notification System */}
             {error && (
-                <div className="error-message">
-                    <strong>⚠️ Error:</strong> {error}
-                    <button onClick={() => setError('')} style={ERROR_DISMISS_BUTTON_STYLE}>
-                        Dismiss
-                    </button>
+                <div className={`error-notification ${errorDetails ? 'has-details' : ''}`}>
+                    <div className="error-notification-content">
+                        <div className="error-notification-header">
+                            <div className="error-notification-icon">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M10 2L18 17H2L10 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                                    <path d="M10 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                    <circle cx="10" cy="14" r="1" fill="currentColor"/>
+                                </svg>
+                            </div>
+                            <div className="error-notification-text">
+                                <div className="error-notification-title">System Notification</div>
+                                <div className="error-notification-message">{error}</div>
+                            </div>
+                            <button 
+                                className="error-notification-dismiss" 
+                                onClick={dismissErrorNotification}
+                                aria-label="Dismiss notification"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                        {errorDetails && (
+                            <div className="error-notification-details">
+                                <div className="error-notification-details-content">
+                                    {typeof errorDetails === 'string' ? errorDetails : JSON.stringify(errorDetails, null, 2)}
+                                </div>
+                            </div>
+                        )}
+                        <div className="error-notification-progress"></div>
+                    </div>
                 </div>
             )}
             
@@ -680,6 +764,7 @@ export function App() {
                     onConfirm={dialog.onConfirm}
                     onCancel={dialog.onCancel}
                     onClose={closeDialog}
+                    metadata={dialog.metadata}
                 />
             </Suspense>
             

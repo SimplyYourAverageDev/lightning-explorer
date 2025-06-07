@@ -15,7 +15,8 @@ export function useKeyboardShortcuts({
     handleArrowNavigation,
     clearSelection,
     closeContextMenu,
-    closeEmptySpaceContextMenu
+    closeEmptySpaceContextMenu,
+    handleRename
 }) {
     // Optimized keyboard shortcuts
     const keyboardHandler = useMemo(
@@ -23,6 +24,12 @@ export function useKeyboardShortcuts({
             if (event.key === 'F5') {
                 event.preventDefault();
                 handleRefresh();
+            } else if (event.key === 'F2' && selectedFiles.size === 1 && !event.target.matches('input, textarea')) {
+                event.preventDefault();
+                // Trigger rename for the selected file
+                if (handleRename) {
+                    handleRename();
+                }
             } else if (event.key === 'Backspace' && !event.target.matches('input, textarea')) {
                 event.preventDefault();
                 handleNavigateUp();
@@ -68,7 +75,8 @@ export function useKeyboardShortcuts({
             handleArrowNavigation, 
             clearSelection, 
             closeContextMenu, 
-            closeEmptySpaceContextMenu
+            closeEmptySpaceContextMenu,
+            handleRename
         ]
     );
 

@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "preact/hooks";
 import { memo } from "preact/compat";
+import { splitFilename } from "../utils/fileUtils";
 
 // Memoized 8-bit Dialog Component
-const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfirm, onCancel, onClose }) => {
+const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfirm, onCancel, onClose, metadata }) => {
     const [inputValue, setInputValue] = useState(defaultValue || '');
     const inputRef = useRef(null);
     
@@ -13,9 +14,26 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
     useEffect(() => {
         if (isOpen && type === 'prompt' && inputRef.current) {
             inputRef.current.focus();
-            inputRef.current.select();
+            
+            // Handle selective text selection for file rename operations
+            if (metadata && metadata.isFile && metadata.originalName) {
+                const { name, hasExtension } = splitFilename(metadata.originalName);
+                
+                if (hasExtension && name.length > 0) {
+                    // Select only the filename part (before extension)
+                    setTimeout(() => {
+                        inputRef.current.setSelectionRange(0, name.length);
+                    }, 0);
+                } else {
+                    // No extension or hidden file, select all
+                    inputRef.current.select();
+                }
+            } else {
+                // For folders or other dialogs, select all text
+                inputRef.current.select();
+            }
         }
-    }, [isOpen, type]);
+    }, [isOpen, type, metadata]);
     
     useEffect(() => {
         const handleKeyDown = (e) => {

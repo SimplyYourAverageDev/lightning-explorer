@@ -7,4 +7,4 @@ wails build `
   -tags prod `
   -ldflags="-s -w -buildid=" `
   -trimpath `
-  -o dist\lightning_explorer.exe 
+  -o lightning_explorer.exe 

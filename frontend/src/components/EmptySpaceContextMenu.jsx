@@ -17,6 +17,37 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
             return () => document.removeEventListener('mousedown', handleClickOutside);
         }
     }, [visible, onClose]);
+
+    // Add keyboard event handling for empty space context menu shortcuts
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            if (!visible) return;
+            
+            // Don't handle keys if user is typing in an input
+            if (event.target.matches('input, textarea')) return;
+            
+            switch (event.key.toLowerCase()) {
+                case '+':
+                case '=': // Plus key without shift
+                    event.preventDefault();
+                    onCreateFolder();
+                    break;
+                case 'p':
+                    event.preventDefault();
+                    onOpenPowerShell();
+                    break;
+                case 'escape':
+                    event.preventDefault();
+                    onClose();
+                    break;
+            }
+        };
+
+        if (visible) {
+            document.addEventListener('keydown', handleKeyDown);
+            return () => document.removeEventListener('keydown', handleKeyDown);
+        }
+    }, [visible, onCreateFolder, onOpenPowerShell, onClose]);
     
     if (!visible) return null;
     
@@ -31,6 +62,7 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
                 top: y, 
                 zIndex: 1000 
             }}
+            tabIndex={-1} // Make the menu focusable for better keyboard handling
         >
             <div className="context-menu-item" onClick={onCreateFolder}>
                 <span className="context-menu-icon">[+]</span>
@@ -38,7 +70,7 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
             </div>
             <div className="context-menu-separator"></div>
             <div className="context-menu-item" onClick={onOpenPowerShell}>
-                <span className="context-menu-icon">[{'>'}_]</span>
+                <span className="context-menu-icon">[P]</span>
                 <span className="context-menu-text">Open PowerShell 7 Here</span>
             </div>
         </div>
