@@ -5,14 +5,15 @@ import preact from '@preact/preset-vite'
 export default defineConfig({
   plugins: [preact()],
   build: {
+    target: 'es2022',
+    cssCodeSplit: true,
+    brotliSize: false,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('@msgpack/msgpack')) return 'vendor-msgpack';
-            if (id.includes('preact')) return 'vendor-preact';
-            return 'vendor-other';
-          }
+          if (id.includes('node_modules/preact')) return 'vendor-preact';
+          if (id.includes('node_modules/@msgpack/msgpack')) return 'vendor-msgpack';
+          if (id.includes('node_modules')) return 'vendor';
         }
       }
     }

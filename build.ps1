@@ -1,3 +1,10 @@
-# Simple optimized build using wails build  
+# —— Mini‐profile release build ——
 Write-Host "🚀 Building Lightning Explorer with optimizations using Wails..." -ForegroundColor Green
-wails build -ldflags="-s -w" -trimpath 
+$env:GOOS = "windows"
+$env:GOARCH = "amd64"
+$env:CGO_ENABLED = "0"
+wails build `
+  -tags prod `
+  -ldflags="-s -w -buildid=" `
+  -trimpath `
+  -o dist\lightning_explorer.exe 

@@ -2,7 +2,6 @@ package backend
 
 import (
 	"context"
-	"log"
 )
 
 // NewApp creates a new App application struct - simplified
@@ -11,8 +10,7 @@ func NewApp() *App {
 		filesystem: NewFileSystemManager(NewPlatformManager()),
 		fileOps:    NewFileOperationsManager(NewPlatformManager()),
 		platform:   NewPlatformManager(),
-		drives:     NewDriveManager(),
-		terminal:   NewTerminalManager(),
+		// drives & terminal are expensive; initialize on first use
 	}
 }
 
@@ -25,7 +23,7 @@ func (a *App) Startup(ctx context.Context) {
 		fsManager.SetContext(ctx)
 	}
 
-	log.Println("🚀 Lightning Explorer backend started")
+	logPrintln("🚀 Lightning Explorer backend started")
 }
 
 // Core API Methods - simplified, no duplicates
@@ -59,7 +57,7 @@ func (a *App) ListDirectory(path string) NavigationResponse {
 func (a *App) GetFileDetails(filePath string) FileInfo {
 	fileInfo, err := a.filesystem.GetFileInfo(filePath)
 	if err != nil {
-		log.Printf("Error getting file details: %v", err)
+		logPrintf("Error getting file details: %v", err)
 		return FileInfo{}
 	}
 	return fileInfo
@@ -129,6 +127,9 @@ func (a *App) DeletePath(path string) NavigationResponse {
 
 // GetDriveInfo returns information about system drives
 func (a *App) GetDriveInfo() []DriveInfo {
+	a.drivesOnce.Do(func() {
+		a.drives = NewDriveManager()
+	})
 	return a.drives.GetDriveInfo()
 }
 
@@ -136,6 +137,9 @@ func (a *App) GetDriveInfo() []DriveInfo {
 
 // OpenPowerShellHere opens PowerShell in the specified directory
 func (a *App) OpenPowerShellHere(directoryPath string) bool {
+	a.terminalOnce.Do(func() {
+		a.terminal = NewTerminalManager()
+	})
 	return a.terminal.OpenPowerShellHere(directoryPath)
 }
 
@@ -148,16 +152,25 @@ func (a *App) FormatFileSize(size int64) string {
 
 // GetQuickAccessPaths returns commonly accessed directories
 func (a *App) GetQuickAccessPaths() []DriveInfo {
+	a.drivesOnce.Do(func() {
+		a.drives = NewDriveManager()
+	})
 	return a.drives.GetQuickAccessPaths()
 }
 
 // OpenTerminalHere opens the system's default terminal in the specified directory
 func (a *App) OpenTerminalHere(directoryPath string) bool {
+	a.terminalOnce.Do(func() {
+		a.terminal = NewTerminalManager()
+	})
 	return a.terminal.OpenTerminalHere(directoryPath)
 }
 
 // GetAvailableTerminals returns a list of available terminal applications
 func (a *App) GetAvailableTerminals() []string {
+	a.terminalOnce.Do(func() {
+		a.terminal = NewTerminalManager()
+	})
 	return a.terminal.GetAvailableTerminals()
 }
 
@@ -179,6 +192,9 @@ func (a *App) IsHidden(path string) bool {
 
 // ExecuteCommand executes a command in the specified working directory
 func (a *App) ExecuteCommand(command string, workingDir string) bool {
+	a.terminalOnce.Do(func() {
+		a.terminal = NewTerminalManager()
+	})
 	err := a.terminal.ExecuteCommand(command, workingDir)
 	return err == nil
 }

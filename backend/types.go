@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"sync"
 	"time"
 )
 
@@ -108,6 +109,9 @@ type App struct {
 	platform   PlatformManagerInterface
 	drives     DriveManagerInterface
 	terminal   TerminalManagerInterface
+	// Lazy initialization sync.Once fields
+	drivesOnce   sync.Once
+	terminalOnce sync.Once
 }
 
 // FileSystemManager implementation

@@ -1,5 +1,6 @@
 // Production-optimized logger utility with zero overhead in production
-const debug = process.env.NODE_ENV !== 'production';
+// In production this is ALWAYS false so all log(...) calls drop out
+const debug = false;
 
 // In production, these become no-op functions that get optimized away by bundlers
 export const log = debug ? (...args) => console.log(...args) : () => {};

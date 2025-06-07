@@ -328,19 +328,15 @@ export function App() {
 
     // Initialize the application
     useEffect(() => {
-        log('🚀 Lightning Explorer mounting');
-        
-        // Initialize app
+        // —— kick off only the minimal UI load path —— 
         initializeApp();
         
-        // Parallelize non-dependent async work using requestIdleCallback
-        if (typeof requestIdleCallback !== 'undefined') {
-            requestIdleCallback(() => {
-                // Preload rarely used components during idle time
-                import('./components/InspectMenu');
-                import('./components/PerformanceDashboard');
-            });
-        }
+        // defer rarely‐used modules to idle
+        const defer = window.requestIdleCallback || (fn => setTimeout(fn,200));
+        defer(() => {
+            import('./components/InspectMenu');
+            import('./components/PerformanceDashboard');
+        });
     }, []);
 
     // Load drives using regular API

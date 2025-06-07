@@ -7,6 +7,9 @@
     <title>lightning_explorer</title>
     <!-- Prevent favicon 404 error -->
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <!-- —— PRELOAD CRITICAL CSS —— -->
+    <link rel="preload" href="/src/style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/src/style.css"></noscript>
     <!-- Font preloading for performance -->
     <link
         rel="preload"
