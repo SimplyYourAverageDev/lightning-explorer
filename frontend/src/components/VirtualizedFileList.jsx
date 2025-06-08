@@ -167,18 +167,18 @@ const VirtualizedFileList = memo(({
                     </div>
                 )}
                 
-                {/* Render visible items - Fixed positioning to prevent overlap */}
+                {/* Render visible items - GPU-accelerated positioning */}
                 {visibleItems.map(({ file, index, top }) => (
-                    <div 
+                    <div
                         key={`${file.path}-${index}`}
                         style={{
                             position: 'absolute',
-                            top: top,
-                            left: 0,
-                            right: 0,
+                            top: 0, left: 0, right: 0,
                             height: ITEM_HEIGHT,
                             boxSizing: 'border-box',
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            // GPU-accelerate vertical positioning
+                            transform: `translateY(${top}px)`
                         }}
                     >
                         <FileItem

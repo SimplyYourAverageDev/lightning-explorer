@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -125,13 +125,8 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		}(rest)
 	}
 
-	// Sort first page for immediate display with precomputed keys
-	sort.Slice(directories, func(i, j int) bool {
-		return directories[i].Name < directories[j].Name // Already sorted by Windows API
-	})
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Name < files[j].Name // Already sorted by Windows API
-	})
+	// NOTE: Windows enhanced listing returns sorted entries. Skip redundant Go-sort:
+	// (removing sort.Slice calls saves ~O(n log n) CPU on large dirs)
 
 	// Build immediate response
 	contents := DirectoryContents{
@@ -161,14 +156,22 @@ func (fs *FileSystemManager) hydrateRemainingEntriesEnhanced(basePath string, en
 
 	const batchSize = 50 // Process 50 files at a time to reduce frontend state updates
 
+	// Pool to reuse FileInfo batches
+	var fileInfoBatchPool = sync.Pool{
+		New: func() interface{} {
+			return make([]FileInfo, 0, batchSize)
+		},
+	}
+
 	for i := 0; i < len(entries); i += batchSize {
 		end := i + batchSize
 		if end > len(entries) {
 			end = len(entries)
 		}
 
-		// Create batch of FileInfo entries
-		batch := make([]FileInfo, 0, end-i)
+		// Get a zero-len slice from pool
+		batch := fileInfoBatchPool.Get().([]FileInfo)[:0]
+
 		for j := i; j < end; j++ {
 			entry := entries[j]
 
@@ -191,6 +194,9 @@ func (fs *FileSystemManager) hydrateRemainingEntriesEnhanced(basePath string, en
 		if fs.eventEmitter != nil {
 			fs.eventEmitter.EmitDirectoryBatch(batch)
 		}
+
+		// Return slice to pool (we only pooled the backing array)
+		fileInfoBatchPool.Put(batch[:0])
 
 		// Small delay between batches to allow UI to update
 		time.Sleep(50 * time.Millisecond)
