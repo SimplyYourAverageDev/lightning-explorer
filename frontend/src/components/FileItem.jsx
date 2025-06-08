@@ -51,6 +51,9 @@ const FileItem = memo(({
 }) => {
     const icon = useMemo(() => getFileIcon(file.name, file.isDir), [file.name, file.isDir]);
     const type = useMemo(() => getFileType(file.name, file.isDir), [file.name, file.isDir]);
+    // Memoize formatted file metadata
+    const formattedDate = useMemo(() => formatDate(file.modTime), [file.modTime]);
+    const formattedSize = useMemo(() => formatFileSize(file.size), [file.size]);
     
     // Refs for click timing and debouncing
     const clickTimeoutRef = useRef(null);
@@ -268,9 +271,9 @@ const FileItem = memo(({
                         <span>DIR</span>
                     ) : (
                         <>
-                            <span className="file-size">{formatFileSize(file.size)}</span>
+                            <span className="file-size">{formattedSize}</span>
                             <span className="file-separator"> • </span>
-                            <span className="file-date">{formatDate(file.modTime)}</span>
+                            <span className="file-date">{formattedDate}</span>
                         </>
                     )}
                 </div>

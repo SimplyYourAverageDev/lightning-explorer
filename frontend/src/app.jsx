@@ -115,6 +115,9 @@ export function App() {
     const [isAppInitialized, setIsAppInitialized] = useState(false);
     const [isDriveDataLoaded, setIsDriveDataLoaded] = useState(false);
 
+    // Toggle hidden files visibility (memoized)
+    const toggleShowHiddenFiles = useCallback(() => setShowHiddenFiles(prev => !prev), []);
+
     // Enhanced error handling functions
     const showErrorNotification = useCallback((message, details = null, autoDismiss = true) => {
         setError(message);
@@ -562,7 +565,7 @@ export function App() {
                         </button>
                         <button 
                             className={`toolbar-btn ${showHiddenFiles ? 'active' : ''}`}
-                            onClick={() => setShowHiddenFiles(!showHiddenFiles)}
+                            onClick={toggleShowHiddenFiles}
                         >
                             {showHiddenFiles ? '👁️' : '🙈'} Hidden
                         </button>
