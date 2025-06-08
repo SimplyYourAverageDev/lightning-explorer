@@ -608,6 +608,11 @@ export function App() {
                         <Breadcrumb 
                             currentPath={currentPath}
                             onNavigate={(path) => navigateToPath(path, 'breadcrumb')}
+                            dragState={dragState}
+                            onDragOver={handleDragOver}
+                            onDragEnter={handleDragEnter}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
                         />
                     )}
                     

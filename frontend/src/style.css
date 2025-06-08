@@ -385,6 +385,25 @@ body {
   background: var(--zen-primary-alpha);
 }
 
+/* Breadcrumb drag and drop styles */
+.nav-segment.drop-target {
+  border: 1px dashed var(--zen-border);
+  transition: all 150ms ease;
+}
+
+.nav-segment.drag-over {
+  background: rgba(0, 255, 136, 0.15) !important;
+  border: 2px dashed rgba(0, 255, 136, 0.6) !important;
+  color: var(--zen-text-primary) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+}
+
+.nav-segment.drag-over:not(.current) {
+  background: rgba(0, 255, 136, 0.1) !important;
+  border-color: rgba(0, 255, 136, 0.4) !important;
+}
+
 .separator {
   color: var(--zen-text-tertiary);
   margin: 0 var(--zen-space-sm);
