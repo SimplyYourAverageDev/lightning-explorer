@@ -530,3 +530,77 @@ func (fs *FileSystemManager) ValidatePath(path string) error {
 
 	return nil
 }
+
+// StreamDirectory starts listing immediately and emits each FileInfo as it's discovered
+// This provides optimal performance by streaming entries as they are found
+func (fs *FileSystemManager) StreamDirectory(dir string) {
+	if dir == "" {
+		dir = fs.platform.GetHomeDirectory()
+	}
+	dir = filepath.Clean(dir)
+
+	// Emit start event with path
+	if fs.eventEmitter != nil {
+		fs.eventEmitter.EmitDirectoryStart(dir)
+	}
+
+	// Quick validation
+	info, err := os.Stat(dir)
+	if err != nil {
+		if fs.eventEmitter != nil {
+			fs.eventEmitter.EmitDirectoryError(fmt.Sprintf("Cannot access path: %v", err))
+		}
+		return
+	}
+
+	if !info.IsDir() {
+		if fs.eventEmitter != nil {
+			fs.eventEmitter.EmitDirectoryError("Path is not a directory")
+		}
+		return
+	}
+
+	// Use Windows-optimized enhanced directory listing
+	enhancedEntries, err := listDirectoryBasicEnhanced(dir)
+	if err != nil {
+		if fs.eventEmitter != nil {
+			fs.eventEmitter.EmitDirectoryError(fmt.Sprintf("Cannot read directory: %v", err))
+		}
+		return
+	}
+
+	log.Printf("🚀 Streaming %d entries for: %s", len(enhancedEntries), dir)
+
+	// Stream each entry as it's processed
+	count := 0
+	for _, entry := range enhancedEntries {
+		if fs.shouldSkipFile(entry.Name) {
+			continue
+		}
+
+		// Create FileInfo directly from enhanced entry data - no additional stat calls!
+		fileInfo := FileInfo{
+			Name:        entry.Name,
+			Path:        entry.Path,
+			IsDir:       entry.IsDir,
+			Extension:   entry.Extension,
+			IsHidden:    entry.IsHidden,
+			Size:        entry.Size,
+			ModTime:     time.Unix(entry.ModTime, 0),
+			Permissions: entry.Permissions,
+		}
+
+		// Emit each entry immediately
+		if fs.eventEmitter != nil {
+			fs.eventEmitter.EmitDirectoryEntry(fileInfo)
+		}
+		count++
+	}
+
+	// Emit completion event
+	if fs.eventEmitter != nil {
+		fs.eventEmitter.EmitDirectoryComplete(dir, count, 0) // Note: we don't separate files/dirs in streaming
+	}
+
+	log.Printf("✅ Streaming completed for %s: %d entries", dir, count)
+}

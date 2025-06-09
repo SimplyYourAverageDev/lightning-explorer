@@ -204,6 +204,13 @@ func (a *App) CopyFilePathsToClipboard(paths []string) bool {
 	return a.platform.SetClipboardFilePaths(paths)
 }
 
+// StreamDirectory starts streaming directory contents via events for optimal performance
+func (a *App) StreamDirectory(dir string) {
+	if fsManager, ok := a.filesystem.(*FileSystemManager); ok {
+		fsManager.StreamDirectory(dir)
+	}
+}
+
 // HealthCheck returns application health status
 func (a *App) HealthCheck() map[string]interface{} {
 	return map[string]interface{}{

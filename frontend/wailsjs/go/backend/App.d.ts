@@ -56,4 +56,6 @@ export function OpenTerminalHere(arg1:string):Promise<boolean>;
 
 export function RenameFile(arg1:string,arg2:string):Promise<boolean>;
 
+export function StreamDirectory(arg1:string):Promise<void>;
+
 export function ValidatePath(arg1:string):Promise<boolean>;

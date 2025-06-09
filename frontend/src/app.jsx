@@ -76,18 +76,18 @@ import {
     ContextMenu,
     EmptySpaceContextMenu,
     RetroDialog,
-    VirtualizedFileList,
     InlineFolderEditor,
     InspectMenu,
     PerformanceDashboard
 } from "./components";
+
+import { StreamingVirtualizedFileList } from "./components/StreamingVirtualizedFileList";
 
 // Import our custom hooks
 import {
     useFileOperations,
     useSelection,
     useClipboard,
-    useNavigation,
     useDialogs,
     useContextMenus,
     usePerformanceMonitoring,
@@ -97,6 +97,8 @@ import {
     useInspectMode,
     useFPSTracker
 } from "./hooks";
+
+import { useStreamingNavigation } from "./hooks/useStreamingNavigation";
 
 // File utilities are now imported synchronously at the top for immediate availability
 
@@ -168,7 +170,7 @@ export function App() {
         navigateToPath,
         handleNavigateUp,
         handleRefresh
-    } = useNavigation(showErrorNotification, setNavigationStats);
+    } = useStreamingNavigation(showErrorNotification, setNavigationStats);
 
     const { dialog, showDialog, closeDialog } = useDialogs();
 
@@ -211,22 +213,27 @@ export function App() {
         handleInputBlur
     } = useFolderCreation(currentPath, handleRefresh, showErrorNotification);
 
-    // Computed values - use synchronously imported file utils for immediate availability
-    const filteredDirectories = useMemo(() => {
+    // Computed values for streaming mode - work with the flattened files array
+    const allFiles = useMemo(() => {
         if (!directoryContents) return [];
-        const filtered = filterFiles(directoryContents.directories, showHiddenFiles);
+        
+        // Combine directories and files from directoryContents
+        const allItems = [...directoryContents.directories, ...directoryContents.files];
+        
+        // Filter and sort the combined list
+        const filtered = filterFiles(allItems, showHiddenFiles);
         return sortFiles(filtered, sortBy, sortOrder);
     }, [directoryContents, showHiddenFiles, sortBy, sortOrder]);
     
-    const filteredFiles = useMemo(() => {
-        if (!directoryContents) return [];
-        const filtered = filterFiles(directoryContents.files, showHiddenFiles);
-        return sortFiles(filtered, sortBy, sortOrder);
-    }, [directoryContents, showHiddenFiles, sortBy, sortOrder]);
+    // For backward compatibility, split allFiles back into directories and files
+    const filteredDirectories = useMemo(() => 
+        allFiles.filter(file => file.isDir), 
+        [allFiles]
+    );
     
-    const allFiles = useMemo(() => 
-        [...filteredDirectories, ...filteredFiles], 
-        [filteredDirectories, filteredFiles]
+    const filteredFiles = useMemo(() => 
+        allFiles.filter(file => !file.isDir), 
+        [allFiles]
     );
 
     // Context menus hook
@@ -665,75 +672,32 @@ export function App() {
                                     <div className="text-technical">Loading directory...</div>
                                 </div>
                             </div>
-                        ) : directoryContents ? (
-                            allFiles.length > 0 ? (
-                                // Always use virtual scrolling for better performance - now bundled synchronously
-                                <VirtualizedFileList
-                                    files={allFiles}
-                                    selectedFiles={selectedFiles}
-                                    onFileSelect={handleFileSelect}
-                                    onFileOpen={handleFileOpen}
-                                    onContextMenu={handleContextMenu}
-                                    isLoading={false} // Never show loading in file items
-                                    clipboardFiles={clipboardFiles}
-                                    clipboardOperation={clipboardOperation}
-                                    dragState={dragState}
-                                    onDragStart={handleDragStart}
-                                    onDragOver={handleDragOver}
-                                    onDragEnter={handleDragEnter}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={handleDrop}
-                                    creatingFolder={creatingFolder}
-                                    tempFolderName={tempFolderName}
-                                    editInputRef={editInputRef}
-                                    onFolderKeyDown={handleKeyDown}
-                                    onFolderInputChange={handleInputChange}
-                                    onFolderInputBlur={handleInputBlur}
-                                    onEmptySpaceContextMenu={handleEmptySpaceContextMenu}
-                                    isInspectMode={isInspectMode}
-                                />
-                            ) : (
-                                // Fallback for when there are no files or folders
-                                <div 
-                                    className="file-list custom-scrollbar"
-                                    onContextMenu={(e) => {
-                                        // Check if right-clicking on the file list itself (empty space)
-                                        if (e.target === e.currentTarget || !e.target.closest('.file-item')) {
-                                            e.preventDefault();
-                                            closeContextMenu();
-                                            closeEmptySpaceContextMenu();
-                                            handleEmptySpaceContextMenu(e);
-                                        }
-                                    }}
-                                >
-                                    {/* Show inline folder editor if creating folder */}
-                                    {creatingFolder && (
-                                        <Suspense fallback={null}>
-                                            <InlineFolderEditor
-                                                tempFolderName={tempFolderName}
-                                                editInputRef={editInputRef}
-                                                onKeyDown={handleKeyDown}
-                                                onChange={handleInputChange}
-                                                onBlur={handleInputBlur}
-                                            />
-                                        </Suspense>
-                                    )}
-                                    
-                                    {!creatingFolder && (
-                                        <div style={EMPTY_DIRECTORY_STYLE}>
-                                            <div style={LARGE_ICON_STYLE}>📁</div>
-                                            <div className="text-technical">Directory is empty</div>
-                                        </div>
-                                    )}
-                                </div>
-                            )
                         ) : (
-                            <div style={EMPTY_DIRECTORY_STYLE}>
-                                <div style={LARGE_ICON_STYLE}>📁</div>
-                                <div className="text-technical">
-                                    {isAppInitialized ? 'Loading...' : 'Ready'}
-                                </div>
-                            </div>
+                            // Use streaming virtualized file list for optimal performance
+                            <StreamingVirtualizedFileList
+                                files={allFiles}
+                                selectedFiles={selectedFiles}
+                                onFileSelect={handleFileSelect}
+                                onFileOpen={handleFileOpen}
+                                onContextMenu={handleContextMenu}
+                                loading={showLoadingIndicator}
+                                clipboardFiles={clipboardFiles}
+                                clipboardOperation={clipboardOperation}
+                                dragState={dragState}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDragEnter={handleDragEnter}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                                creatingFolder={creatingFolder}
+                                tempFolderName={tempFolderName}
+                                editInputRef={editInputRef}
+                                onFolderKeyDown={handleKeyDown}
+                                onFolderInputChange={handleInputChange}
+                                onFolderInputBlur={handleInputBlur}
+                                onEmptySpaceContextMenu={handleEmptySpaceContextMenu}
+                                isInspectMode={isInspectMode}
+                            />
                         )}
                     </div>
                 </div>

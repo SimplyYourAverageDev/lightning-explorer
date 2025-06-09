@@ -25,6 +25,29 @@ func (e *EventEmitter) EmitDirectoryHydrate(fileInfo FileInfo) {
 	}
 }
 
+// EmitDirectoryStart signals the start of directory streaming
+func (e *EventEmitter) EmitDirectoryStart(path string) {
+	if e.ctx != nil {
+		runtime.EventsEmit(e.ctx, "DirectoryStart", path)
+		log.Printf("📡 Emitted directory start for: %s", path)
+	}
+}
+
+// EmitDirectoryEntry emits a single directory entry during streaming
+func (e *EventEmitter) EmitDirectoryEntry(fileInfo FileInfo) {
+	if e.ctx != nil {
+		runtime.EventsEmit(e.ctx, "DirectoryEntry", fileInfo)
+	}
+}
+
+// EmitDirectoryError emits an error during directory operations
+func (e *EventEmitter) EmitDirectoryError(message string) {
+	if e.ctx != nil {
+		runtime.EventsEmit(e.ctx, "DirectoryError", message)
+		log.Printf("📡 Emitted directory error: %s", message)
+	}
+}
+
 // EmitDirectoryBatch emits a batch of directory entries to the frontend
 func (e *EventEmitter) EmitDirectoryBatch(entries []FileInfo) {
 	if e.ctx != nil {

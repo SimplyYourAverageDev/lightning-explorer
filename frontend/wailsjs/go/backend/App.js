@@ -110,6 +110,10 @@ export function RenameFile(arg1, arg2) {
   return window['go']['backend']['App']['RenameFile'](arg1, arg2);
 }
 
+export function StreamDirectory(arg1) {
+  return window['go']['backend']['App']['StreamDirectory'](arg1);
+}
+
 export function ValidatePath(arg1) {
   return window['go']['backend']['App']['ValidatePath'](arg1);
 }
