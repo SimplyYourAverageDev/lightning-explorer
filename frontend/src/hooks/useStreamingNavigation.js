@@ -14,6 +14,16 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     const loadingTimeout = useRef(null);
     const activeNavigationRef = useRef(null);
 
+    // Entry buffering for batched updates
+    const entryBufferRef = useRef([]);
+    const flushScheduledRef = useRef(false);
+
+    const flushBuffer = useCallback(() => {
+        setFiles(prev => [...prev, ...entryBufferRef.current]);
+        entryBufferRef.current = [];
+        flushScheduledRef.current = false;
+    }, []);
+
     // Smart loading indicator management
     const showSmartLoadingIndicator = useCallback(() => {
         if (loadingTimeout.current) {
@@ -132,12 +142,22 @@ export function useStreamingNavigation(setError, setNavigationStats) {
             const navigationContext = activeNavigationRef.current;
             if (!navigationContext || navigationContext.cancelled) return;
             
-            setFiles(prev => [...prev, fileInfo]);
+            // Buffer entries and flush in next animation frame
+            entryBufferRef.current.push(fileInfo);
+            if (!flushScheduledRef.current) {
+                flushScheduledRef.current = true;
+                requestAnimationFrame(flushBuffer);
+            }
         };
 
         const onComplete = (data) => {
             const navigationContext = activeNavigationRef.current;
             if (!navigationContext || navigationContext.cancelled) return;
+
+            // Flush any remaining buffered entries
+            if (flushScheduledRef.current) {
+                flushBuffer();
+            }
             
             const totalTime = Date.now() - navigationStartTime.current;
             
