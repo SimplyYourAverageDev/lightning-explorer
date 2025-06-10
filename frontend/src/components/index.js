@@ -16,4 +16,7 @@ export { VirtualizedFileList } from './VirtualizedFileList';
 
 // Only truly non-critical, rarely used components are lazy-loaded
 export const InspectMenu = lazy(() => import('./InspectMenu').then(m => ({ default: m.InspectMenu })));
-export const PerformanceDashboard = lazy(() => import('./PerformanceDashboard').then(m => ({ default: m.PerformanceDashboard }))); 
+export const PerformanceDashboard = lazy(() => import('./PerformanceDashboard').then(m => ({ default: m.PerformanceDashboard })));
+
+// StreamingVirtualizedFileList is large but can still be code-split; initial mount will trigger Suspense fallback briefly.
+export const StreamingVirtualizedFileList = lazy(() => import('./StreamingVirtualizedFileList').then(m => ({ default: m.StreamingVirtualizedFileList }))); 

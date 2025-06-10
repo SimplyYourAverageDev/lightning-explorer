@@ -175,25 +175,6 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
                         <div className="text-technical">Directory is empty</div>
                     </div>
                 )}
-
-                {/* Loading state */}
-                {loading && files.length === 0 && (
-                    <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--zen-text-tertiary)'
-                    }}>
-                        <div className="loading-spinner" style={{ marginBottom: '1rem' }}></div>
-                        <div className="text-technical">Loading directory...</div>
-                    </div>
-                )}
             </div>
         </div>
     );

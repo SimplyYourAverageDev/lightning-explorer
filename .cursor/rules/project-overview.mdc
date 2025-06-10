@@ -3,7 +3,7 @@ description:
 globs: 
 alwaysApply: true
 ---
-This Project is a Wails V2 Project (App) that uses Preact + Tailwind CSS to build an alternative File Explorer for Windows 11 Systems. The UI Design is modern yet also extremely zen and minimalist! \
+This Project is a Wails V2 Project (App) that uses Preact + Tailwind CSS to build an alternative File Explorer for Windows 11 Systems. The UI Design is modern yet also extremely zen and minimalist!
 
 DO NOT USE shadows and gradients in your UI DESIGN!
 

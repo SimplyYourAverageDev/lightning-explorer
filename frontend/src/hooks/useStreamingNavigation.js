@@ -20,10 +20,9 @@ export function useStreamingNavigation(setError, setNavigationStats) {
 
     // No longer needed - using native batching from backend
 
-    // Smart loading indicator management
+    // Disable loading indicator to prevent flash during navigation
     const showSmartLoadingIndicator = useCallback(() => {
-        // Show loading indicator immediately for navigation, no delay
-        setShowLoadingIndicator(true);
+        // No-op: don't show loading indicator to prevent flash
     }, []);
 
     const hideLoadingIndicator = useCallback(() => {
@@ -193,7 +192,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         setFiles([]);
         setLoading(true);
         setError('');
-        showSmartLoadingIndicator();
+        // Don't show loading indicator to prevent flash
         
         // Set measuring state
         setNavigationStats(prev => ({
@@ -222,7 +221,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
                 hideLoadingIndicator();
             }
         }
-    }, [setError, setNavigationStats, showSmartLoadingIndicator, hideLoadingIndicator, registerEventListeners]);
+    }, [setError, setNavigationStats, hideLoadingIndicator, registerEventListeners]);
 
     // Navigate up functionality
     const handleNavigateUp = useCallback(async () => {

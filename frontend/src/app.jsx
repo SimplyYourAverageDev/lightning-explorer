@@ -1,4 +1,3 @@
-import './components/FastNavigation.css';
 import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import { Suspense } from "preact/compat";
 
@@ -6,8 +5,6 @@ import { Suspense } from "preact/compat";
 import { 
     OpenInSystemExplorer,
     GetHomeDirectory,
-    NavigateToPath,
-    ListDirectory,
     GetDriveInfo
 } from "../wailsjs/go/backend/App";
 
@@ -62,11 +59,7 @@ import {
     PERFORMANCE_INDICATOR_STYLE,
     CURRENT_PATH_INDICATOR_STYLE,
     ERROR_DISMISS_BUTTON_STYLE,
-    STATUS_BAR_RIGHT_STYLE,
-    LOADING_OVERLAY_STYLE,
-    LARGE_ICON_STYLE,
-    LOADING_SPINNER_LARGE_STYLE,
-    EMPTY_DIRECTORY_STYLE
+    STATUS_BAR_RIGHT_STYLE
 } from "./utils/styleConstants";
 
 // Import our custom components
@@ -81,7 +74,7 @@ import {
     PerformanceDashboard
 } from "./components";
 
-import { StreamingVirtualizedFileList } from "./components/StreamingVirtualizedFileList";
+import { StreamingVirtualizedFileList } from "./components";
 
 // Import our custom hooks
 import {
@@ -441,6 +434,8 @@ export function App() {
         // defer rarely‐used modules to idle
         const defer = window.requestIdleCallback || (fn => setTimeout(fn,200));
         defer(() => {
+            // Defer loading of rarely-used, heavy resources to idle time
+            import('./components/FastNavigation.css'); // style sheet for fast navigation animations
             import('./components/InspectMenu');
             import('./components/PerformanceDashboard');
         });
@@ -533,7 +528,6 @@ export function App() {
                     )}
                 </div>
                 <div style={HEADER_STATS_STYLE}>
-                    {showLoadingIndicator && <div className="loading-spinner"></div>}
                     <span className="text-technical">
                         {directoryContents ? 
                             `${filteredDirectories.length} dirs • ${filteredFiles.length} files${!showHiddenFiles ? ' (hidden filtered)' : ''}${selectedFiles.size > 0 ? ` • ${selectedFiles.size} selected` : ''}` : 
@@ -706,40 +700,35 @@ export function App() {
                             }
                         }}
                     >
-                        {showLoadingIndicator ? (
-                            <div className="loading-overlay">
-                                <div style={LOADING_OVERLAY_STYLE}>
-                                    <div className="loading-spinner" style={LOADING_SPINNER_LARGE_STYLE}></div>
-                                    <div className="text-technical">Loading directory...</div>
-                                </div>
-                            </div>
-                        ) : (
-                            // Use streaming virtualized file list for optimal performance
-                            <StreamingVirtualizedFileList
-                                files={allFiles}
-                                selectedFiles={selectedFiles}
-                                onFileSelect={handleFileSelect}
-                                onFileOpen={handleFileOpen}
-                                onContextMenu={handleContextMenu}
-                                loading={loading}
-                                clipboardFiles={clipboardFiles}
-                                clipboardOperation={clipboardOperation}
-                                dragState={dragState}
-                                onDragStart={handleDragStart}
-                                onDragOver={handleDragOver}
-                                onDragEnter={handleDragEnter}
-                                onDragLeave={handleDragLeave}
-                                onDrop={handleDrop}
-                                creatingFolder={creatingFolder}
-                                tempFolderName={tempFolderName}
-                                editInputRef={editInputRef}
-                                onFolderKeyDown={handleKeyDown}
-                                onFolderInputChange={handleInputChange}
-                                onFolderInputBlur={handleInputBlur}
-                                onEmptySpaceContextMenu={handleEmptySpaceContextMenu}
-                                isInspectMode={isInspectMode}
-                            />
-                        )}
+                        {/* Use streaming virtualized file list for optimal performance with white background */}
+                        <div style={{ background: 'white', minHeight: '100%' }}>
+                            <Suspense fallback={null}>
+                                <StreamingVirtualizedFileList
+                                    files={allFiles}
+                                    selectedFiles={selectedFiles}
+                                    onFileSelect={handleFileSelect}
+                                    onFileOpen={handleFileOpen}
+                                    onContextMenu={handleContextMenu}
+                                    loading={loading}
+                                    clipboardFiles={clipboardFiles}
+                                    clipboardOperation={clipboardOperation}
+                                    dragState={dragState}
+                                    onDragStart={handleDragStart}
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={handleDragEnter}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                    creatingFolder={creatingFolder}
+                                    tempFolderName={tempFolderName}
+                                    editInputRef={editInputRef}
+                                    onFolderKeyDown={handleKeyDown}
+                                    onFolderInputChange={handleInputChange}
+                                    onFolderInputBlur={handleInputBlur}
+                                    onEmptySpaceContextMenu={handleEmptySpaceContextMenu}
+                                    isInspectMode={isInspectMode}
+                                />
+                            </Suspense>
+                        </div>
                     </div>
                 </div>
             </div>
