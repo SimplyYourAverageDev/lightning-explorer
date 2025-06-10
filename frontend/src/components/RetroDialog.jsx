@@ -11,6 +11,35 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
         setInputValue(defaultValue || '');
     }, [defaultValue]);
     
+    // Define handlers first, before they're used in useEffect
+    const handleConfirm = useCallback((e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // Small delay to ensure dialog closes before any other events process
+        setTimeout(() => {
+            if (type === 'prompt') {
+                onConfirm(inputValue);
+            } else {
+                onConfirm();
+            }
+        }, 10);
+    }, [type, inputValue, onConfirm]);
+    
+    const handleCancel = useCallback((e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // Small delay to ensure dialog closes before any other events process
+        setTimeout(() => {
+            onCancel();
+        }, 10);
+    }, [onCancel]);
+    
     useEffect(() => {
         if (isOpen && type === 'prompt' && inputRef.current) {
             inputRef.current.focus();
@@ -40,21 +69,21 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
             if (!isOpen) return;
             
             if (e.key === 'Escape') {
-                onCancel();
+                e.preventDefault();
+                e.stopPropagation();
+                handleCancel();
             } else if (e.key === 'Enter') {
-                if (type === 'prompt') {
-                    onConfirm(inputValue);
-                } else {
-                    onConfirm();
-                }
+                e.preventDefault();
+                e.stopPropagation();
+                handleConfirm();
             }
         };
         
         if (isOpen) {
-            document.addEventListener('keydown', handleKeyDown);
-            return () => document.removeEventListener('keydown', handleKeyDown);
+            document.addEventListener('keydown', handleKeyDown, true); // Use capture phase
+            return () => document.removeEventListener('keydown', handleKeyDown, true);
         }
-    }, [isOpen, type, inputValue, onConfirm, onCancel]);
+    }, [isOpen, handleConfirm, handleCancel]);
     
     const handleInputChange = useCallback((e) => {
         setInputValue(e.target.value);
@@ -70,14 +99,6 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
         }
     }, []);
     
-    const handleConfirm = useCallback(() => {
-        if (type === 'prompt') {
-            onConfirm(inputValue);
-        } else {
-            onConfirm();
-        }
-    }, [type, inputValue, onConfirm]);
-    
     if (!isOpen) return null;
     
     return (
@@ -88,7 +109,7 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
                     <div className="retro-dialog-title">{title || 'SYSTEM MESSAGE'}</div>
                     <button 
                         className="retro-dialog-close"
-                        onClick={onCancel}
+                        onClick={handleCancel}
                         title="CLOSE [ESC]"
                     >
                         ✕
@@ -138,7 +159,7 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
                             </button>
                             <button 
                                 className="retro-dialog-btn retro-dialog-btn-secondary"
-                                onClick={onCancel}
+                                onClick={handleCancel}
                             >
                                 [ESC] CANCEL
                             </button>
@@ -153,7 +174,7 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
                             </button>
                             <button 
                                 className="retro-dialog-btn retro-dialog-btn-secondary"
-                                onClick={onCancel}
+                                onClick={handleCancel}
                             >
                                 [ESC] NO
                             </button>

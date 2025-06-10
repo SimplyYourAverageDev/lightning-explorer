@@ -16,11 +16,24 @@ export function useKeyboardShortcuts({
     clearSelection,
     closeContextMenu,
     closeEmptySpaceContextMenu,
-    handleRename
+    handleRename,
+    handleDeleteToTrash,
+    handlePermanentDelete,
+    isDialogOpen
 }) {
     // Optimized keyboard shortcuts
     const keyboardHandler = useMemo(
         () => throttle((event) => {
+            // Don't process shortcuts if a dialog is open
+            if (isDialogOpen) {
+                return;
+            }
+            
+            // Don't process shortcuts if event originated from a dialog
+            if (event.target.closest('.retro-dialog') || event.target.closest('.context-menu')) {
+                return;
+            }
+            
             if (event.key === 'F5') {
                 event.preventDefault();
                 handleRefresh();
@@ -33,7 +46,20 @@ export function useKeyboardShortcuts({
             } else if (event.key === 'Backspace' && !event.target.matches('input, textarea')) {
                 event.preventDefault();
                 handleNavigateUp();
-            } else if (event.key === 'Enter' && selectedFiles.size > 0) {
+            } else if (event.key === 'Delete' && selectedFiles.size > 0 && !event.target.matches('input, textarea')) {
+                event.preventDefault();
+                if (event.shiftKey) {
+                    // Shift+Delete: Permanently delete
+                    if (handlePermanentDelete) {
+                        handlePermanentDelete();
+                    }
+                } else {
+                    // Delete: Move to trash
+                    if (handleDeleteToTrash) {
+                        handleDeleteToTrash();
+                    }
+                }
+            } else if (event.key === 'Enter' && selectedFiles.size > 0 && !event.target.matches('input, textarea')) {
                 event.preventDefault();
                 const selectedFileObjects = Array.from(selectedFiles).map(index => allFiles[index]);
                 selectedFileObjects.forEach(file => handleFileOpen(file));
@@ -76,7 +102,10 @@ export function useKeyboardShortcuts({
             clearSelection, 
             closeContextMenu, 
             closeEmptySpaceContextMenu,
-            handleRename
+            handleRename,
+            handleDeleteToTrash,
+            handlePermanentDelete,
+            isDialogOpen
         ]
     );
 

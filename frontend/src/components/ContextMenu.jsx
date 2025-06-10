@@ -2,7 +2,7 @@ import { useRef, useEffect } from "preact/hooks";
 import { memo } from "preact/compat";
 
 // Memoized Context Menu Component
-const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, onCopy, onCut, onRename, onHide }) => {
+const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, onMoveToTrash, onCopy, onCut, onRename, onHide }) => {
     const menuRef = useRef(null);
     
     useEffect(() => {
@@ -41,7 +41,13 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
                     break;
                 case 'delete':
                     event.preventDefault();
-                    onPermanentDelete();
+                    if (event.shiftKey) {
+                        // Shift+Delete: Permanent delete
+                        onPermanentDelete();
+                    } else {
+                        // Delete: Move to trash
+                        onMoveToTrash();
+                    }
                     break;
                 case 'f2':
                     if (files.length === 1) {
@@ -60,7 +66,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
             document.addEventListener('keydown', handleKeyDown);
             return () => document.removeEventListener('keydown', handleKeyDown);
         }
-    }, [visible, onCopy, onCut, onHide, onPermanentDelete, onRename, onClose, files.length]);
+    }, [visible, onCopy, onCut, onHide, onPermanentDelete, onMoveToTrash, onRename, onClose, files.length]);
     
     if (!visible) return null;
     
@@ -97,9 +103,14 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
                 <span className="context-menu-icon">[H]</span>
                 <span className="context-menu-text">Hide ({files.length})</span>
             </div>
+            <div className="context-menu-separator"></div>
+            <div className="context-menu-item" onClick={onMoveToTrash} style={{ color: 'var(--zen-text-warning, #f59e0b)' }}>
+                <span className="context-menu-icon">[Del]</span>
+                <span className="context-menu-text">Move to Trash ({files.length})</span>
+            </div>
             <div className="context-menu-item" onClick={onPermanentDelete} style={{ color: 'var(--zen-error)' }}>
-                <span className="context-menu-icon">[!]</span>
-                <span className="context-menu-text">Delete ({files.length})</span>
+                <span className="context-menu-icon">[Shift+Del]</span>
+                <span className="context-menu-text">Permanent Delete ({files.length})</span>
             </div>
         </div>
     );

@@ -103,11 +103,13 @@ export const useFileOperations = (currentPath, setError, clearSelection, handleR
     const handleRecycleBinDelete = useCallback(async (filePaths) => {
         try {
             log('🗑️ Moving files to recycle bin:', filePaths);
+            console.log('🗑️ Attempting to move files to recycle bin:', filePaths);
             
             const success = await MoveFilesToRecycleBin(filePaths);
             
             if (success) {
                 log('✅ Move to recycle bin successful');
+                console.log('✅ Successfully moved files to recycle bin');
                 clearSelection();
                 setTimeout(() => {
                     log('🔄 Refreshing directory after recycle bin operation');
@@ -115,12 +117,21 @@ export const useFileOperations = (currentPath, setError, clearSelection, handleR
                 }, 50);
                 return true;
             } else {
-                error('❌ Move to recycle bin failed');
-                setError('Failed to move files to recycle bin');
+                error('❌ Move to recycle bin failed - Backend returned false');
+                console.error('❌ Move to recycle bin failed - Backend returned false');
+                console.error('Failed file paths:', filePaths);
+                setError(`Failed to move files to recycle bin. This may be due to:
+• File paths contain invalid characters
+• Insufficient permissions (try running as administrator)
+• Files are currently in use by another application
+• Windows Recycle Bin is full or corrupted
+• Files are on a network drive or external storage`);
                 return false;
             }
         } catch (err) {
             error('❌ Error during recycle bin operation:', err);
+            console.error('❌ Exception during recycle bin operation:', err);
+            console.error('Failed file paths:', filePaths);
             setError('Failed to move files to recycle bin: ' + err.message);
             return false;
         }

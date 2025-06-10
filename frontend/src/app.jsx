@@ -167,6 +167,7 @@ export function App() {
         currentPath,
         directoryContents,
         showLoadingIndicator,
+        loading,
         navigateToPath,
         handleNavigateUp,
         handleRefresh
@@ -249,6 +250,7 @@ export function App() {
         handleContextRename,
         handleContextHide,
         handlePermanentDelete,
+        handleMoveToTrash,
         handleOpenPowerShell,
         handleCreateFolder
     } = useContextMenus(
@@ -373,6 +375,42 @@ export function App() {
         );
     }, [selectedFiles, allFiles, showDialog, fileOperations]);
 
+    // Delete to trash handler for keyboard shortcut
+    const handleDeleteToTrash = useCallback(() => {
+        if (selectedFiles.size === 0) return;
+        
+        const selectedFileObjects = Array.from(selectedFiles).map(index => allFiles[index]);
+        const filePaths = selectedFileObjects.map(file => file.path);
+        
+        showDialog(
+            'confirm',
+            'MOVE TO TRASH',
+            `Move ${filePaths.length} item${filePaths.length === 1 ? '' : 's'} to the trash?`,
+            '',
+            () => {
+                fileOperations.handleRecycleBinDelete(filePaths);
+            }
+        );
+    }, [selectedFiles, allFiles, showDialog, fileOperations]);
+
+    // Permanent delete handler for keyboard shortcut
+    const handlePermanentDeleteSelected = useCallback(() => {
+        if (selectedFiles.size === 0) return;
+        
+        const selectedFileObjects = Array.from(selectedFiles).map(index => allFiles[index]);
+        const filePaths = selectedFileObjects.map(file => file.path);
+        
+        showDialog(
+            'delete',
+            '⚠️ PERMANENT DELETE WARNING',
+            `Permanently delete ${filePaths.length} item${filePaths.length === 1 ? '' : 's'}? This cannot be undone!`,
+            '',
+            () => {
+                fileOperations.handlePermanentDelete(filePaths);
+            }
+        );
+    }, [selectedFiles, allFiles, showDialog, fileOperations]);
+
     // Keyboard shortcuts
     useKeyboardShortcuts({
         handleRefresh,
@@ -389,7 +427,10 @@ export function App() {
         clearSelection,
         closeContextMenu,
         closeEmptySpaceContextMenu,
-        handleRename: handleRenameSelected
+        handleRename: handleRenameSelected,
+        handleDeleteToTrash,
+        handlePermanentDelete: handlePermanentDeleteSelected,
+        isDialogOpen: dialog.isOpen
     });
 
     // Initialize the application
@@ -680,7 +721,7 @@ export function App() {
                                 onFileSelect={handleFileSelect}
                                 onFileOpen={handleFileOpen}
                                 onContextMenu={handleContextMenu}
-                                loading={showLoadingIndicator}
+                                loading={loading}
                                 clipboardFiles={clipboardFiles}
                                 clipboardOperation={clipboardOperation}
                                 dragState={dragState}
@@ -716,6 +757,7 @@ export function App() {
                     onRename={handleContextRename}
                     onHide={handleContextHide}
                     onPermanentDelete={handlePermanentDelete}
+                    onMoveToTrash={handleMoveToTrash}
                 />
                 
                 <EmptySpaceContextMenu

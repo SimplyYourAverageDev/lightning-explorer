@@ -13,29 +13,18 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     const navigationStartTime = useRef(null);
     const loadingTimeout = useRef(null);
     const activeNavigationRef = useRef(null);
+    
+    // Track if event listeners are registered
+    const listenersRegistered = useRef(false);
+    const eventUnsubscribers = useRef([]);
 
-    // Entry buffering for batched updates
-    const entryBufferRef = useRef([]);
-    const flushScheduledRef = useRef(false);
-
-    const flushBuffer = useCallback(() => {
-        setFiles(prev => [...prev, ...entryBufferRef.current]);
-        entryBufferRef.current = [];
-        flushScheduledRef.current = false;
-    }, []);
+    // No longer needed - using native batching from backend
 
     // Smart loading indicator management
     const showSmartLoadingIndicator = useCallback(() => {
-        if (loadingTimeout.current) {
-            clearTimeout(loadingTimeout.current);
-        }
-        
-        loadingTimeout.current = setTimeout(() => {
-            if (loading) {
-                setShowLoadingIndicator(true);
-            }
-        }, 150);
-    }, [loading]);
+        // Show loading indicator immediately for navigation, no delay
+        setShowLoadingIndicator(true);
+    }, []);
 
     const hideLoadingIndicator = useCallback(() => {
         if (loadingTimeout.current) {
@@ -45,9 +34,149 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         setShowLoadingIndicator(false);
     }, []);
 
+    // Event handlers - defined outside useEffect to avoid recreation
+    const onStart = useCallback((path) => {
+        console.log('📡 Frontend received DirectoryStart:', path);
+        const navigationContext = activeNavigationRef.current;
+        if (!navigationContext || navigationContext.cancelled) {
+            console.log('⚠️ DirectoryStart received but no active navigation context');
+            return;
+        }
+        
+        log(`📡 Directory streaming started: ${path}`);
+        setFiles([]);
+        setCurrentPath(path);
+    }, []);
+
+    const onBatch = useCallback((batchFiles) => {
+        console.log('📡 Frontend received DirectoryBatch:', batchFiles?.length, 'files');
+        const navigationContext = activeNavigationRef.current;
+        if (!navigationContext || navigationContext.cancelled) {
+            console.log('⚠️ DirectoryBatch received but no active navigation context');
+            return;
+        }
+        
+        log(`📡 Received batch of ${batchFiles.length} files`);
+        
+        // Add batch directly to files state for better performance
+        setFiles(prev => [...prev, ...batchFiles]);
+    }, []);
+
+    const onComplete = useCallback((data) => {
+        console.log('📡 Frontend received DirectoryComplete:', data);
+        const navigationContext = activeNavigationRef.current;
+        if (!navigationContext || navigationContext.cancelled) return;
+        
+        const totalTime = Date.now() - navigationStartTime.current;
+        const totalEntries = (data.totalFiles || 0) + (data.totalDirs || 0);
+        
+        log(`✅ Directory streaming completed: ${data.path} (${totalEntries} entries in ${totalTime}ms)`);
+        
+        setLoading(false);
+        hideLoadingIndicator();
+        
+        // Update performance stats
+        setNavigationStats(prev => ({
+            totalNavigations: prev.totalNavigations + 1,
+            averageTime: (prev.averageTime * prev.totalNavigations + totalTime) / (prev.totalNavigations + 1),
+            lastNavigationTime: totalTime
+        }));
+        
+        // Clear active navigation
+        if (activeNavigationRef.current === navigationContext) {
+            activeNavigationRef.current = null;
+        }
+    }, [hideLoadingIndicator, setNavigationStats]);
+
+    const onError = useCallback((message) => {
+        console.log('📡 Frontend received DirectoryError:', message);
+        const navigationContext = activeNavigationRef.current;
+        if (!navigationContext || navigationContext.cancelled) return;
+        
+        error('❌ Directory streaming error:', message);
+        setError(message);
+        setLoading(false);
+        hideLoadingIndicator();
+        
+        if (activeNavigationRef.current === navigationContext) {
+            activeNavigationRef.current = null;
+        }
+    }, [setError, hideLoadingIndicator]);
+
+    // Register event listeners immediately when hook loads
+    const registerEventListeners = useCallback(() => {
+        if (listenersRegistered.current) {
+            console.log('🔧 Event listeners already registered, skipping...');
+            return;
+        }
+
+        try {
+            console.log('🔧 useStreamingNavigation: Registering event listeners...');
+            
+            const unsubDirectoryStart = EventsOn('DirectoryStart', onStart);
+            const unsubDirectoryBatch = EventsOn('DirectoryBatch', onBatch);
+            const unsubDirectoryComplete = EventsOn('DirectoryComplete', onComplete);
+            const unsubDirectoryError = EventsOn('DirectoryError', onError);
+            
+            // Store unsubscribers
+            eventUnsubscribers.current = [
+                unsubDirectoryStart,
+                unsubDirectoryBatch, 
+                unsubDirectoryComplete,
+                unsubDirectoryError
+            ];
+            
+            listenersRegistered.current = true;
+            console.log('🔧 useStreamingNavigation: Event listeners registered successfully!');
+        } catch (err) {
+            console.error('❌ Failed to register event listeners:', err);
+            error('Failed to register event listeners:', err);
+        }
+    }, [onStart, onBatch, onComplete, onError]);
+
+    // Cleanup event listeners
+    const cleanupEventListeners = useCallback(() => {
+        if (!listenersRegistered.current) return;
+
+        try {
+            console.log('🔧 useStreamingNavigation: Cleaning up event listeners...');
+            
+            // Call unsubscribe functions if available
+            eventUnsubscribers.current.forEach(unsub => {
+                if (typeof unsub === 'function') {
+                    unsub();
+                }
+            });
+            
+            // Fallback cleanup
+            EventsOff('DirectoryStart');
+            EventsOff('DirectoryBatch');
+            EventsOff('DirectoryComplete');
+            EventsOff('DirectoryError');
+            
+            eventUnsubscribers.current = [];
+            listenersRegistered.current = false;
+            console.log('🔧 useStreamingNavigation: Event listeners cleaned up successfully!');
+        } catch (err) {
+            console.error('❌ Failed to cleanup event listeners:', err);
+        }
+    }, []);
+
+    // Register event listeners on hook initialization
+    useEffect(() => {
+        registerEventListeners();
+        return cleanupEventListeners;
+    }, []); // Empty dependency array - register once on mount
+
     // Streaming navigation function
     const navigateToPath = useCallback(async (path, source = 'user') => {
         log(`🧭 Streaming navigation request: ${path} (${source})`);
+        
+        // Ensure event listeners are registered before navigation
+        if (!listenersRegistered.current) {
+            console.log('🔧 Event listeners not registered, registering now...');
+            registerEventListeners();
+        }
         
         // Cancel any previous navigation
         if (activeNavigationRef.current) {
@@ -73,6 +202,16 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         }));
 
         try {
+            // Small delay to ensure event listeners are ready
+            await new Promise(resolve => setTimeout(resolve, 10));
+            
+            // Check if navigation was cancelled during delay
+            if (navigationContext.cancelled) {
+                console.log('🚫 Navigation cancelled during setup');
+                return;
+            }
+            
+            console.log(`🧭 Starting StreamDirectory for: ${path} (listeners registered: ${listenersRegistered.current})`);
             // Start streaming directory contents
             StreamDirectory(path);
         } catch (err) {
@@ -83,7 +222,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
                 hideLoadingIndicator();
             }
         }
-    }, [setError, setNavigationStats, showSmartLoadingIndicator, hideLoadingIndicator]);
+    }, [setError, setNavigationStats, showSmartLoadingIndicator, hideLoadingIndicator, registerEventListeners]);
 
     // Navigate up functionality
     const handleNavigateUp = useCallback(async () => {
@@ -127,85 +266,6 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         }
     }, [currentPath, navigateToPath]);
 
-    // Subscribe to streaming events
-    useEffect(() => {
-        const onStart = (path) => {
-            const navigationContext = activeNavigationRef.current;
-            if (!navigationContext || navigationContext.cancelled) return;
-            
-            log(`📡 Directory streaming started: ${path}`);
-            setFiles([]);
-            setCurrentPath(path);
-        };
-
-        const onEntry = (fileInfo) => {
-            const navigationContext = activeNavigationRef.current;
-            if (!navigationContext || navigationContext.cancelled) return;
-            
-            // Buffer entries and flush in next animation frame
-            entryBufferRef.current.push(fileInfo);
-            if (!flushScheduledRef.current) {
-                flushScheduledRef.current = true;
-                requestAnimationFrame(flushBuffer);
-            }
-        };
-
-        const onComplete = (data) => {
-            const navigationContext = activeNavigationRef.current;
-            if (!navigationContext || navigationContext.cancelled) return;
-
-            // Flush any remaining buffered entries
-            if (flushScheduledRef.current) {
-                flushBuffer();
-            }
-            
-            const totalTime = Date.now() - navigationStartTime.current;
-            
-            log(`✅ Directory streaming completed: ${data.path} (${data.count} entries in ${totalTime}ms)`);
-            
-            setLoading(false);
-            hideLoadingIndicator();
-            
-            // Update performance stats
-            setNavigationStats(prev => ({
-                totalNavigations: prev.totalNavigations + 1,
-                averageTime: (prev.averageTime * prev.totalNavigations + totalTime) / (prev.totalNavigations + 1),
-                lastNavigationTime: totalTime
-            }));
-            
-            // Clear active navigation
-            if (activeNavigationRef.current === navigationContext) {
-                activeNavigationRef.current = null;
-            }
-        };
-
-        const onError = (message) => {
-            const navigationContext = activeNavigationRef.current;
-            if (!navigationContext || navigationContext.cancelled) return;
-            
-            error('❌ Directory streaming error:', message);
-            setError(message);
-            setLoading(false);
-            hideLoadingIndicator();
-            
-            if (activeNavigationRef.current === navigationContext) {
-                activeNavigationRef.current = null;
-            }
-        };
-
-        EventsOn('DirectoryStart', onStart);
-        EventsOn('DirectoryEntry', onEntry);
-        EventsOn('DirectoryComplete', onComplete);
-        EventsOn('DirectoryError', onError);
-
-        return () => {
-            EventsOff('DirectoryStart');
-            EventsOff('DirectoryEntry');
-            EventsOff('DirectoryComplete');
-            EventsOff('DirectoryError');
-        };
-    }, [setError, setNavigationStats, hideLoadingIndicator]);
-
     // Create a compatible directoryContents object for existing components
     const directoryContents = files.length > 0 ? {
         currentPath,
@@ -236,6 +296,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         currentPath,
         directoryContents,
         showLoadingIndicator,
+        loading,
         navigateToPath,
         handleNavigateUp,
         handleRefresh

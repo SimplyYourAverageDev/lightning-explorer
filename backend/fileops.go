@@ -313,20 +313,23 @@ func (fo *FileOperationsManager) MoveFilesToRecycleBin(filePaths []string) bool 
 func (fo *FileOperationsManager) moveToWindowsRecycleBinNative(filePaths []string) bool {
 	log.Printf("Moving files to Windows Recycle Bin using native API")
 
-	// Create double-null-terminated string of file paths
-	var pathsBuilder strings.Builder
-	for _, path := range filePaths {
-		pathsBuilder.WriteString(path)
-		pathsBuilder.WriteByte(0) // Null terminator for each path
-	}
-	pathsBuilder.WriteByte(0) // Final null terminator
+	// Convert each path to UTF16 and build the final buffer
+	var pathsUTF16 []uint16
 
-	// Convert to UTF16
-	pathsUTF16, err := syscall.UTF16FromString(pathsBuilder.String())
-	if err != nil {
-		log.Printf("Failed to convert paths to UTF16: %v", err)
-		return false
+	for _, path := range filePaths {
+		// Convert each path individually to UTF16
+		pathUTF16, err := syscall.UTF16FromString(path)
+		if err != nil {
+			log.Printf("Failed to convert path to UTF16: %s, error: %v", path, err)
+			return false
+		}
+		// Append the UTF16 path (excluding the automatic null terminator from UTF16FromString)
+		pathsUTF16 = append(pathsUTF16, pathUTF16[:len(pathUTF16)-1]...)
+		// Add single null terminator for this path
+		pathsUTF16 = append(pathsUTF16, 0)
 	}
+	// Add final null terminator for the entire list
+	pathsUTF16 = append(pathsUTF16, 0)
 
 	// Set up SHFILEOPSTRUCT
 	fileOp := SHFILEOPSTRUCT{

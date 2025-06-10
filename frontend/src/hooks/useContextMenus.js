@@ -113,6 +113,15 @@ export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, 
             });
     }, [contextMenu.files, closeContextMenu, showDialog, fileOperations]);
 
+    const handleMoveToTrash = useCallback(() => {
+        const filePaths = contextMenu.files.map(file => file.path);
+        closeContextMenu();
+        showDialog('confirm', 'MOVE TO TRASH', `Move ${filePaths.length} item${filePaths.length === 1 ? '' : 's'} to the trash?`, '', 
+            () => {
+                fileOperations.handleRecycleBinDelete(filePaths);
+            });
+    }, [contextMenu.files, closeContextMenu, showDialog, fileOperations]);
+
     const handleOpenPowerShell = useCallback(() => {
         closeEmptySpaceContextMenu();
         fileOperations.handleOpenPowerShell();
@@ -137,6 +146,7 @@ export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, 
         handleContextRename,
         handleContextHide,
         handlePermanentDelete,
+        handleMoveToTrash,
         handleOpenPowerShell,
         handleCreateFolder
     };

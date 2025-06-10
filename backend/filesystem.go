@@ -116,13 +116,9 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 		}
 	}
 
-	// Start background hydration for remaining enhanced entries
+	// Immediately background‐hydrate the rest in batches
 	if len(rest) > 0 {
-		go func(entries []EnhancedBasicEntry) {
-			// Give UI a chance to render first
-			time.Sleep(200 * time.Millisecond)
-			fs.hydrateRemainingEntriesEnhanced(path, entries)
-		}(rest)
+		go fs.hydrateRemainingEntriesEnhanced(path, rest)
 	}
 
 	// NOTE: Windows enhanced listing returns sorted entries. Skip redundant Go-sort:
@@ -531,28 +527,26 @@ func (fs *FileSystemManager) ValidatePath(path string) error {
 	return nil
 }
 
-// StreamDirectory starts listing immediately and emits each FileInfo as it's discovered
-// This provides optimal performance by streaming entries as they are found
+// StreamDirectory streams directory entries in batches via DirectoryBatch events
 func (fs *FileSystemManager) StreamDirectory(dir string) {
 	if dir == "" {
 		dir = fs.platform.GetHomeDirectory()
 	}
 	dir = filepath.Clean(dir)
 
-	// Emit start event with path
+	// Emit start
 	if fs.eventEmitter != nil {
 		fs.eventEmitter.EmitDirectoryStart(dir)
 	}
 
-	// Quick validation
+	// Validate
 	info, err := os.Stat(dir)
 	if err != nil {
 		if fs.eventEmitter != nil {
-			fs.eventEmitter.EmitDirectoryError(fmt.Sprintf("Cannot access path: %v", err))
+			fs.eventEmitter.EmitDirectoryError("Cannot access path: " + err.Error())
 		}
 		return
 	}
-
 	if !info.IsDir() {
 		if fs.eventEmitter != nil {
 			fs.eventEmitter.EmitDirectoryError("Path is not a directory")
@@ -560,47 +554,53 @@ func (fs *FileSystemManager) StreamDirectory(dir string) {
 		return
 	}
 
-	// Use Windows-optimized enhanced directory listing
-	enhancedEntries, err := listDirectoryBasicEnhanced(dir)
+	// Get all entries (using your existing Win32 enhanced listing)
+	entries, err := listDirectoryBasicEnhanced(dir)
 	if err != nil {
 		if fs.eventEmitter != nil {
-			fs.eventEmitter.EmitDirectoryError(fmt.Sprintf("Cannot read directory: %v", err))
+			fs.eventEmitter.EmitDirectoryError("Cannot read directory: " + err.Error())
 		}
 		return
 	}
 
-	log.Printf("🚀 Streaming %d entries for: %s", len(enhancedEntries), dir)
+	// Batch parameters
+	const batchSize = 100
+	batch := make([]FileInfo, 0, batchSize)
+	totalFiles, totalDirs := 0, 0
 
-	// Stream each entry as it's processed
-	count := 0
-	for _, entry := range enhancedEntries {
-		if fs.shouldSkipFile(entry.Name) {
+	// Convert+batch
+	for _, e := range entries {
+		if fs.shouldSkipFile(e.Name) {
 			continue
 		}
-
-		// Create FileInfo directly from enhanced entry data - no additional stat calls!
-		fileInfo := FileInfo{
-			Name:        entry.Name,
-			Path:        entry.Path,
-			IsDir:       entry.IsDir,
-			Extension:   entry.Extension,
-			IsHidden:    entry.IsHidden,
-			Size:        entry.Size,
-			ModTime:     time.Unix(entry.ModTime, 0),
-			Permissions: entry.Permissions,
+		fi := FileInfo{
+			Name:        e.Name,
+			Path:        e.Path,
+			IsDir:       e.IsDir,
+			Size:        e.Size,
+			ModTime:     time.Unix(e.ModTime, 0),
+			Permissions: e.Permissions,
+			Extension:   e.Extension,
+			IsHidden:    e.IsHidden,
 		}
-
-		// Emit each entry immediately
-		if fs.eventEmitter != nil {
-			fs.eventEmitter.EmitDirectoryEntry(fileInfo)
+		if fi.IsDir {
+			totalDirs++
+		} else {
+			totalFiles++
 		}
-		count++
+		batch = append(batch, fi)
+		if len(batch) >= batchSize {
+			fs.eventEmitter.EmitDirectoryBatch(batch)
+			batch = batch[:0]
+		}
+	}
+	// Flush remainder
+	if len(batch) > 0 {
+		fs.eventEmitter.EmitDirectoryBatch(batch)
 	}
 
-	// Emit completion event
+	// Emit complete
 	if fs.eventEmitter != nil {
-		fs.eventEmitter.EmitDirectoryComplete(dir, count, 0) // Note: we don't separate files/dirs in streaming
+		fs.eventEmitter.EmitDirectoryComplete(dir, totalFiles, totalDirs)
 	}
-
-	log.Printf("✅ Streaming completed for %s: %d entries", dir, count)
 }
