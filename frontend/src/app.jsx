@@ -1,13 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import { Suspense } from "preact/compat";
 
-// Import core Wails API
-import { 
-    OpenInSystemExplorer,
-    GetHomeDirectory,
-    GetDriveInfo
-} from "../wailsjs/go/backend/App";
-
 // Import core utilities synchronously - needed for immediate file filtering and processing
 import { filterFiles, getFileType, getFileIcon, splitFilename } from "./utils/fileUtils";
 
@@ -285,10 +278,11 @@ export function App() {
         }
     }, [fileOperations, navigateToPath]);
 
-    const handleOpenInExplorer = useCallback(() => {
-        if (currentPath) {
-            OpenInSystemExplorer(currentPath);
-        }
+    const handleOpenInExplorer = useCallback(async () => {
+        if (!currentPath) return;
+        // Dynamically import only when the user triggers this action
+        const { OpenInSystemExplorer } = await import('../wailsjs/go/backend/App');
+        OpenInSystemExplorer(currentPath);
     }, [currentPath]);
 
     // Sort handlers
@@ -444,8 +438,10 @@ export function App() {
     // Load drives using regular API
     const loadDrives = useCallback(async () => {
         if (isDriveDataLoaded) return drives;
-        
+
         try {
+            // Dynamically import the backend API only when needed
+            const { GetDriveInfo } = await import('../wailsjs/go/backend/App');
             const driveList = await GetDriveInfo();
             setDrives(driveList);
             setIsDriveDataLoaded(true);
@@ -460,9 +456,11 @@ export function App() {
     const initializeApp = async () => {
         try {
             dismissErrorNotification();
-            
+
+            // Dynamically import the backend API only when required during startup
+            const { GetHomeDirectory } = await import('../wailsjs/go/backend/App');
             const homeDir = await GetHomeDirectory();
-            
+
             if (homeDir) {
                 await navigateToPath(homeDir, 'init');
                 setIsAppInitialized(true);

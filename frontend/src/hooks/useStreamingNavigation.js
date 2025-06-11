@@ -1,6 +1,4 @@
 import { useState, useCallback, useRef, useEffect } from "preact/hooks";
-import { StreamDirectory } from "../../wailsjs/go/backend/App";
-import { EventsOn, EventsOff } from "../../wailsjs/runtime/runtime";
 import { log, error } from "../utils/logger";
 
 export function useStreamingNavigation(setError, setNavigationStats) {
@@ -16,6 +14,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     
     // Track if event listeners are registered
     const listenersRegistered = useRef(false);
+    const listenersRegistering = useRef(false);
     const eventUnsubscribers = useRef([]);
 
     // No longer needed - using native batching from backend
@@ -103,15 +102,18 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     }, [setError, hideLoadingIndicator]);
 
     // Register event listeners immediately when hook loads
-    const registerEventListeners = useCallback(() => {
-        if (listenersRegistered.current) {
-            console.log('🔧 Event listeners already registered, skipping...');
+    const registerEventListeners = useCallback(async () => {
+        if (listenersRegistered.current || listenersRegistering.current) {
+            console.log('🔧 Event listeners already registered or registering, skipping...');
             return;
         }
 
+        listenersRegistering.current = true; // prevent concurrent registrations
+        
         try {
             console.log('🔧 useStreamingNavigation: Registering event listeners...');
             
+            const { EventsOn } = await import('../../wailsjs/runtime/runtime');
             const unsubDirectoryStart = EventsOn('DirectoryStart', onStart);
             const unsubDirectoryBatch = EventsOn('DirectoryBatch', onBatch);
             const unsubDirectoryComplete = EventsOn('DirectoryComplete', onComplete);
@@ -126,10 +128,12 @@ export function useStreamingNavigation(setError, setNavigationStats) {
             ];
             
             listenersRegistered.current = true;
+            listenersRegistering.current = false;
             console.log('🔧 useStreamingNavigation: Event listeners registered successfully!');
         } catch (err) {
             console.error('❌ Failed to register event listeners:', err);
             error('Failed to register event listeners:', err);
+            listenersRegistering.current = false;
         }
     }, [onStart, onBatch, onComplete, onError]);
 
@@ -139,19 +143,21 @@ export function useStreamingNavigation(setError, setNavigationStats) {
 
         try {
             console.log('🔧 useStreamingNavigation: Cleaning up event listeners...');
-            
-            // Call unsubscribe functions if available
-            eventUnsubscribers.current.forEach(unsub => {
-                if (typeof unsub === 'function') {
-                    unsub();
-                }
+
+            import('../../wailsjs/runtime/runtime').then(({ EventsOff }) => {
+                // Call unsubscribe functions if available
+                eventUnsubscribers.current.forEach(unsub => {
+                    if (typeof unsub === 'function') {
+                        unsub();
+                    }
+                });
+
+                // Fallback cleanup
+                EventsOff('DirectoryStart');
+                EventsOff('DirectoryBatch');
+                EventsOff('DirectoryComplete');
+                EventsOff('DirectoryError');
             });
-            
-            // Fallback cleanup
-            EventsOff('DirectoryStart');
-            EventsOff('DirectoryBatch');
-            EventsOff('DirectoryComplete');
-            EventsOff('DirectoryError');
             
             eventUnsubscribers.current = [];
             listenersRegistered.current = false;
@@ -174,7 +180,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         // Ensure event listeners are registered before navigation
         if (!listenersRegistered.current) {
             console.log('🔧 Event listeners not registered, registering now...');
-            registerEventListeners();
+            await registerEventListeners();
         }
         
         // Cancel any previous navigation
@@ -194,6 +200,9 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         setError('');
         // Don't show loading indicator to prevent flash
         
+        // Dynamically import the backend streaming function when required
+        const { StreamDirectory } = await import('../../wailsjs/go/backend/App');
+
         // Set measuring state
         setNavigationStats(prev => ({
             ...prev,

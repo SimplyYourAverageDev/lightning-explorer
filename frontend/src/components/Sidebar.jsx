@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { memo } from "preact/compat";
-import { GetHomeDirectory } from "../../wailsjs/go/backend/App";
 
 // Memoized Sidebar component
 const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) => {
@@ -9,9 +8,10 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) =
     const [loadingDrives, setLoadingDrives] = useState(false);
     
     useEffect(() => {
-        // Get home directory using regular API
+        // Get home directory using backend API, imported only when needed
         const getHomeDir = async () => {
             try {
+                const { GetHomeDirectory } = await import('../../wailsjs/go/backend/App');
                 const home = await GetHomeDirectory();
                 setHomeDir(home);
             } catch (err) {
