@@ -147,30 +147,48 @@ export function useStreamingNavigation(setError, setNavigationStats) {
 
     // Register event listeners immediately when hook loads
     const registerEventListeners = useCallback(async () => {
-        if (listenersRegistered.current || listenersRegistering.current) {
-            console.log('🔧 Event listeners already registered or registering, skipping...');
-            return;
+        // If listeners are already registered, resolve immediately
+        if (listenersRegistered.current) {
+            return Promise.resolve();
+        }
+
+        // If a registration is already in progress, return a promise that resolves
+        // when the registration completes instead of bailing out early. This
+        // guarantees callers can safely `await registerEventListeners()` and be
+        // certain that the listeners are ready before proceeding.
+        if (listenersRegistering.current) {
+            return new Promise((resolve) => {
+                const checkReady = () => {
+                    if (listenersRegistered.current) {
+                        resolve();
+                    } else {
+                        // Re-check on the next tick until the flag flips.
+                        setTimeout(checkReady, 5);
+                    }
+                };
+                checkReady();
+            });
         }
 
         listenersRegistering.current = true; // prevent concurrent registrations
-        
+
         try {
             console.log('🔧 useStreamingNavigation: Registering event listeners...');
-            
+
             const { EventsOn } = await import('../../wailsjs/runtime/runtime');
             const unsubDirectoryStart = EventsOn('DirectoryStart', onStart);
             const unsubDirectoryBatch = EventsOn('DirectoryBatch', onBatch);
             const unsubDirectoryComplete = EventsOn('DirectoryComplete', onComplete);
             const unsubDirectoryError = EventsOn('DirectoryError', onError);
-            
+
             // Store unsubscribers
             eventUnsubscribers.current = [
                 unsubDirectoryStart,
-                unsubDirectoryBatch, 
+                unsubDirectoryBatch,
                 unsubDirectoryComplete,
                 unsubDirectoryError
             ];
-            
+
             listenersRegistered.current = true;
             listenersRegistering.current = false;
             console.log('🔧 useStreamingNavigation: Event listeners registered successfully!');
@@ -178,6 +196,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
             console.error('❌ Failed to register event listeners:', err);
             error('Failed to register event listeners:', err);
             listenersRegistering.current = false;
+            throw err; // propagate so callers can handle
         }
     }, [onStart, onBatch, onComplete, onError]);
 
