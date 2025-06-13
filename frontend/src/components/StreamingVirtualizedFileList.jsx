@@ -1,5 +1,6 @@
-import { memo, useRef, useState, useEffect, useCallback } from "preact/compat";
+import { memo, useRef, useState, useEffect, useCallback, useMemo } from "preact/compat";
 import { useState as usePreactState, useCallback as usePreactCallback } from "preact/hooks";
+import { rafThrottle } from "../utils/debounce";
 import { FileItem } from "./FileItem";
 
 const ITEM_HEIGHT = 88;
@@ -40,11 +41,16 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
         files.length - 1,
         visibleStart + Math.ceil(height / ITEM_HEIGHT) + BUFFER * 2
     );
-    const items = files.slice(visibleStart, visibleEnd + 1);
+    // Memoize the visible slice to prevent unnecessary allocations
+    const items = useMemo(() => files.slice(visibleStart, visibleEnd + 1), [files, visibleStart, visibleEnd]);
 
-    const onScroll = usePreactCallback(e => {
-        setScroll(e.currentTarget.scrollTop);
-    }, []);
+    // Throttle scroll updates to the next animation frame to avoid excessive re-renders
+    const onScroll = usePreactCallback(
+        rafThrottle((e) => {
+            setScroll(e.currentTarget.scrollTop);
+        }),
+        []
+    );
 
     const handleFileClick = usePreactCallback((fileIndex, event) => {
         onFileSelect(fileIndex, event.shiftKey, event.ctrlKey);

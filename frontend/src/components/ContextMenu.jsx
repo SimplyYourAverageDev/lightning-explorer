@@ -73,7 +73,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
     return (
         <div 
             ref={menuRef}
-            className="context-menu"
+            className="modern-context-menu"
             onSelectStart={(e) => e.preventDefault()}
             style={{ 
                 position: 'fixed', 
@@ -81,36 +81,55 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
                 top: y, 
                 zIndex: 1000 
             }}
-            tabIndex={-1} // Make the menu focusable for better keyboard handling
+            tabIndex={-1}
         >
-            <div className="context-menu-item" onClick={onCopy}>
-                <span className="context-menu-icon">[C]</span>
-                <span className="context-menu-text">Copy ({files.length})</span>
+            <div className="context-menu-item-modern" onClick={onCopy}>
+                <span className="context-menu-icon-modern">📋</span>
+                <span className="context-menu-text-modern">Copy</span>
+                <span className="context-menu-count">({files.length})</span>
+                <span className="context-menu-shortcut">C</span>
             </div>
-            <div className="context-menu-item" onClick={onCut}>
-                <span className="context-menu-icon">[X]</span>
-                <span className="context-menu-text">Cut ({files.length})</span>
+            
+            <div className="context-menu-item-modern" onClick={onCut}>
+                <span className="context-menu-icon-modern">✂️</span>
+                <span className="context-menu-text-modern">Cut</span>
+                <span className="context-menu-count">({files.length})</span>
+                <span className="context-menu-shortcut">X</span>
             </div>
-            <div className="context-menu-separator"></div>
+            
+            <div className="context-menu-separator-modern"></div>
+            
             {files.length === 1 && (
-                <div className="context-menu-item" onClick={onRename}>
-                    <span className="context-menu-icon">[F2]</span>
-                    <span className="context-menu-text">Rename</span>
+                <div className="context-menu-item-modern" onClick={onRename}>
+                    <span className="context-menu-icon-modern">✏️</span>
+                    <span className="context-menu-text-modern">Rename</span>
+                    <span className="context-menu-shortcut">F2</span>
                 </div>
             )}
-            <div className="context-menu-separator"></div>
-            <div className="context-menu-item" onClick={onHide} style={{ color: 'var(--zen-text-secondary)' }}>
-                <span className="context-menu-icon">[H]</span>
-                <span className="context-menu-text">Hide ({files.length})</span>
+            
+            <div className="context-menu-separator-modern"></div>
+            
+            <div className="context-menu-item-modern warning" onClick={onHide}>
+                <span className="context-menu-icon-modern">👁️‍🗨️</span>
+                <span className="context-menu-text-modern">Hide</span>
+                <span className="context-menu-count">({files.length})</span>
+                <span className="context-menu-shortcut">H</span>
             </div>
-            <div className="context-menu-separator"></div>
-            <div className="context-menu-item" onClick={onMoveToTrash} style={{ color: 'var(--zen-text-warning, #f59e0b)' }}>
-                <span className="context-menu-icon">[Del]</span>
-                <span className="context-menu-text">Move to Trash ({files.length})</span>
+            
+            <div className="context-menu-separator-modern"></div>
+            
+            <div className="context-menu-item-modern warning" onClick={onMoveToTrash}>
+                <span className="context-menu-icon-modern">🗑️</span>
+                <span className="context-menu-text-modern">Move to Trash</span>
+                <span className="context-menu-count">({files.length})</span>
+                <span className="context-menu-shortcut">Del</span>
             </div>
-            <div className="context-menu-item" onClick={onPermanentDelete} style={{ color: 'var(--zen-error)' }}>
-                <span className="context-menu-icon">[Shift+Del]</span>
-                <span className="context-menu-text">Permanent Delete ({files.length})</span>
+            
+            <div className="context-menu-item-modern danger" onClick={onPermanentDelete}>
+                <span className="context-menu-icon-modern">💥</span>
+                <span className="context-menu-text-modern">Permanent Delete</span>
+                <span className="context-menu-count">({files.length})</span>
+                <span className="context-menu-shortcut">⇧Del</span>
             </div>
         </div>
     );

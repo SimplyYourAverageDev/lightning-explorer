@@ -7,11 +7,16 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     const [loading, setLoading] = useState(false);
     const [showLoadingIndicator, setShowLoadingIndicator] = useState(false);
     
+    // --- Internal refs ------------------------------------------------------
     // Performance tracking
     const navigationStartTime = useRef(null);
     const loadingTimeout = useRef(null);
     const activeNavigationRef = useRef(null);
-    
+
+    // Batching to minimise re-renders when many DirectoryBatch events arrive
+    const pendingFilesRef = useRef([]);
+    const flushTimerRef  = useRef(null);
+
     // Track if event listeners are registered
     const listenersRegistered = useRef(false);
     const listenersRegistering = useRef(false);
@@ -32,6 +37,30 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         setShowLoadingIndicator(false);
     }, []);
 
+    // ---------------------------------------------------------------------
+    // Helpers for frame-batched state updates
+
+    // Flush accumulated files to state (runs in RAF)
+    const flushPendingFiles = useCallback(() => {
+        if (pendingFilesRef.current.length > 0) {
+            // Use functional update to append so we don't lose concurrent state
+            setFiles(prev => [...prev, ...pendingFilesRef.current]);
+            pendingFilesRef.current = [];
+        }
+        flushTimerRef.current = null;
+    }, []);
+
+    const scheduleFlush = useCallback(() => {
+        if (flushTimerRef.current == null) {
+            // requestAnimationFrame gives us one flush per frame (~16ms) which is
+            // more than enough and aligns with browser paint timing. Fallback to
+            // setTimeout when RAF is not available (e.g., in certain test envs).
+            const raf = (typeof window !== 'undefined' && window.requestAnimationFrame) || ((fn) => setTimeout(fn, 16));
+            flushTimerRef.current = raf(flushPendingFiles);
+        }
+    }, [flushPendingFiles]);
+
+    // ---------------------------------------------------------------------
     // Event handlers - defined outside useEffect to avoid recreation
     const onStart = useCallback((path) => {
         console.log('📡 Frontend received DirectoryStart:', path);
@@ -42,6 +71,17 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         }
         
         log(`📡 Directory streaming started: ${path}`);
+        // Reset buffered files & timers from any previous navigation
+        pendingFilesRef.current = [];
+        if (flushTimerRef.current != null) {
+            if (typeof window !== 'undefined' && window.cancelAnimationFrame) {
+                window.cancelAnimationFrame(flushTimerRef.current);
+            } else {
+                clearTimeout(flushTimerRef.current);
+            }
+            flushTimerRef.current = null;
+        }
+
         setFiles([]);
         setCurrentPath(path);
     }, []);
@@ -53,18 +93,22 @@ export function useStreamingNavigation(setError, setNavigationStats) {
             console.log('⚠️ DirectoryBatch received but no active navigation context');
             return;
         }
-        
+
         log(`📡 Received batch of ${batchFiles.length} files`);
-        
-        // Add batch directly to files state for better performance
-        setFiles(prev => [...prev, ...batchFiles]);
-    }, []);
+
+        // Add to pending buffer and schedule a flush
+        pendingFilesRef.current.push(...batchFiles);
+        scheduleFlush();
+    }, [scheduleFlush]);
 
     const onComplete = useCallback((data) => {
         console.log('📡 Frontend received DirectoryComplete:', data);
         const navigationContext = activeNavigationRef.current;
         if (!navigationContext || navigationContext.cancelled) return;
         
+        // Ensure last pending files are committed before finishing
+        flushPendingFiles();
+
         const totalTime = Date.now() - navigationStartTime.current;
         const totalEntries = (data.totalFiles || 0) + (data.totalDirs || 0);
         
@@ -84,7 +128,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         if (activeNavigationRef.current === navigationContext) {
             activeNavigationRef.current = null;
         }
-    }, [hideLoadingIndicator, setNavigationStats]);
+    }, [hideLoadingIndicator, setNavigationStats, flushPendingFiles]);
 
     const onError = useCallback((message) => {
         console.log('📡 Frontend received DirectoryError:', message);
@@ -171,7 +215,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     useEffect(() => {
         registerEventListeners();
         return cleanupEventListeners;
-    }, []); // Empty dependency array - register once on mount
+    }, [registerEventListeners, cleanupEventListeners]);
 
     // Streaming navigation function
     const navigateToPath = useCallback(async (path, source = 'user') => {
@@ -296,6 +340,14 @@ export function useStreamingNavigation(setError, setNavigationStats) {
             }
             if (activeNavigationRef.current) {
                 activeNavigationRef.current.cancelled = true;
+            }
+
+            if (flushTimerRef.current != null) {
+                if (typeof window !== 'undefined' && window.cancelAnimationFrame) {
+                    window.cancelAnimationFrame(flushTimerRef.current);
+                } else {
+                    clearTimeout(flushTimerRef.current);
+                }
             }
         };
     }, []);

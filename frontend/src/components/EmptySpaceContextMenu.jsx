@@ -54,7 +54,7 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
     return (
         <div 
             ref={menuRef}
-            className="context-menu empty-space-context-menu"
+            className="modern-context-menu"
             onSelectStart={(e) => e.preventDefault()}
             style={{ 
                 position: 'fixed', 
@@ -62,16 +62,20 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
                 top: y, 
                 zIndex: 1000 
             }}
-            tabIndex={-1} // Make the menu focusable for better keyboard handling
+            tabIndex={-1}
         >
-            <div className="context-menu-item" onClick={onCreateFolder}>
-                <span className="context-menu-icon">[+]</span>
-                <span className="context-menu-text">New Folder</span>
+            <div className="context-menu-item-modern" onClick={onCreateFolder}>
+                <span className="context-menu-icon-modern">📁</span>
+                <span className="context-menu-text-modern">New Folder</span>
+                <span className="context-menu-shortcut">+</span>
             </div>
-            <div className="context-menu-separator"></div>
-            <div className="context-menu-item" onClick={onOpenPowerShell}>
-                <span className="context-menu-icon">[P]</span>
-                <span className="context-menu-text">Open PowerShell 7 Here</span>
+            
+            <div className="context-menu-separator-modern"></div>
+            
+            <div className="context-menu-item-modern" onClick={onOpenPowerShell}>
+                <span className="context-menu-icon-modern">💻</span>
+                <span className="context-menu-text-modern">Open PowerShell Here</span>
+                <span className="context-menu-shortcut">P</span>
             </div>
         </div>
     );

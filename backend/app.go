@@ -204,10 +204,17 @@ func (a *App) CopyFilePathsToClipboard(paths []string) bool {
 	return a.platform.SetClipboardFilePaths(paths)
 }
 
-// StreamDirectory starts streaming directory contents via events for optimal performance
+// StreamDirectory begins directory enumeration in a separate goroutine so that
+// the frontend call returns immediately. This prevents large directories from
+// blocking the JS ↔ Go bridge and noticeably improves perceived performance
+// during navigation.
 func (a *App) StreamDirectory(dir string) {
 	if fsManager, ok := a.filesystem.(*FileSystemManager); ok {
-		fsManager.StreamDirectory(dir)
+		// Launch the potentially-expensive enumeration in its own goroutine so
+		// the bridge call returns right away. The event-based architecture
+		// (DirectoryStart/Batch/Complete) already carries all required data
+		// back to the frontend, so it is safe to detach here.
+		go fsManager.StreamDirectory(dir)
 	}
 }
 
