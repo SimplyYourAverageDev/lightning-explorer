@@ -1,5 +1,5 @@
-import { memo, useRef, useState, useEffect, useCallback, useMemo } from "preact/compat";
-import { useState as usePreactState, useCallback as usePreactCallback } from "preact/hooks";
+import { memo } from "preact/compat";
+import { useRef, useState, useCallback, useMemo } from "preact/hooks";
 import { rafThrottle } from "../utils/debounce";
 import { FileItem } from "./FileItem";
 
@@ -31,7 +31,7 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
     isInspectMode = false
 }) {
     const ref = useRef();
-    const [scroll, setScroll] = usePreactState(0);
+    const [scroll, setScroll] = useState(0);
     
     const height = ref.current?.clientHeight || window.innerHeight;
     const totalHeight = files.length * ITEM_HEIGHT;
@@ -45,22 +45,22 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
     const items = useMemo(() => files.slice(visibleStart, visibleEnd + 1), [files, visibleStart, visibleEnd]);
 
     // Throttle scroll updates to the next animation frame to avoid excessive re-renders
-    const onScroll = usePreactCallback(
+    const onScroll = useCallback(
         rafThrottle((e) => {
             setScroll(e.currentTarget.scrollTop);
         }),
         []
     );
 
-    const handleFileClick = usePreactCallback((fileIndex, event) => {
+    const handleFileClick = useCallback((fileIndex, event) => {
         onFileSelect(fileIndex, event.shiftKey, event.ctrlKey);
     }, [onFileSelect]);
 
-    const handleFileDoubleClick = usePreactCallback((file) => {
+    const handleFileDoubleClick = useCallback((file) => {
         onFileOpen(file);
     }, [onFileOpen]);
     
-    const handleFileContextMenu = usePreactCallback((event, file) => {
+    const handleFileContextMenu = useCallback((event, file) => {
         onContextMenu(event, file);
     }, [onContextMenu]);
 

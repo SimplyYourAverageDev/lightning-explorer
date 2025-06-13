@@ -1,5 +1,4 @@
 // Custom hooks for the File Explorer
-export { useNavigation } from './useNavigation';
 export { useDialogs } from './useDialogs';
 export { useContextMenus } from './useContextMenus';
 export { usePerformanceMonitoring } from './usePerformanceMonitoring';

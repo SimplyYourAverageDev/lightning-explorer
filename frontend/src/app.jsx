@@ -64,10 +64,12 @@ import {
     RetroDialog,
     InlineFolderEditor,
     InspectMenu,
-    PerformanceDashboard
+    PerformanceDashboard,
+    HeaderBar,
+    ExplorerToolbar,
+    ExplorerStatusBar,
+    StreamingVirtualizedFileList
 } from "./components";
-
-import { StreamingVirtualizedFileList } from "./components";
 
 // Import our custom hooks
 import {
@@ -508,41 +510,16 @@ export function App() {
             }}
         >
             {/* Header */}
-            <header className="app-header">
-                <div className="app-title">
-                    Files
-                    {isInspectMode && (
-                        <span className="inspect-mode-indicator" style={{
-                            marginLeft: '1rem',
-                            padding: '0.25rem 0.5rem',
-                            background: '#ff6b35',
-                            color: 'white',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: 'bold'
-                        }}>
-                            🔍 INSPECT MODE (F7)
-                        </span>
-                    )}
-                </div>
-                <div style={HEADER_STATS_STYLE}>
-                    <span className="text-technical">
-                        {directoryContents ? 
-                            `${filteredDirectories.length} dirs • ${filteredFiles.length} files${!showHiddenFiles ? ' (hidden filtered)' : ''}${selectedFiles.size > 0 ? ` • ${selectedFiles.size} selected` : ''}` : 
-                            (isAppInitialized ? 'Loading...' : 'Ready')
-                        }
-                    </span>
-                    {/* Performance indicator - Complete UI render timing */}
-                    {navigationStats.totalNavigations > 0 && (
-                        <span className="text-technical" style={PERFORMANCE_INDICATOR_STYLE}>
-                            {navigationStats.lastNavigationTime === 0 ? 
-                                'Measuring...' : 
-                                `${Math.round(navigationStats.lastNavigationTime)}ms load time`
-                            }
-                        </span>
-                    )}
-                </div>
-            </header>
+            <HeaderBar
+                isInspectMode={isInspectMode}
+                directoryContents={directoryContents}
+                filteredDirectoriesCount={filteredDirectories.length}
+                filteredFilesCount={filteredFiles.length}
+                showHiddenFiles={showHiddenFiles}
+                selectedCount={selectedFiles.size}
+                isAppInitialized={isAppInitialized}
+                navigationStats={navigationStats}
+            />
             
             {/* Modern Error Notification System */}
             {error && (
@@ -593,58 +570,17 @@ export function App() {
                 
                 <div className="content-area">
                     {/* Toolbar */}
-                    <div className="toolbar">
-                        <button className="toolbar-btn" onClick={handleNavigateUp} disabled={!currentPath}>
-                            ⬆️ Up
-                        </button>
-                        <button className="toolbar-btn" onClick={handleRefresh} disabled={!currentPath}>
-                            🔄 Refresh
-                        </button>
-                        <button className="toolbar-btn" onClick={handleOpenInExplorer} disabled={!currentPath}>
-                            🖥️ Open in Explorer
-                        </button>
-                        <button 
-                            className={`toolbar-btn ${showHiddenFiles ? 'active' : ''}`}
-                            onClick={toggleShowHiddenFiles}
-                        >
-                            {showHiddenFiles ? '👁️' : '🙈'} Hidden
-                        </button>
-                        
-                        {/* Sort dropdown */}
-                        <div className="sort-dropdown">
-                            <button className="toolbar-btn sort-btn" disabled={!currentPath}>
-                                📊 Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
-                                {sortOrder === 'desc' ? ' ↓' : ' ↑'}
-                            </button>
-                            <div className="sort-dropdown-content">
-                                <button 
-                                    className={`sort-option ${sortBy === 'name' ? 'active' : ''}`}
-                                    onClick={() => handleSortChange('name')}
-                                >
-                                    📝 Name {sortBy === 'name' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
-                                </button>
-                                <button 
-                                    className={`sort-option ${sortBy === 'size' ? 'active' : ''}`}
-                                    onClick={() => handleSortChange('size')}
-                                >
-                                    📏 Size {sortBy === 'size' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
-                                </button>
-                                <button 
-                                    className={`sort-option ${sortBy === 'type' ? 'active' : ''}`}
-                                    onClick={() => handleSortChange('type')}
-                                >
-                                    🏷️ Type {sortBy === 'type' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
-                                </button>
-                                <button 
-                                    className={`sort-option ${sortBy === 'modified' ? 'active' : ''}`}
-                                    onClick={() => handleSortChange('modified')}
-                                >
-                                    🕒 Modified {sortBy === 'modified' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
-                                </button>
-                            </div>
-                        </div>
-
-                    </div>
+                    <ExplorerToolbar
+                        currentPath={currentPath}
+                        handleNavigateUp={handleNavigateUp}
+                        handleRefresh={handleRefresh}
+                        handleOpenInExplorer={handleOpenInExplorer}
+                        showHiddenFiles={showHiddenFiles}
+                        toggleShowHiddenFiles={toggleShowHiddenFiles}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        handleSortChange={handleSortChange}
+                    />
                     
                     {/* Breadcrumb navigation */}
                     {currentPath && (
@@ -782,17 +718,13 @@ export function App() {
 
             
             {/* Status bar */}
-            <div className="status-bar">
-                <span>
-                    Path: {currentPath || 'Not selected'} 
-                    {selectedFiles.size > 0 && ` • ${selectedFiles.size} item${selectedFiles.size === 1 ? '' : 's'} selected`}
-                    {clipboardFiles.length > 0 && ` • ${clipboardFiles.length} item${clipboardFiles.length === 1 ? '' : 's'} ${clipboardOperation === 'cut' ? 'cut' : 'copied'}`}
-                    {dragState.isDragging && ` • Dragging ${dragState.draggedFiles.length} item${dragState.draggedFiles.length === 1 ? '' : 's'} (${dragState.dragOperation === 'copy' ? 'Hold Ctrl to copy' : 'Release Ctrl to move'})`}
-                </span>
-                <span style={STATUS_BAR_RIGHT_STYLE}>
-                    Lightning Explorer • Real-time updates • Internal drag & drop • Drag to folders to move/copy
-                </span>
-            </div>
+            <ExplorerStatusBar
+                currentPath={currentPath}
+                selectedCount={selectedFiles.size}
+                clipboardFiles={clipboardFiles}
+                clipboardOperation={clipboardOperation}
+                dragState={dragState}
+            />
         </div>
     );
 } 
