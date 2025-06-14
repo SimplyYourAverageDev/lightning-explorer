@@ -6,7 +6,6 @@ export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { useDragAndDrop } from './useDragAndDrop';
 export { useFolderCreation } from './useFolderCreation';
 export { useInspectMode } from './useInspectMode';
-export { useFPSTracker } from './useFPSTracker';
 
 
 // Re-export existing hooks

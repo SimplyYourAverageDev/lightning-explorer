@@ -9,13 +9,11 @@ export { FileItem } from './FileItem';
 export const ContextMenu = lazy(() => import('./ContextMenu').then(m => ({ default: m.ContextMenu })));
 export const EmptySpaceContextMenu = lazy(() => import('./EmptySpaceContextMenu').then(m => ({ default: m.EmptySpaceContextMenu })));
 export const RetroDialog = lazy(() => import('./RetroDialog').then(m => ({ default: m.RetroDialog })));
-export const InlineFolderEditor = lazy(() => import('./InlineFolderEditor').then(m => ({ default: m.InlineFolderEditor })));
 
 // VirtualizedFileList is critical for large directories - bundle synchronously for better performance
 
 // Only truly non-critical, rarely used components are lazy-loaded
 export const InspectMenu = lazy(() => import('./InspectMenu').then(m => ({ default: m.InspectMenu })));
-export const PerformanceDashboard = lazy(() => import('./PerformanceDashboard').then(m => ({ default: m.PerformanceDashboard })));
 
 // StreamingVirtualizedFileList is large but can still be code-split; initial mount will trigger Suspense fallback briefly.
 export const StreamingVirtualizedFileList = lazy(() => import('./StreamingVirtualizedFileList').then(m => ({ default: m.StreamingVirtualizedFileList }))); 

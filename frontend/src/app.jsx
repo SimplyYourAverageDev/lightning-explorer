@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import { Suspense } from "preact/compat";
 
 // Import core utilities synchronously - needed for immediate file filtering and processing
-import { filterFiles, getFileType, getFileIcon, splitFilename } from "./utils/fileUtils";
+import { filterFiles} from "./utils/fileUtils";
 
 // Sorting utility function - inline for immediate availability
 const sortFiles = (files, sortBy, sortOrder) => {
@@ -46,14 +46,7 @@ const sortFiles = (files, sortBy, sortOrder) => {
 };
 
 // Import utilities
-import { log, error } from "./utils/logger";
-import { 
-    HEADER_STATS_STYLE,
-    PERFORMANCE_INDICATOR_STYLE,
-    CURRENT_PATH_INDICATOR_STYLE,
-    ERROR_DISMISS_BUTTON_STYLE,
-    STATUS_BAR_RIGHT_STYLE
-} from "./utils/styleConstants";
+import { log } from "./utils/logger";
 
 // Import our custom components
 import {
@@ -62,9 +55,7 @@ import {
     ContextMenu,
     EmptySpaceContextMenu,
     RetroDialog,
-    InlineFolderEditor,
     InspectMenu,
-    PerformanceDashboard,
     HeaderBar,
     ExplorerToolbar,
     ExplorerStatusBar,
@@ -83,7 +74,6 @@ import {
     useDragAndDrop,
     useFolderCreation,
     useInspectMode,
-    useFPSTracker
 } from "./hooks";
 
 import { useStreamingNavigation } from "./hooks/useStreamingNavigation";
@@ -195,8 +185,6 @@ export function App() {
         tempFolderName,
         editInputRef,
         startFolderCreation,
-        cancelFolderCreation,
-        confirmFolderCreation,
         handleKeyDown,
         handleInputChange,
         handleInputBlur
@@ -433,7 +421,6 @@ export function App() {
             // Defer loading of rarely-used, heavy resources to idle time
             import('./components/FastNavigation.css'); // style sheet for fast navigation animations
             import('./components/InspectMenu');
-            import('./components/PerformanceDashboard');
         });
     }, []);
 
