@@ -322,15 +322,24 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
     // Create simple drag preview for internal operations only
     const createDragPreview = (files, operation) => {
         const preview = document.createElement('div');
+        
+        // Get dynamic values from CSS custom properties
+        const root = document.documentElement;
+        const computedStyle = getComputedStyle(root);
+        const baseFontSize = computedStyle.getPropertyValue('--font-base') || '14px';
+        const baseSpacing = computedStyle.getPropertyValue('--space-md') || '8px';
+        const borderWidth = computedStyle.getPropertyValue('--brut-border-width') || '2px';
+        const borderRadius = computedStyle.getPropertyValue('--brut-radius') || '4px';
+        
         preview.style.cssText = `
             position: absolute;
             top: -1000px;
             background: #bef264;
             color: #111827;
-            border: 2px solid #111827;
-            border-radius: 4px;
-            padding: 8px 16px;
-            font-size: 14px;
+            border: ${borderWidth} solid #111827;
+            border-radius: ${borderRadius};
+            padding: ${baseSpacing} calc(${baseSpacing} * 2);
+            font-size: ${baseFontSize};
             font-family: 'JetBrains Mono', monospace;
             font-weight: bold;
             z-index: 1000;

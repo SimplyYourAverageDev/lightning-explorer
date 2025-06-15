@@ -78,7 +78,7 @@ const InspectMenu = ({ visible, x, y, onClose, element }) => {
                 left: x,
                 top: y,
                 background: '#1a1a1a',
-                border: '1px solid #444',
+                border: 'var(--brut-border-width) solid #444',
                 color: '#fff'
             }}
             onClick={(e) => e.stopPropagation()}

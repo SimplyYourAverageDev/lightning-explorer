@@ -3,8 +3,16 @@ import { useRef, useState, useCallback, useMemo, useEffect } from "preact/hooks"
 import { rafThrottle } from "../utils/debounce";
 import { FileItem } from "./FileItem";
 
-const ITEM_HEIGHT = 64;
-const BUFFER = 8;
+// Dynamic item height based on CSS custom property
+const getItemHeight = () => {
+    const root = document.documentElement;
+    const computedStyle = getComputedStyle(root);
+    const fileItemHeight = computedStyle.getPropertyValue('--file-item-height');
+    return parseFloat(fileItemHeight) * 16; // Convert rem to px (assuming 1rem = 16px)
+};
+
+const ITEM_HEIGHT = getItemHeight() || 80; // Fallback to 80px (25% larger than original 64px)
+const BUFFER = Math.max(4, Math.floor(ITEM_HEIGHT / 8)); // Dynamic buffer based on item height
 
 export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFileList({
     files, 
@@ -118,11 +126,11 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
                         background: 'var(--brut-surface)',
                         border: 'var(--brut-border-width) solid var(--brut-border-color)',
                         borderRadius: 'var(--brut-radius)',
-                        padding: '12px',
+                        padding: 'var(--space-md)',
                         display: 'flex',
                         alignItems: 'center'
                     }}>
-                        <span style={{ marginRight: '8px' }}>📁</span>
+                        <span style={{ marginRight: 'var(--space-md)' }}>📁</span>
                         <input
                             ref={editInputRef}
                             type="text"
@@ -135,7 +143,7 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
                                 border: '0',
                                 color: 'var(--brut-text-primary)',
                                 outline: 'none',
-                                fontSize: '14px',
+                                fontSize: 'var(--font-base)',
                                 width: '100%'
                             }}
                             placeholder="New folder name"
@@ -159,7 +167,7 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
                                 right: 0,
                                 height: ITEM_HEIGHT,
                                 transform: `translateY(${top}px)`,
-                                padding: '4px 0'
+                                padding: 'var(--space-sm) 0'
                             }}
                         >
                             <FileItem
@@ -197,7 +205,7 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
                         justifyContent: 'center',
                         color: 'var(--brut-text-tertiary)'
                     }}>
-                        <div className="text-technical" style={{fontSize: '1rem'}}>
+                        <div className="text-technical" style={{fontSize: 'var(--font-base)'}}>
                             Directory is empty
                         </div>
                     </div>

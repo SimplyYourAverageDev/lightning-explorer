@@ -80,7 +80,7 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
                     }}
                 >
                     Drives
-                    <span style={{ fontSize: '0.8rem' }}>
+                    <span style={{ fontSize: 'var(--font-sm)' }}>
                         {loadingDrives ? '...' : (drivesExpanded ? '▼' : '▶')}
                     </span>
                 </div>
