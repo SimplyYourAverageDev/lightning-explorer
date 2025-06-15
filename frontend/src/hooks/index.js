@@ -1,6 +1,7 @@
 // Custom hooks for the File Explorer
 export { useDialogs } from './useDialogs';
 export { useContextMenus } from './useContextMenus';
+export { useDriveContextMenu } from './useDriveContextMenu';
 export { usePerformanceMonitoring } from './usePerformanceMonitoring';
 export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { useDragAndDrop } from './useDragAndDrop';

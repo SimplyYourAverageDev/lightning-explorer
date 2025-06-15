@@ -3,6 +3,7 @@ import { Suspense } from "preact/compat";
 
 // Import core utilities synchronously - needed for immediate file filtering and processing
 import { filterFiles} from "./utils/fileUtils";
+import { EventsOn } from "../wailsjs/runtime/runtime";
 
 // Sorting utility function - inline for immediate availability
 const sortFiles = (files, sortBy, sortOrder) => {
@@ -54,6 +55,7 @@ import {
     Sidebar,
     ContextMenu,
     EmptySpaceContextMenu,
+    DriveContextMenu,
     RetroDialog,
     InspectMenu,
     HeaderBar,
@@ -69,6 +71,7 @@ import {
     useClipboard,
     useDialogs,
     useContextMenus,
+    useDriveContextMenu,
     usePerformanceMonitoring,
     useKeyboardShortcuts,
     useDragAndDrop,
@@ -87,6 +90,7 @@ export function App() {
     const [errorDetails, setErrorDetails] = useState(null);
     const [errorDismissTimer, setErrorDismissTimer] = useState(null);
     const [drives, setDrives] = useState([]);
+    const [homeDirectory, setHomeDirectory] = useState('');
     const [showHiddenFiles, setShowHiddenFiles] = useState(false);
     const [sortBy, setSortBy] = useState('name');
     const [sortOrder, setSortOrder] = useState('asc');
@@ -240,6 +244,32 @@ export function App() {
         startFolderCreation,
         isInspectMode
     );
+
+    // Callback when a drive has been ejected successfully
+    const handleDriveEjected = useCallback((drive) => {
+        // Remove the drive from the drives list
+        setDrives(prev => prev.filter(d => d.path !== drive.path));
+
+        // If current path is within the ejected drive, navigate back to home directory
+        if (currentPath && currentPath.toLowerCase().startsWith(drive.path.toLowerCase())) {
+            if (homeDirectory) {
+                navigateToPath(homeDirectory, 'drive-ejected');
+            } else {
+                // Fall back to root home when home directory not available
+                navigateToPath('', 'drive-ejected');
+            }
+        }
+    }, [currentPath, homeDirectory, navigateToPath]);
+
+    // Drive context menu hook
+    const {
+        driveContextMenu,
+        handleDriveContextMenu,
+        closeDriveContextMenu,
+        handleDriveEject,
+        handleDriveOpenInExplorer,
+        handleDriveProperties
+    } = useDriveContextMenu(showDialog, showErrorNotification, handleDriveEjected);
 
     // Drag and drop hook
     const {
@@ -414,6 +444,18 @@ export function App() {
     useEffect(() => {
         // —— kick off only the minimal UI load path —— 
         initializeApp();
+
+        // Pre-load drives immediately so sidebar is populated even before expanding
+        loadDrives();
+
+        // Listen for drive hot-plug events from backend
+        const off = EventsOn("driveListUpdated", (list) => {
+            setDrives(list);
+        });
+
+        return () => {
+            if (off) off();
+        };
     }, []);
 
     // Load drives using regular API
@@ -445,6 +487,7 @@ export function App() {
             if (homeDir) {
                 await navigateToPath(homeDir, 'init');
                 setIsAppInitialized(true);
+                setHomeDirectory(homeDir);
             } else {
                 showErrorNotification('Unable to determine starting directory', null, false);
             }
@@ -533,6 +576,7 @@ export function App() {
                     onNavigate={(path) => navigateToPath(path, 'sidebar')}
                     drives={drives}
                     onDriveExpand={loadDrives} // Load drives only when user expands drive section
+                    onDriveContextMenu={handleDriveContextMenu}
                 />
                 
                 <div className="content-area">
@@ -655,6 +699,17 @@ export function App() {
                     onClose={closeEmptySpaceContextMenu}
                     onOpenPowerShell={handleOpenPowerShell}
                     onCreateFolder={handleCreateFolder}
+                />
+
+                <DriveContextMenu
+                    visible={driveContextMenu.visible}
+                    x={driveContextMenu.x}
+                    y={driveContextMenu.y}
+                    drive={driveContextMenu.drive}
+                    onClose={closeDriveContextMenu}
+                    onEject={handleDriveEject}
+                    onOpenInExplorer={handleDriveOpenInExplorer}
+                    onProperties={handleDriveProperties}
                 />
                 
                 <RetroDialog

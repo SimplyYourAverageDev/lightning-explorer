@@ -2,7 +2,15 @@ package backend
 
 import (
 	"context"
+	"encoding/json"
+	"log"
+	"runtime"
+	"time"
+
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+const pollInterval = 1 * time.Second
 
 // NewApp creates a new App application struct - simplified
 func NewApp() *App {
@@ -23,7 +31,40 @@ func (a *App) Startup(ctx context.Context) {
 		fsManager.SetContext(ctx)
 	}
 
+	// Start background drive monitoring
+	go a.monitorDrives()
+
 	logPrintln("🚀 Lightning Explorer backend started")
+}
+
+// monitorDrives watches for drive additions/removals and emits events to the frontend
+func (a *App) monitorDrives() {
+	if a.ctx == nil {
+		return
+	}
+
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	var prevJSON string
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			drives := a.GetDriveInfo()
+			data, err := json.Marshal(drives)
+			if err != nil {
+				continue
+			}
+
+			current := string(data)
+			if current != prevJSON {
+				prevJSON = current
+				wruntime.EventsEmit(a.ctx, "driveListUpdated", drives)
+			}
+		}
+	}
 }
 
 // Core API Methods - simplified, no duplicates
@@ -225,4 +266,41 @@ func (a *App) HealthCheck() map[string]interface{} {
 		"version": "2.0-simplified",
 		"ready":   true,
 	}
+}
+
+// EjectDrive safely ejects a drive using OS-specific methods
+func (a *App) EjectDrive(drivePath string) bool {
+	log.Printf("🔄 EjectDrive called for: %s", drivePath)
+
+	// Validate input
+	if drivePath == "" {
+		log.Printf("❌ EjectDrive: empty drive path provided")
+		return false
+	}
+
+	// Use platform-specific implementation
+	switch runtime.GOOS {
+	case "windows":
+		return a.platform.EjectDriveWindows(drivePath)
+	case "darwin":
+		// macOS implementation could be added here
+		log.Printf("⚠️ EjectDrive: macOS implementation not available")
+		return false
+	case "linux":
+		// Linux implementation could be added here
+		log.Printf("⚠️ EjectDrive: Linux implementation not available")
+		return false
+	default:
+		log.Printf("❌ EjectDrive: unsupported platform %s", runtime.GOOS)
+		return false
+	}
+}
+
+// ShowDriveProperties shows drive properties using OS-specific methods
+func (a *App) ShowDriveProperties(drivePath string) bool {
+	log.Printf("🔄 ShowDriveProperties called for: %s", drivePath)
+
+	// For now, just open the drive in system explorer as properties dialog is complex
+	// In a full implementation, you would show a custom properties dialog
+	return a.platform.OpenInSystemExplorer(drivePath)
 }

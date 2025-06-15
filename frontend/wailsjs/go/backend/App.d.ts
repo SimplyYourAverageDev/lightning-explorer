@@ -12,6 +12,8 @@ export function DeleteFiles(arg1:Array<string>):Promise<boolean>;
 
 export function DeletePath(arg1:string):Promise<backend.NavigationResponse>;
 
+export function EjectDrive(arg1:string):Promise<boolean>;
+
 export function ExecuteCommand(arg1:string,arg2:string):Promise<boolean>;
 
 export function FileExists(arg1:string):Promise<boolean>;
@@ -55,6 +57,8 @@ export function OpenPowerShellHere(arg1:string):Promise<boolean>;
 export function OpenTerminalHere(arg1:string):Promise<boolean>;
 
 export function RenameFile(arg1:string,arg2:string):Promise<boolean>;
+
+export function ShowDriveProperties(arg1:string):Promise<boolean>;
 
 export function StreamDirectory(arg1:string):Promise<void>;
 

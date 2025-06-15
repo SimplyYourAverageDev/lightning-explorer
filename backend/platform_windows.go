@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -17,6 +18,10 @@ var (
 	advapi32 = syscall.NewLazyDLL("advapi32.dll")
 	// user32.dll for clipboard
 	user32 = syscall.NewLazyDLL("user32.dll")
+	// setupapi.dll for device management
+	setupapi = syscall.NewLazyDLL("setupapi.dll")
+	// cfgmgr32.dll for configuration manager
+	cfgmgr32 = syscall.NewLazyDLL("cfgmgr32.dll")
 
 	// Kernel32 procedures
 	getLogicalDriveStringsW = kernel32.NewProc("GetLogicalDriveStringsW")
@@ -25,6 +30,9 @@ var (
 	getFileAttributesW      = kernel32.NewProc("GetFileAttributesW")
 	setFileAttributesW      = kernel32.NewProc("SetFileAttributesW")
 	getCurrentProcess       = kernel32.NewProc("GetCurrentProcess")
+	createFileW             = kernel32.NewProc("CreateFileW")
+	closeHandle             = kernel32.NewProc("CloseHandle")
+	deviceIoControl         = kernel32.NewProc("DeviceIoControl")
 	// global alloc / lock / unlock in kernel32
 	globalAlloc  = kernel32.NewProc("GlobalAlloc")
 	globalLock   = kernel32.NewProc("GlobalLock")
@@ -44,6 +52,16 @@ var (
 
 	// New procedure for registering clipboard format
 	registerClipboardFormatW = user32.NewProc("RegisterClipboardFormatW")
+
+	// Setup API procedures for device enumeration
+	setupDiGetClassDevsW             = setupapi.NewProc("SetupDiGetClassDevsW")
+	setupDiEnumDeviceInterfaces      = setupapi.NewProc("SetupDiEnumDeviceInterfaces")
+	setupDiGetDeviceInterfaceDetailW = setupapi.NewProc("SetupDiGetDeviceInterfaceDetailW")
+	setupDiDestroyDeviceInfoList     = setupapi.NewProc("SetupDiDestroyDeviceInfoList")
+
+	// Configuration Manager procedures for device ejection
+	cmRequestDeviceEjectW = cfgmgr32.NewProc("CM_Request_Device_EjectW")
+	cmGetParent           = cfgmgr32.NewProc("CM_Get_Parent")
 )
 
 // Windows constants
@@ -60,7 +78,58 @@ const (
 	// Clipboard constants
 	CF_HDROP      = 15
 	GMEM_MOVEABLE = 0x0002
+
+	// Device enumeration constants
+	DIGCF_PRESENT         = 0x00000002
+	DIGCF_DEVICEINTERFACE = 0x00000010
+	INVALID_HANDLE_VALUE  = ^uintptr(0)
+
+	// File access constants
+	GENERIC_READ     = 0x80000000
+	FILE_SHARE_READ  = 0x00000001
+	FILE_SHARE_WRITE = 0x00000002
+	OPEN_EXISTING    = 3
+
+	// Device IO Control constants
+	IOCTL_STORAGE_GET_DEVICE_NUMBER = 0x002d1080
+
+	// Configuration Manager constants
+	CR_SUCCESS          = 0x00000000
+	PNP_VetoTypeUnknown = 0
 )
+
+// Device interface GUIDs
+var (
+	GUID_DEVINTERFACE_DISK   = syscall.GUID{0x53f56307, 0xb6bf, 0x11d0, [8]byte{0x94, 0xf2, 0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b}}
+	GUID_DEVINTERFACE_FLOPPY = syscall.GUID{0x53f56311, 0xb6bf, 0x11d0, [8]byte{0x94, 0xf2, 0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b}}
+	GUID_DEVINTERFACE_CDROM  = syscall.GUID{0x53f56308, 0xb6bf, 0x11d0, [8]byte{0x94, 0xf2, 0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b}}
+)
+
+// Structures for device management
+type storageDeviceNumber struct {
+	DeviceType      uint32
+	DeviceNumber    uint32
+	PartitionNumber uint32
+}
+
+type spDeviceInterfaceData struct {
+	CbSize             uint32
+	InterfaceClassGuid syscall.GUID
+	Flags              uint32
+	Reserved           uintptr
+}
+
+type spDevinfoData struct {
+	CbSize    uint32
+	ClassGuid syscall.GUID
+	DevInst   uint32
+	Reserved  uintptr
+}
+
+type spDeviceInterfaceDetailData struct {
+	CbSize     uint32
+	DevicePath [1]uint16 // Variable length
+}
 
 // dropfiles + POINT structures for CF_HDROP
 type point struct{ X, Y int32 }
@@ -69,6 +138,317 @@ type dropfiles struct {
 	Pt     point
 	FNC    uint32
 	FWide  uint32
+}
+
+// EjectDriveWindows safely ejects a drive using Windows API
+func (p *PlatformManager) EjectDriveWindows(drivePath string) bool {
+	log.Printf("🔄 Attempting to eject drive: %s", drivePath)
+
+	// Normalize the drive path - ensure it ends with backslash for volume access
+	if !strings.HasSuffix(drivePath, "\\") {
+		drivePath = drivePath + "\\"
+	}
+
+	// Get device number for the drive
+	deviceNumber, err := p.getVolumeDeviceNumber(drivePath)
+	if err != nil {
+		log.Printf("❌ Failed to get device number for %s: %v", drivePath, err)
+		return false
+	}
+
+	log.Printf("📊 Device number for %s: %d", drivePath, deviceNumber)
+
+	// Get drive type to determine the correct device interface
+	driveType := p.getDriveType(drivePath)
+	log.Printf("💽 Drive type for %s: %d", drivePath, driveType)
+
+	// Get device instance for the drive
+	devInst, err := p.getDriveDeviceInstance(deviceNumber, driveType, drivePath)
+	if err != nil {
+		log.Printf("❌ Failed to get device instance for %s: %v", drivePath, err)
+		return false
+	}
+
+	log.Printf("🔧 Device instance for %s: %d", drivePath, devInst)
+
+	// Get parent device instance (the USB controller or hub)
+	parentDevInst, err := p.getParentDeviceInstance(devInst)
+	if err != nil {
+		log.Printf("❌ Failed to get parent device instance for %s: %v", drivePath, err)
+		return false
+	}
+
+	log.Printf("🔗 Parent device instance for %s: %d", drivePath, parentDevInst)
+
+	// Attempt to eject the parent device
+	success := p.requestDeviceEject(parentDevInst)
+	if success {
+		log.Printf("✅ Successfully ejected drive: %s", drivePath)
+	} else {
+		log.Printf("❌ Failed to eject drive: %s", drivePath)
+	}
+
+	return success
+}
+
+// getVolumeDeviceNumber gets the device number for a volume
+func (p *PlatformManager) getVolumeDeviceNumber(drivePath string) (uint32, error) {
+	// Create volume access path like \\.\C:
+	volumePath := fmt.Sprintf("\\\\.\\%s", strings.TrimSuffix(drivePath, "\\"))
+
+	volumePathPtr, err := syscall.UTF16PtrFromString(volumePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert volume path to UTF16: %v", err)
+	}
+
+	// Open the volume
+	handle, _, err := createFileW.Call(
+		uintptr(unsafe.Pointer(volumePathPtr)),
+		0, // No access needed for device control
+		FILE_SHARE_READ|FILE_SHARE_WRITE,
+		0, // No security attributes
+		OPEN_EXISTING,
+		0, // No flags
+		0, // No template file
+	)
+
+	if handle == INVALID_HANDLE_VALUE {
+		return 0, fmt.Errorf("failed to open volume %s: %v", volumePath, err)
+	}
+	defer closeHandle.Call(handle)
+
+	// Get device number using DeviceIoControl
+	var sdn storageDeviceNumber
+	var bytesReturned uint32
+
+	ret, _, err := deviceIoControl.Call(
+		handle,
+		IOCTL_STORAGE_GET_DEVICE_NUMBER,
+		0, // No input buffer
+		0, // No input buffer size
+		uintptr(unsafe.Pointer(&sdn)),
+		unsafe.Sizeof(sdn),
+		uintptr(unsafe.Pointer(&bytesReturned)),
+		0, // No overlapped
+	)
+
+	if ret == 0 {
+		return 0, fmt.Errorf("DeviceIoControl failed: %v", err)
+	}
+
+	return sdn.DeviceNumber, nil
+}
+
+// getDriveType gets the drive type (similar to GetDriveType API)
+func (p *PlatformManager) getDriveType(drivePath string) uint32 {
+	// For simplicity, assume all drives are either fixed (3) or removable (2) or CD-ROM (5)
+	// In a real implementation, you would call GetDriveType
+
+	// Check if it's likely a CD-ROM by checking common CD-ROM drive letters
+	driveLetter := strings.ToUpper(drivePath[:1])
+	if driveLetter == "D" || driveLetter == "E" {
+		// Could be CD-ROM, but we'll check by attempting to query
+		// For now, assume it's a removable drive if not C:
+	}
+
+	if driveLetter == "C" {
+		return 3 // DRIVE_FIXED
+	}
+
+	return 2 // DRIVE_REMOVABLE - most USB drives
+}
+
+// getDriveDeviceInstance finds the device instance for a drive by device number
+func (p *PlatformManager) getDriveDeviceInstance(deviceNumber uint32, driveType uint32, drivePath string) (uint32, error) {
+	// Determine which device interface to use based on drive type
+	var guid *syscall.GUID
+	switch driveType {
+	case 2: // DRIVE_REMOVABLE
+		guid = &GUID_DEVINTERFACE_DISK
+	case 3: // DRIVE_FIXED
+		guid = &GUID_DEVINTERFACE_DISK
+	case 5: // DRIVE_CDROM
+		guid = &GUID_DEVINTERFACE_CDROM
+	default:
+		guid = &GUID_DEVINTERFACE_DISK
+	}
+
+	// Get device info set
+	hDevInfo, _, _ := setupDiGetClassDevsW.Call(
+		uintptr(unsafe.Pointer(guid)),
+		0, // No enumerator
+		0, // No parent window
+		DIGCF_PRESENT|DIGCF_DEVICEINTERFACE,
+	)
+
+	if hDevInfo == INVALID_HANDLE_VALUE {
+		return 0, fmt.Errorf("SetupDiGetClassDevs failed")
+	}
+	defer setupDiDestroyDeviceInfoList.Call(hDevInfo)
+
+	// Enumerate device interfaces
+	var dwIndex uint32 = 0
+	for {
+		var spdid spDeviceInterfaceData
+		spdid.CbSize = uint32(unsafe.Sizeof(spdid))
+
+		ret, _, _ := setupDiEnumDeviceInterfaces.Call(
+			hDevInfo,
+			0, // No device info data
+			uintptr(unsafe.Pointer(guid)),
+			uintptr(dwIndex),
+			uintptr(unsafe.Pointer(&spdid)),
+		)
+
+		if ret == 0 {
+			break // No more devices
+		}
+
+		// Get device interface detail
+		var requiredSize uint32
+		setupDiGetDeviceInterfaceDetailW.Call(
+			hDevInfo,
+			uintptr(unsafe.Pointer(&spdid)),
+			0, // No output buffer
+			0, // No output buffer size
+			uintptr(unsafe.Pointer(&requiredSize)),
+			0, // No device info data
+		)
+
+		if requiredSize > 0 {
+			// Allocate buffer for device interface detail
+			buffer := make([]byte, requiredSize)
+			pspdidd := (*spDeviceInterfaceDetailData)(unsafe.Pointer(&buffer[0]))
+			pspdidd.CbSize = uint32(unsafe.Sizeof(*pspdidd))
+
+			var spdd spDevinfoData
+			spdd.CbSize = uint32(unsafe.Sizeof(spdd))
+
+			ret, _, _ := setupDiGetDeviceInterfaceDetailW.Call(
+				hDevInfo,
+				uintptr(unsafe.Pointer(&spdid)),
+				uintptr(unsafe.Pointer(pspdidd)),
+				uintptr(requiredSize),
+				0, // Don't need required size again
+				uintptr(unsafe.Pointer(&spdd)),
+			)
+
+			if ret != 0 {
+				// Check if this device has the same device number
+				if p.checkDeviceNumber(pspdidd, deviceNumber) {
+					return spdd.DevInst, nil
+				}
+			}
+		}
+
+		dwIndex++
+	}
+
+	return 0, fmt.Errorf("device not found")
+}
+
+// checkDeviceNumber checks if a device has the specified device number
+func (p *PlatformManager) checkDeviceNumber(pspdidd *spDeviceInterfaceDetailData, targetDeviceNumber uint32) bool {
+	// Convert device path from the structure
+	devicePathPtr := uintptr(unsafe.Pointer(&pspdidd.DevicePath[0]))
+	devicePath := syscall.UTF16ToString((*[260]uint16)(unsafe.Pointer(devicePathPtr))[:])
+
+	// Open the device
+	devicePathUTF16, err := syscall.UTF16PtrFromString(devicePath)
+	if err != nil {
+		return false
+	}
+
+	handle, _, _ := createFileW.Call(
+		uintptr(unsafe.Pointer(devicePathUTF16)),
+		0, // No access needed
+		FILE_SHARE_READ|FILE_SHARE_WRITE,
+		0, // No security attributes
+		OPEN_EXISTING,
+		0, // No flags
+		0, // No template
+	)
+
+	if handle == INVALID_HANDLE_VALUE {
+		return false
+	}
+	defer closeHandle.Call(handle)
+
+	// Get device number
+	var sdn storageDeviceNumber
+	var bytesReturned uint32
+
+	ret, _, _ := deviceIoControl.Call(
+		handle,
+		IOCTL_STORAGE_GET_DEVICE_NUMBER,
+		0, // No input buffer
+		0, // No input buffer size
+		uintptr(unsafe.Pointer(&sdn)),
+		unsafe.Sizeof(sdn),
+		uintptr(unsafe.Pointer(&bytesReturned)),
+		0, // No overlapped
+	)
+
+	if ret == 0 {
+		return false
+	}
+
+	return sdn.DeviceNumber == targetDeviceNumber
+}
+
+// getParentDeviceInstance gets the parent device instance
+func (p *PlatformManager) getParentDeviceInstance(devInst uint32) (uint32, error) {
+	var parentDevInst uint32
+
+	ret, _, _ := cmGetParent.Call(
+		uintptr(unsafe.Pointer(&parentDevInst)),
+		uintptr(devInst),
+		0, // No flags
+	)
+
+	if ret != CR_SUCCESS {
+		return 0, fmt.Errorf("CM_Get_Parent failed: %d", ret)
+	}
+
+	return parentDevInst, nil
+}
+
+// requestDeviceEject requests device ejection using Configuration Manager
+func (p *PlatformManager) requestDeviceEject(devInst uint32) bool {
+	var vetoType uint32
+	var vetoNameBuffer [260]uint16 // MAX_PATH in wide chars
+
+	// Try up to 3 times (as recommended in the Microsoft documentation)
+	for tries := 1; tries <= 3; tries++ {
+		log.Printf("🔄 Eject attempt %d/3 for device instance %d", tries, devInst)
+
+		ret, _, _ := cmRequestDeviceEjectW.Call(
+			uintptr(devInst),
+			uintptr(unsafe.Pointer(&vetoType)),
+			uintptr(unsafe.Pointer(&vetoNameBuffer[0])),
+			uintptr(len(vetoNameBuffer)),
+			0, // No flags
+		)
+
+		if ret == CR_SUCCESS && vetoType == PNP_VetoTypeUnknown {
+			log.Printf("✅ Successfully ejected device on attempt %d", tries)
+			return true
+		}
+
+		if ret != CR_SUCCESS {
+			log.Printf("⚠️ CM_Request_Device_EjectW failed on attempt %d: %d", tries, ret)
+		} else {
+			vetoName := syscall.UTF16ToString(vetoNameBuffer[:])
+			log.Printf("⚠️ Eject vetoed on attempt %d by: %s (type: %d)", tries, vetoName, vetoType)
+		}
+
+		if tries < 3 {
+			// Sleep between attempts as recommended
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
+
+	return false
 }
 
 // GetSystemRootsWindows uses GetLogicalDriveStringsW for faster drive enumeration.

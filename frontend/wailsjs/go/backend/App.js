@@ -22,6 +22,10 @@ export function DeletePath(arg1) {
   return window['go']['backend']['App']['DeletePath'](arg1);
 }
 
+export function EjectDrive(arg1) {
+  return window['go']['backend']['App']['EjectDrive'](arg1);
+}
+
 export function ExecuteCommand(arg1, arg2) {
   return window['go']['backend']['App']['ExecuteCommand'](arg1, arg2);
 }
@@ -108,6 +112,10 @@ export function OpenTerminalHere(arg1) {
 
 export function RenameFile(arg1, arg2) {
   return window['go']['backend']['App']['RenameFile'](arg1, arg2);
+}
+
+export function ShowDriveProperties(arg1) {
+  return window['go']['backend']['App']['ShowDriveProperties'](arg1);
 }
 
 export function StreamDirectory(arg1) {

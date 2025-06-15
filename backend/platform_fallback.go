@@ -25,3 +25,8 @@ func (p *PlatformManager) GetCurrentUserSIDNative() (string, error) {
 func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
 	return false
 }
+
+// EjectDriveWindows is not available on non-Windows platforms
+func (p *PlatformManager) EjectDriveWindows(_ string) bool {
+	return false
+}

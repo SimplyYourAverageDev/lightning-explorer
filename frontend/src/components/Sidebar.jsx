@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { memo } from "preact/compat";
 
 // Memoized Sidebar component
-const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) => {
+const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onDriveContextMenu }) => {
     const [homeDir, setHomeDir] = useState('');
     const [drivesExpanded, setDrivesExpanded] = useState(false);
     const [loadingDrives, setLoadingDrives] = useState(false);
@@ -90,6 +90,11 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) =
                             key={drive.path}
                             className={`sidebar-item ${currentPath === drive.path ? 'active' : ''}`}
                             onClick={() => handleDriveClick(drive.path)}
+                            onContextMenu={(e) => {
+                                if (onDriveContextMenu) {
+                                    onDriveContextMenu(e, drive);
+                                }
+                            }}
                         >
                             {drive.name}
                         </div>

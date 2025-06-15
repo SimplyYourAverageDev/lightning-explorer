@@ -87,6 +87,8 @@ type PlatformManagerInterface interface {
 	GetCurrentUserSIDNative() (string, error)
 	// Copies absolute file paths into the OS clipboard (CF_HDROP)
 	SetClipboardFilePaths(paths []string) bool
+	// Drive ejection methods
+	EjectDriveWindows(drivePath string) bool
 }
 
 // DriveManagerInterface defines drive management contract
