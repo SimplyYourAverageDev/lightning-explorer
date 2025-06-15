@@ -147,7 +147,7 @@ export function App() {
     
     const {
         currentPath,
-        directoryContents,
+        files,
         showLoadingIndicator,
         loading,
         navigateToPath,
@@ -194,17 +194,19 @@ export function App() {
         handleInputBlur
     } = useFolderCreation(currentPath, handleRefresh, showErrorNotification);
 
-    // Computed values for streaming mode - work with the flattened files array
+    // This is the combined, filtered, and potentially sorted list of files.
     const allFiles = useMemo(() => {
-        if (!directoryContents) return [];
+        if (!files) return [];
         
-        // Combine directories and files from directoryContents
-        const allItems = [...directoryContents.directories, ...directoryContents.files];
+        const filtered = filterFiles(files, showHiddenFiles);
+
+        // THE FIX: Only sort when streaming is complete.
+        if (loading) {
+            return filtered; // Return unsorted (but filtered) list while streaming
+        }
         
-        // Filter and sort the combined list
-        const filtered = filterFiles(allItems, showHiddenFiles);
-        return sortFiles(filtered, sortBy, sortOrder);
-    }, [directoryContents, showHiddenFiles, sortBy, sortOrder]);
+        return sortFiles(filtered, sortBy, sortOrder); // Return sorted list when complete
+    }, [files, showHiddenFiles, sortBy, sortOrder, loading]);
     
     // For backward compatibility, split allFiles back into directories and files
     const filteredDirectories = useMemo(() => 
@@ -534,7 +536,7 @@ export function App() {
             {/* Header */}
             <HeaderBar
                 isInspectMode={isInspectMode}
-                directoryContents={directoryContents}
+                currentPath={currentPath}
                 filteredDirectoriesCount={filteredDirectories.length}
                 filteredFilesCount={filteredFiles.length}
                 showHiddenFiles={showHiddenFiles}
@@ -743,4 +745,4 @@ export function App() {
             />
         </div>
     );
-} 
+}

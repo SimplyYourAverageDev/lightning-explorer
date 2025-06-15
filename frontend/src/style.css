@@ -275,7 +275,7 @@ body {
 .file-list-container {
   flex: 1;
   position: relative;
-  contain: strict;
+  /* Removing `contain: strict` because it can cause painting issues with transformed children in large scrollable lists. */
   min-height: 0;
   background: var(--brut-surface);
   padding: 1rem;
@@ -296,7 +296,8 @@ body {
   background: var(--brut-surface);
   transition: background-color 100ms ease-out, color 100ms ease-out;
   height: 100%;
-  contain: layout style paint;
+  /* Removing paint containment because it clips translated items during virtualization */
+  contain: layout style;
   overflow: hidden;
 }
 

@@ -1,6 +1,6 @@
 export function HeaderBar({
+    currentPath,
     isInspectMode,
-    directoryContents,
     filteredDirectoriesCount,
     filteredFilesCount,
     showHiddenFiles,
@@ -16,7 +16,7 @@ export function HeaderBar({
             </div>
             <div className="header-stats">
                 <span className="text-technical">
-                    {directoryContents
+                    {currentPath
                         ? `${filteredDirectoriesCount} dirs • ${filteredFilesCount} files${!showHiddenFiles ? " (hidden filtered)" : ""}${selectedCount > 0 ? ` • ${selectedCount} selected` : ""}`
                         : isAppInitialized
                         ? "Loading..."
@@ -34,4 +34,4 @@ export function HeaderBar({
             </div>
         </header>
     );
-} 
+}

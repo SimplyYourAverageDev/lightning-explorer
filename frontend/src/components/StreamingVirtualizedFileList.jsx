@@ -1,5 +1,5 @@
 import { memo } from "preact/compat";
-import { useRef, useState, useCallback, useMemo } from "preact/hooks";
+import { useRef, useState, useCallback, useMemo, useEffect } from "preact/hooks";
 import { rafThrottle } from "../utils/debounce";
 import { FileItem } from "./FileItem";
 
@@ -34,23 +34,37 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
     const [scroll, setScroll] = useState(0);
     
     const height = ref.current?.clientHeight || window.innerHeight;
-    const totalHeight = files.length * ITEM_HEIGHT;
+    const totalHeight = (files.length + (creatingFolder ? 1 : 0)) * ITEM_HEIGHT;
 
-    const visibleStart = Math.max(0, Math.floor(scroll / ITEM_HEIGHT) - BUFFER);
-    const visibleEnd = Math.min(
-        files.length - 1,
-        visibleStart + Math.ceil(height / ITEM_HEIGHT) + BUFFER * 2
-    );
+    const rawStart = Math.floor(scroll / ITEM_HEIGHT) - BUFFER;
+    // Clamp to valid bounds to avoid negative or out-of-range indices
+    const visibleStart = Math.max(0, Math.min(files.length - 1, rawStart));
+
+    // Ensure at least one item is requested so the slice is never empty when files are available
+    const rawEnd = visibleStart + Math.ceil(height / ITEM_HEIGHT) + BUFFER * 2;
+    const visibleEnd = Math.max(visibleStart, Math.min(files.length - 1, rawEnd));
     // Memoize the visible slice to prevent unnecessary allocations
     const items = useMemo(() => files.slice(visibleStart, visibleEnd + 1), [files, visibleStart, visibleEnd]);
 
-    // Throttle scroll updates to the next animation frame to avoid excessive re-renders
-    const onScroll = useCallback(
-        rafThrottle((e) => {
-            setScroll(e.currentTarget.scrollTop);
+    // Create a RAF-throttled setter that takes a numeric scrollTop
+    const throttledSetScroll = useMemo(
+        () => rafThrottle((value) => {
+            // Debug output – helps pinpoint virtualization issues when list appears blank
+            console.debug('[VirtualList] Scroll event', {
+                scrollTop: value,
+                visibleStart: Math.max(0, Math.floor(value / ITEM_HEIGHT) - BUFFER),
+                viewportHeight: ref.current?.clientHeight || window.innerHeight,
+                filesLength: files.length
+            });
+            setScroll(value);
         }),
-        []
+        [files.length]
     );
+
+    // Scroll handler: capture scrollTop synchronously to avoid SyntheticEvent reuse issues
+    const onScroll = useCallback((e) => {
+        throttledSetScroll(e.currentTarget.scrollTop);
+    }, [throttledSetScroll]);
 
     const handleFileClick = useCallback((fileIndex, event) => {
         onFileSelect(fileIndex, event.shiftKey, event.ctrlKey);
@@ -63,6 +77,18 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
     const handleFileContextMenu = useCallback((event, file) => {
         onContextMenu(event, file);
     }, [onContextMenu]);
+
+    // Warn if we somehow have files but nothing rendered (possible virtualization bug)
+    useEffect(() => {
+        if (files.length > 0 && items.length === 0) {
+            console.warn('[VirtualList] Empty render detected despite having files', {
+                scroll,
+                visibleStart,
+                visibleEnd,
+                filesLength: files.length
+            });
+        }
+    }, [files.length, items.length, scroll, visibleStart, visibleEnd]);
 
     return (
         <div

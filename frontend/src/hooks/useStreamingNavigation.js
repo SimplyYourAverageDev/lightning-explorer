@@ -337,20 +337,6 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         }
     }, [currentPath, navigateToPath]);
 
-    // Create a compatible directoryContents object for existing components
-    const directoryContents = files.length > 0 ? {
-        currentPath,
-        parentPath: currentPath ? (() => {
-            const parts = currentPath.split(currentPath.includes('\\') ? '\\' : '/').filter(p => p);
-            if (parts.length <= 1) return '';
-            return parts.slice(0, -1).join(currentPath.includes('\\') ? '\\' : '/') + (currentPath.includes('\\') ? '\\' : '');
-        })() : '',
-        files: files.filter(f => !f.isDir),
-        directories: files.filter(f => f.isDir),
-        totalFiles: files.filter(f => !f.isDir).length,
-        totalDirs: files.filter(f => f.isDir).length
-    } : null;
-
     // Cleanup on unmount
     useEffect(() => {
         return () => {
@@ -373,11 +359,11 @@ export function useStreamingNavigation(setError, setNavigationStats) {
 
     return {
         currentPath,
-        directoryContents,
+        files,
         showLoadingIndicator,
         loading,
         navigateToPath,
         handleNavigateUp,
         handleRefresh
     };
-} 
+}
