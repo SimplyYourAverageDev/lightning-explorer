@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -40,6 +41,9 @@ var (
 	emptyClipboard   = user32.NewProc("EmptyClipboard")
 	setClipboardData = user32.NewProc("SetClipboardData")
 	closeClipboard   = user32.NewProc("CloseClipboard")
+
+	// New procedure for registering clipboard format
+	registerClipboardFormatW = user32.NewProc("RegisterClipboardFormatW")
 )
 
 // Windows constants
@@ -435,7 +439,75 @@ func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
 		log.Printf("SetClipboard: SetClipboardData failed: %v", err)
 		return false
 	}
-	// NOTE: ownership of hMem is transferred to the system; do NOT free it.
+
+	// ---- NEW: Also publish CFSTR_FILENAMEW so that apps which rely on this
+	//           secondary format (e.g. Microsoft Teams / Slack) keep the
+	//           original file name instead of generating a GUID. Only the first
+	//           file name is provided which is sufficient for these targets. ----
+	if len(paths) > 0 {
+		const fileNameW = "FileNameW"
+		const fileNameA = "FileName"
+		// Register the format and obtain an ID
+		uf16, _ := syscall.UTF16PtrFromString(fileNameW)
+		cfId, _, _ := registerClipboardFormatW.Call(uintptr(unsafe.Pointer(uf16)))
+		if cfId != 0 {
+			// The CFSTR_FILENAMEW format must contain ONLY the file name (no path)
+			// according to the Windows Shell documentation. Supplying the full path
+			// causes some target applications (e.g. Teams, Discord) to generate
+			// GUID-based names when pasting. Extract just the base name here.
+
+			fileName := filepath.Base(paths[0])
+			w, err := syscall.UTF16FromString(fileName)
+			if err == nil {
+				size := uintptr(len(w) * 2) // bytes including NUL
+				hMemName, _, err := globalAlloc.Call(GMEM_MOVEABLE, size)
+				if hMemName != 0 {
+					pName, _, _ := globalLock.Call(hMemName)
+					if pName != 0 {
+						// copy UTF-16 bytes
+						for i, v := range w {
+							*(*uint16)(unsafe.Pointer(pName + uintptr(i*2))) = v
+						}
+						globalUnlock.Call(hMemName)
+
+						_, _, err := setClipboardData.Call(cfId, hMemName)
+						if err != nil && err.Error() != "The operation completed successfully." {
+							log.Printf("SetClipboard: failed to set FileNameW: %v", err)
+						}
+						// ownership transferred on success; if failure, we can Ignore (OS frees)
+					}
+				} else {
+					log.Printf("SetClipboard: GlobalAlloc for FileNameW failed: %v", err)
+				}
+			}
+		}
+		// Also register ANSI FileName for legacy/non-Unicode consumers (e.g., some Electron apps)
+		uf16a, _ := syscall.UTF16PtrFromString(fileNameA)
+		cfIdA, _, _ := registerClipboardFormatW.Call(uintptr(unsafe.Pointer(uf16a)))
+		if cfIdA != 0 {
+			fileName := filepath.Base(paths[0])
+			// Convert to system code page (ANSI)
+			fnameBytes := append(syscall.StringByteSlice(fileName), 0) // include NUL
+			sizeA := uintptr(len(fnameBytes))
+			hMemNameA, _, err := globalAlloc.Call(GMEM_MOVEABLE, sizeA)
+			if hMemNameA != 0 {
+				pNameA, _, _ := globalLock.Call(hMemNameA)
+				if pNameA != 0 {
+					for i, b := range fnameBytes {
+						*(*byte)(unsafe.Pointer(pNameA + uintptr(i))) = b
+					}
+					globalUnlock.Call(hMemNameA)
+					_, _, err := setClipboardData.Call(cfIdA, hMemNameA)
+					if err != nil && err.Error() != "The operation completed successfully." {
+						log.Printf("SetClipboard: failed to set FileName: %v", err)
+					}
+				}
+			} else {
+				log.Printf("SetClipboard: GlobalAlloc for FileName failed: %v", err)
+			}
+		}
+	}
+
 	log.Printf("SetClipboard: Successfully set %d file paths to Windows clipboard", len(paths))
 	return true
 }
