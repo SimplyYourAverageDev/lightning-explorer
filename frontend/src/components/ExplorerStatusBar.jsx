@@ -1,5 +1,3 @@
-import { STATUS_BAR_RIGHT_STYLE } from "../utils/styleConstants";
-
 export function ExplorerStatusBar({
     currentPath,
     selectedCount,
@@ -22,7 +20,7 @@ export function ExplorerStatusBar({
                         dragState.draggedFiles.length === 1 ? "" : "s"
                     } (${dragState.dragOperation === "copy" ? "Hold Ctrl to copy" : "Release Ctrl to move"})`}
             </span>
-            <span style={STATUS_BAR_RIGHT_STYLE}>
+            <span className="status-bar-right">
                 Lightning Explorer • Real-time updates • Internal drag & drop • Drag to folders to move/copy
             </span>
         </div>

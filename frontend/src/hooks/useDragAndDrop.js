@@ -325,23 +325,16 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
         preview.style.cssText = `
             position: absolute;
             top: -1000px;
-            left: -1000px;
-            background: var(--blueprint-surface);
-            border: 1px solid var(--blueprint-border);
-            border-radius: 6px;
-            padding: 10px 14px;
-            font-size: 12px;
+            background: #bef264;
+            color: #111827;
+            border: 2px solid #111827;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
             font-family: 'JetBrains Mono', monospace;
-            color: var(--blueprint-text);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            font-weight: bold;
             z-index: 1000;
             pointer-events: none;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            max-width: 350px;
-            backdrop-filter: blur(8px);
-            border: 2px solid rgba(0, 255, 136, 0.3);
         `;
 
         const icon = operation === 'copy' ? '📋' : '🔄';

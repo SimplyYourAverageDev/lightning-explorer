@@ -65,7 +65,6 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
             tabIndex={-1}
         >
             <div className="context-menu-item-modern" onClick={onCreateFolder}>
-                <span className="context-menu-icon-modern">📁</span>
                 <span className="context-menu-text-modern">New Folder</span>
                 <span className="context-menu-shortcut">+</span>
             </div>
@@ -73,7 +72,6 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
             <div className="context-menu-separator-modern"></div>
             
             <div className="context-menu-item-modern" onClick={onOpenPowerShell}>
-                <span className="context-menu-icon-modern">💻</span>
                 <span className="context-menu-text-modern">Open PowerShell Here</span>
                 <span className="context-menu-shortcut">P</span>
             </div>

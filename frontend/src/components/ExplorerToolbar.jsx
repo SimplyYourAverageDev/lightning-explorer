@@ -16,41 +16,41 @@ export function ExplorerToolbar({
                 onClick={handleNavigateUp}
                 disabled={!currentPath}
             >
-                ⬆️ Up
+                Up
             </button>
             <button
                 className="toolbar-btn"
                 onClick={handleRefresh}
                 disabled={!currentPath}
             >
-                🔄 Refresh
+                Refresh
             </button>
             <button
                 className="toolbar-btn"
                 onClick={handleOpenInExplorer}
                 disabled={!currentPath}
             >
-                🖥️ Open in Explorer
+                Open
             </button>
             <button
                 className={`toolbar-btn ${showHiddenFiles ? "active" : ""}`}
                 onClick={toggleShowHiddenFiles}
             >
-                {showHiddenFiles ? "👁️" : "🙈"} Hidden
+                Hidden
             </button>
 
             {/* Sort dropdown */}
             <div className="sort-dropdown">
                 <button className="toolbar-btn sort-btn" disabled={!currentPath}>
-                    📊 Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
+                    Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
                     {sortOrder === "desc" ? " ↓" : " ↑"}
                 </button>
                 <div className="sort-dropdown-content">
                     {[
-                        { key: "name", label: "📝 Name" },
-                        { key: "size", label: "📏 Size" },
-                        { key: "type", label: "🏷️ Type" },
-                        { key: "modified", label: "🕒 Modified" },
+                        { key: "name", label: "Name" },
+                        { key: "size", label: "Size" },
+                        { key: "type", label: "Type" },
+                        { key: "modified", label: "Modified" },
                     ].map(({ key, label }) => (
                         <button
                             key={key}

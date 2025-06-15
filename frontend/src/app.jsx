@@ -414,14 +414,6 @@ export function App() {
     useEffect(() => {
         // —— kick off only the minimal UI load path —— 
         initializeApp();
-        
-        // defer rarely‐used modules to idle
-        const defer = window.requestIdleCallback || (fn => setTimeout(fn,200));
-        defer(() => {
-            // Defer loading of rarely-used, heavy resources to idle time
-            import('./components/FastNavigation.css'); // style sheet for fast navigation animations
-            import('./components/InspectMenu');
-        });
     }, []);
 
     // Load drives using regular API
@@ -510,16 +502,9 @@ export function App() {
             
             {/* Modern Error Notification System */}
             {error && (
-                <div className={`error-notification ${errorDetails ? 'has-details' : ''}`}>
+                <div className="error-notification">
                     <div className="error-notification-content">
                         <div className="error-notification-header">
-                            <div className="error-notification-icon">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                    <path d="M10 2L18 17H2L10 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                                    <path d="M10 7V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                                    <circle cx="10" cy="14" r="1" fill="currentColor"/>
-                                </svg>
-                            </div>
                             <div className="error-notification-text">
                                 <div className="error-notification-title">System Notification</div>
                                 <div className="error-notification-message">{error}</div>
@@ -528,11 +513,7 @@ export function App() {
                                 className="error-notification-dismiss" 
                                 onClick={dismissErrorNotification}
                                 aria-label="Dismiss notification"
-                            >
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                    <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                                </svg>
-                            </button>
+                            >✕</button>
                         </div>
                         {errorDetails && (
                             <div className="error-notification-details">
@@ -541,7 +522,6 @@ export function App() {
                                 </div>
                             </div>
                         )}
-                        <div className="error-notification-progress"></div>
                     </div>
                 </div>
             )}
@@ -622,34 +602,32 @@ export function App() {
                         }}
                     >
                         {/* Use streaming virtualized file list for optimal performance with white background */}
-                        <div style={{ background: 'white', minHeight: '100%' }}>
-                            <Suspense fallback={null}>
-                                <StreamingVirtualizedFileList
-                                    files={allFiles}
-                                    selectedFiles={selectedFiles}
-                                    onFileSelect={handleFileSelect}
-                                    onFileOpen={handleFileOpen}
-                                    onContextMenu={handleContextMenu}
-                                    loading={loading}
-                                    clipboardFiles={clipboardFiles}
-                                    clipboardOperation={clipboardOperation}
-                                    dragState={dragState}
-                                    onDragStart={handleDragStart}
-                                    onDragOver={handleDragOver}
-                                    onDragEnter={handleDragEnter}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={handleDrop}
-                                    creatingFolder={creatingFolder}
-                                    tempFolderName={tempFolderName}
-                                    editInputRef={editInputRef}
-                                    onFolderKeyDown={handleKeyDown}
-                                    onFolderInputChange={handleInputChange}
-                                    onFolderInputBlur={handleInputBlur}
-                                    onEmptySpaceContextMenu={handleEmptySpaceContextMenu}
-                                    isInspectMode={isInspectMode}
-                                />
-                            </Suspense>
-                        </div>
+                        <Suspense fallback={null}>
+                            <StreamingVirtualizedFileList
+                                files={allFiles}
+                                selectedFiles={selectedFiles}
+                                onFileSelect={handleFileSelect}
+                                onFileOpen={handleFileOpen}
+                                onContextMenu={handleContextMenu}
+                                loading={loading}
+                                clipboardFiles={clipboardFiles}
+                                clipboardOperation={clipboardOperation}
+                                dragState={dragState}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDragEnter={handleDragEnter}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                                creatingFolder={creatingFolder}
+                                tempFolderName={tempFolderName}
+                                editInputRef={editInputRef}
+                                onFolderKeyDown={handleKeyDown}
+                                onFolderInputChange={handleInputChange}
+                                onFolderInputBlur={handleInputBlur}
+                                onEmptySpaceContextMenu={handleEmptySpaceContextMenu}
+                                isInspectMode={isInspectMode}
+                            />
+                        </Suspense>
                     </div>
                 </div>
             </div>
@@ -690,9 +668,7 @@ export function App() {
                     onClose={closeDialog}
                     metadata={dialog.metadata}
                 />
-            </Suspense>
-            
-            <Suspense fallback={null}>
+
                 <InspectMenu
                     visible={inspectMenu.visible}
                     x={inspectMenu.x}
@@ -701,8 +677,6 @@ export function App() {
                     onClose={closeInspectMenu}
                 />
             </Suspense>
-            
-
             
             {/* Status bar */}
             <ExplorerStatusBar

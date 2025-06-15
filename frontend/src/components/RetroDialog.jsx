@@ -118,14 +118,7 @@ const RetroDialog = memo(({ isOpen, type, title, message, defaultValue, onConfir
                 
                 {/* Dialog content */}
                 <div className="retro-dialog-content">
-                    <div className="retro-dialog-icon">
-                        {type === 'confirm' && '⚠️'}
-                        {type === 'prompt' && '✏️'}
-                        {type === 'alert' && 'ℹ️'}
-                        {type === 'error' && '❌'}
-                        {type === 'success' && '✅'}
-                        {type === 'delete' && '🗑️'}
-                    </div>
+                    {/* Icons removed for brutalist style */}
                     <div className="retro-dialog-message">
                         {message.split('\n').map((line, index) => (
                             <div key={index}>{line}</div>

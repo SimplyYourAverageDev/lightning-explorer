@@ -26,10 +26,10 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) =
     const pathSep = homeDir.includes('\\') ? '\\' : '/';
     
     const quickAccess = useMemo(() => [
-        { name: 'Home', path: homeDir, icon: '🏠' },
-        { name: 'Desktop', path: homeDir + pathSep + 'Desktop', icon: '🖥️' },
-        { name: 'Documents', path: homeDir + pathSep + 'Documents', icon: '📁' },
-        { name: 'Downloads', path: homeDir + pathSep + 'Downloads', icon: '⬇️' },
+        { name: 'Home', path: homeDir },
+        { name: 'Desktop', path: homeDir + pathSep + 'Desktop' },
+        { name: 'Documents', path: homeDir + pathSep + 'Documents' },
+        { name: 'Downloads', path: homeDir + pathSep + 'Downloads' },
     ].filter(item => item.path), [homeDir, pathSep]);
     
     const handleQuickAccessClick = useCallback((path) => {
@@ -62,7 +62,6 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) =
                         className={`sidebar-item ${currentPath === item.path ? 'active' : ''}`}
                         onClick={() => handleQuickAccessClick(item.path)}
                     >
-                        <span className="sidebar-icon">{item.icon}</span>
                         {item.name}
                     </div>
                 ))}
@@ -82,7 +81,7 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) =
                 >
                     Drives
                     <span style={{ fontSize: '0.8rem' }}>
-                        {loadingDrives ? '⏳' : (drivesExpanded ? '▼' : '▶')}
+                        {loadingDrives ? '...' : (drivesExpanded ? '▼' : '▶')}
                     </span>
                 </div>
                 {drivesExpanded && drives.length > 0 && (
@@ -92,7 +91,6 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand }) =
                             className={`sidebar-item ${currentPath === drive.path ? 'active' : ''}`}
                             onClick={() => handleDriveClick(drive.path)}
                         >
-                            <span className="sidebar-icon">💽</span>
                             {drive.name}
                         </div>
                     ))

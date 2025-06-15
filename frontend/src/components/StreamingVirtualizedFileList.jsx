@@ -3,7 +3,7 @@ import { useRef, useState, useCallback, useMemo } from "preact/hooks";
 import { rafThrottle } from "../utils/debounce";
 import { FileItem } from "./FileItem";
 
-const ITEM_HEIGHT = 88;
+const ITEM_HEIGHT = 64;
 const BUFFER = 8;
 
 export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFileList({
@@ -69,12 +69,6 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
             ref={ref}
             className="file-list custom-scrollbar"
             onScroll={onScroll}
-            style={{ 
-                overflowY: 'auto', 
-                position: 'relative', 
-                height: '100%',
-                padding: '1.5rem'
-            }}
             onContextMenu={(e) => {
                 if (isInspectMode) return;
                 if (e.target === e.currentTarget || !e.target.closest('.file-item')) {
@@ -85,7 +79,7 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
                 }
             }}
         >
-            <div style={{ height: totalHeight, position: 'relative' }}>
+            <div style={{ height: totalHeight, position: 'relative', width: '100%' }}>
                 {/* Folder creation editor */}
                 {creatingFolder && (
                     <div style={{
@@ -95,10 +89,10 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
                         right: 0,
                         height: ITEM_HEIGHT,
                         zIndex: 10,
-                        background: '#1a1a1a',
-                        border: '1px solid #333',
-                        borderRadius: '4px',
-                        padding: '8px',
+                        background: 'var(--brut-surface)',
+                        border: 'var(--brut-border-width) solid var(--brut-border-color)',
+                        borderRadius: 'var(--brut-radius)',
+                        padding: '12px',
                         display: 'flex',
                         alignItems: 'center'
                     }}>
@@ -112,8 +106,8 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
                             onBlur={onFolderInputBlur}
                             style={{
                                 background: 'transparent',
-                                border: 'none',
-                                color: 'white',
+                                border: '0',
+                                color: 'var(--brut-text-primary)',
                                 outline: 'none',
                                 fontSize: '14px',
                                 width: '100%'
@@ -139,7 +133,7 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
                                 right: 0,
                                 height: ITEM_HEIGHT,
                                 transform: `translateY(${top}px)`,
-                                boxSizing: 'border-box'
+                                padding: '4px 0'
                             }}
                         >
                             <FileItem
@@ -175,10 +169,11 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: 'var(--zen-text-tertiary)'
+                        color: 'var(--brut-text-tertiary)'
                     }}>
-                        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📁</div>
-                        <div className="text-technical">Directory is empty</div>
+                        <div className="text-technical" style={{fontSize: '1rem'}}>
+                            Directory is empty
+                        </div>
                     </div>
                 )}
             </div>
