@@ -1,4 +1,4 @@
-import { memo } from "preact/compat";
+import { memo, forwardRef, useImperativeHandle } from "preact/compat";
 import { useRef, useState, useCallback, useMemo, useEffect } from "preact/hooks";
 import { rafThrottle } from "../utils/debounce";
 import { FileItem } from "./FileItem";
@@ -14,7 +14,7 @@ const getItemHeight = () => {
 const ITEM_HEIGHT = getItemHeight() || 80; // Fallback to 80px (25% larger than original 64px)
 const BUFFER = Math.max(4, Math.floor(ITEM_HEIGHT / 8)); // Dynamic buffer based on item height
 
-export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFileList({
+export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVirtualizedFileList({
     files, 
     selectedFiles,
     onFileSelect,
@@ -37,7 +37,7 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
     onFolderInputBlur,
     onEmptySpaceContextMenu,
     isInspectMode = false
-}) {
+}, forwardedRef) {
     const ref = useRef();
     const [scroll, setScroll] = useState(0);
     
@@ -53,6 +53,47 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
     const visibleEnd = Math.max(visibleStart, Math.min(files.length - 1, rawEnd));
     // Memoize the visible slice to prevent unnecessary allocations
     const items = useMemo(() => files.slice(visibleStart, visibleEnd + 1), [files, visibleStart, visibleEnd]);
+
+    // Scroll to item function - ensures the item at the given index is visible
+    const scrollToItem = useCallback((index) => {
+        if (!ref.current || index < 0 || index >= files.length) return;
+        
+        const container = ref.current;
+        const containerHeight = container.clientHeight;
+        const currentScrollTop = container.scrollTop;
+        
+        // Calculate the position of the target item (accounting for folder creation offset)
+        const itemTop = index * ITEM_HEIGHT + (creatingFolder ? ITEM_HEIGHT : 0);
+        const itemBottom = itemTop + ITEM_HEIGHT;
+        
+        // Calculate the visible area
+        const visibleTop = currentScrollTop;
+        const visibleBottom = currentScrollTop + containerHeight;
+        
+        let newScrollTop = currentScrollTop;
+        
+        // Check if item is above the visible area
+        if (itemTop < visibleTop) {
+            newScrollTop = itemTop;
+        }
+        // Check if item is below the visible area
+        else if (itemBottom > visibleBottom) {
+            newScrollTop = itemBottom - containerHeight;
+        }
+        
+        // Only scroll if we need to
+        if (newScrollTop !== currentScrollTop) {
+            container.scrollTo({
+                top: newScrollTop,
+                behavior: 'smooth'
+            });
+        }
+    }, [files.length, creatingFolder]);
+
+    // Expose scrollToItem via imperative handle
+    useImperativeHandle(forwardedRef, () => ({
+        scrollToItem
+    }), [scrollToItem]);
 
     // Create a RAF-throttled setter that takes a numeric scrollTop
     const throttledSetScroll = useMemo(
@@ -213,4 +254,4 @@ export const StreamingVirtualizedFileList = memo(function StreamingVirtualizedFi
             </div>
         </div>
     );
-}); 
+})); 

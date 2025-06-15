@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
+import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks";
 import { Suspense } from "preact/compat";
 
 // Import core utilities synchronously - needed for immediate file filtering and processing
@@ -99,6 +99,9 @@ export function App() {
     const [isAppInitialized, setIsAppInitialized] = useState(false);
     const [isDriveDataLoaded, setIsDriveDataLoaded] = useState(false);
 
+    // Ref for the file list component to enable auto-scrolling
+    const fileListRef = useRef();
+
     // Toggle hidden files visibility (memoized)
     const toggleShowHiddenFiles = useCallback(() => setShowHiddenFiles(prev => !prev), []);
 
@@ -157,13 +160,20 @@ export function App() {
 
     const { dialog, showDialog, closeDialog } = useDialogs();
 
+    // Create scrollToItem callback that uses the file list ref
+    const scrollToItem = useCallback((index) => {
+        if (fileListRef.current && fileListRef.current.scrollToItem) {
+            fileListRef.current.scrollToItem(index);
+        }
+    }, []);
+
     const {
         selectedFiles,
         handleFileSelect,
         clearSelection,
         selectAll,
         handleArrowNavigation
-    } = useSelection();
+    } = useSelection(scrollToItem);
 
     const {
         clipboardFiles,
@@ -672,6 +682,7 @@ export function App() {
                                 onFolderInputBlur={handleInputBlur}
                                 onEmptySpaceContextMenu={handleEmptySpaceContextMenu}
                                 isInspectMode={isInspectMode}
+                                ref={fileListRef}
                             />
                         </Suspense>
                     </div>

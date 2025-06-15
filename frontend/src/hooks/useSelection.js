@@ -1,9 +1,10 @@
-import { useState, useCallback } from "preact/hooks";
+import { useState, useCallback, useRef } from "preact/hooks";
 import { log } from "../utils/logger";
 
-export const useSelection = () => {
+export const useSelection = (scrollToItem) => {
     const [selectedFiles, setSelectedFiles] = useState(new Set());
     const [lastSelectedIndex, setLastSelectedIndex] = useState(-1);
+    const scrollTimeoutRef = useRef(null);
 
     const handleFileSelect = useCallback((fileIndex, isShiftKey, isCtrlKey) => {
         log('📋 File selection:', fileIndex, 'Shift:', isShiftKey, 'Ctrl:', isCtrlKey);
@@ -82,8 +83,22 @@ export const useSelection = () => {
         setSelectedFiles(new Set([targetIndex]));
         setLastSelectedIndex(targetIndex);
         
+        // Scroll to the target item to ensure it's visible
+        if (scrollToItem && typeof scrollToItem === 'function') {
+            // Clear any existing scroll timeout to prevent queueing up scroll operations
+            if (scrollTimeoutRef.current) {
+                clearTimeout(scrollTimeoutRef.current);
+            }
+            
+            // Use a short timeout to debounce rapid arrow key presses
+            scrollTimeoutRef.current = setTimeout(() => {
+                scrollToItem(targetIndex);
+                scrollTimeoutRef.current = null;
+            }, 16); // ~60fps to feel responsive but not overwhelming
+        }
+        
         return targetIndex;
-    }, [selectedFiles]);
+    }, [selectedFiles, scrollToItem]);
 
     return {
         selectedFiles,
