@@ -4,3 +4,4 @@ frontend/dist
 .cursor
 f2p_output.txt
 *.exe
+diff.txt
