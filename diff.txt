@@ -1,0 +1,2130 @@
+diff --git a/README.md b/README.md
+index 2161e94..d435881 100644
+--- a/README.md
++++ b/README.md
+@@ -155,7 +155,7 @@ PRs are welcome! Please follow these guidelines:
+ 1. **Always use Bun** – never add `package-lock.json`/`yarn.lock`.
+ 2. **No shadows, no gradients** – keep the Neo-Brutalist style.
+ 3. **Go FMT & `bun run lint`** must pass before commit.
+-4. Windows 11 only – avoid platform-conditionals for other OSes.
++4. Windows 11 only – other OSes already have good enough file explorers.
+ 
+ ---
+ 
+diff --git a/frontend/bun.lock b/frontend/bun.lock
+index 68f886e..68df464 100644
+--- a/frontend/bun.lock
++++ b/frontend/bun.lock
+@@ -6,16 +6,16 @@
+       "dependencies": {
+         "@msgpack/msgpack": "^3.1.2",
+         "@phosphor-icons/react": "^2.1.10",
+-        "preact": "^10.10.1",
++        "preact": "^10.26.9",
+       },
+       "devDependencies": {
+         "@preact/compat": "^18.3.1",
+-        "@preact/preset-vite": "^2.3.0",
++        "@preact/preset-vite": "^2.10.1",
+         "autoprefixer": "^10.4.21",
+         "cross-env": "^7.0.3",
+-        "postcss": "^8.5.4",
+-        "tailwindcss": "3",
+-        "vite": "^3.0.7",
++        "postcss": "^8.5.6",
++        "tailwindcss": "^3.4.17",
++        "vite": "^3.2.11",
+       },
+     },
+   },
+@@ -336,7 +336,7 @@
+ 
+     "pirates": ["pirates@4.0.7", "", {}, "sha512-TfySrs/5nm8fQJDcBDuUng3VOUKsd7S+zqvbOTiGXHfxX4wK31ard+hoNuvkicM/2YFzlpDgABOevKSsB4G/FA=="],
+ 
+-    "postcss": ["postcss@8.5.4", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-QSa9EBe+uwlGTFmHsPKokv3B/oEMQZxfqW0QqNCyhpa6mB1afzulwn8hihglqAb2pOw+BJgNlmXQ8la2VeHB7w=="],
++    "postcss": ["postcss@8.5.6", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg=="],
+ 
+     "postcss-import": ["postcss-import@15.1.0", "", { "dependencies": { "postcss-value-parser": "^4.0.0", "read-cache": "^1.0.0", "resolve": "^1.1.7" }, "peerDependencies": { "postcss": "^8.0.0" } }, "sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew=="],
+ 
+@@ -350,7 +350,7 @@
+ 
+     "postcss-value-parser": ["postcss-value-parser@4.2.0", "", {}, "sha512-1NNCs6uurfkVbeXG4S8JFT9t19m45ICnif8zWLd5oPSZ50QnwMfK+H3jv408d4jw/7Bttv5axS5IiHoLaVNHeQ=="],
+ 
+-    "preact": ["preact@10.26.8", "", {}, "sha512-1nMfdFjucm5hKvq0IClqZwK4FJkGXhRrQstOQ3P4vp8HxKrJEMFcY6RdBRVTdfQS/UlnX6gfbPuTvaqx/bDoeQ=="],
++    "preact": ["preact@10.26.9", "", {}, "sha512-SSjF9vcnF27mJK1XyFMNJzFd5u3pQiATFqoaDy03XuN00u4ziveVVEGt5RKJrDR8MHE/wJo9Nnad56RLzS2RMA=="],
+ 
+     "queue-microtask": ["queue-microtask@1.2.3", "", {}, "sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A=="],
+ 
+@@ -448,8 +448,12 @@
+ 
+     "strip-ansi-cjs/ansi-regex": ["ansi-regex@5.0.1", "", {}, "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ=="],
+ 
++    "tailwindcss/postcss": ["postcss@8.5.4", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-QSa9EBe+uwlGTFmHsPKokv3B/oEMQZxfqW0QqNCyhpa6mB1afzulwn8hihglqAb2pOw+BJgNlmXQ8la2VeHB7w=="],
++
+     "terser/commander": ["commander@2.20.3", "", {}, "sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ=="],
+ 
++    "vite/postcss": ["postcss@8.5.4", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-QSa9EBe+uwlGTFmHsPKokv3B/oEMQZxfqW0QqNCyhpa6mB1afzulwn8hihglqAb2pOw+BJgNlmXQ8la2VeHB7w=="],
++
+     "wrap-ansi-cjs/ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
+ 
+     "wrap-ansi-cjs/string-width": ["string-width@4.2.3", "", { "dependencies": { "emoji-regex": "^8.0.0", "is-fullwidth-code-point": "^3.0.0", "strip-ansi": "^6.0.1" } }, "sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g=="],
+diff --git a/frontend/package.json b/frontend/package.json
+index 07afe6c..944a707 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -13,15 +13,15 @@
+   "dependencies": {
+     "@msgpack/msgpack": "^3.1.2",
+     "@phosphor-icons/react": "^2.1.10",
+-    "preact": "^10.10.1"
++    "preact": "^10.26.9"
+   },
+   "devDependencies": {
+     "@preact/compat": "^18.3.1",
+-    "@preact/preset-vite": "^2.3.0",
++    "@preact/preset-vite": "^2.10.1",
+     "autoprefixer": "^10.4.21",
+     "cross-env": "^7.0.3",
+-    "postcss": "^8.5.4",
+-    "tailwindcss": "3",
+-    "vite": "^3.0.7"
++    "postcss": "^8.5.6",
++    "tailwindcss": "^3.4.17",
++    "vite": "^3.2.11"
+   }
+ }
+\ No newline at end of file
+diff --git a/frontend/package.json.md5 b/frontend/package.json.md5
+index f09653e..5db8c4a 100644
+--- a/frontend/package.json.md5
++++ b/frontend/package.json.md5
+@@ -1 +1 @@
+-3e22dac55bd00afcde2661f970cc1547
+\ No newline at end of file
++91cb80233df2cd28da081ef6d54bc928
+\ No newline at end of file
+diff --git a/frontend/src/app.jsx b/frontend/src/app.jsx
+index 1268286..776be87 100644
+--- a/frontend/src/app.jsx
++++ b/frontend/src/app.jsx
+@@ -153,7 +153,7 @@ export function App() {
+         files,
+         showLoadingIndicator,
+         loading,
+-        navigateToPath,
++        navigateToPath,     
+         handleNavigateUp,
+         handleRefresh
+     } = useStreamingNavigation(showErrorNotification, setNavigationStats);
+@@ -169,7 +169,7 @@ export function App() {
+ 
+     const {
+         selectedFiles,
+-        handleFileSelect,
++        handleFileSelect: originalHandleFileSelect,
+         clearSelection,
+         selectAll,
+         handleArrowNavigation
+@@ -300,6 +300,25 @@ export function App() {
+         handleRefresh
+     );
+ 
++    // Modified file selection handler - click to select, click selected to open
++    const handleFileSelect = useCallback((fileIndex, isShiftKey, isCtrlKey) => {
++        // If the file is already selected and it's a simple click (no modifiers), open it
++        if (selectedFiles.has(fileIndex) && !isShiftKey && !isCtrlKey && selectedFiles.size === 1) {
++            const file = allFiles[fileIndex];
++            if (file) {
++                const result = fileOperations.handleFileOpen(file);
++                if (result && result.type === 'navigate') {
++                    // Use direct navigation for file opens (immediate response)
++                    navigateToPath(result.path, 'file-open');
++                }
++            }
++            return;
++        }
++        
++        // Otherwise, use the original selection logic
++        originalHandleFileSelect(fileIndex, isShiftKey, isCtrlKey);
++    }, [selectedFiles, allFiles, fileOperations, navigateToPath, originalHandleFileSelect]);
++
+     // File operation handlers
+     const handleFileOpen = useCallback((file) => {
+         const result = fileOperations.handleFileOpen(file);
+diff --git a/frontend/src/components/ContextMenu.jsx b/frontend/src/components/ContextMenu.jsx
+index b22bbf5..df76351 100644
+--- a/frontend/src/components/ContextMenu.jsx
++++ b/frontend/src/components/ContextMenu.jsx
+@@ -4,7 +4,7 @@ import {
+     CopyIcon, 
+     ScissorsIcon, 
+     PencilIcon, 
+-    EyeSlashIcon, 
++    EyeClosedIcon, 
+     TrashIcon, 
+     XIcon 
+ } from '@phosphor-icons/react';
+@@ -125,7 +125,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
+             <div className="context-menu-separator-modern"></div>
+             
+             <div className="context-menu-item-modern warning" onClick={onHide}>
+-                <EyeSlashIcon size={16} weight="bold" className="context-menu-icon" />
++                <EyeClosedIcon size={16} weight="bold" className="context-menu-icon" />
+                 <span className="context-menu-text-modern">Hide</span>
+                 <span className="context-menu-count">({files.length})</span>
+                 <span className="context-menu-shortcut">H</span>
+diff --git a/frontend/src/components/FileItem.jsx b/frontend/src/components/FileItem.jsx
+index 5a07705..eb8c9de 100644
+--- a/frontend/src/components/FileItem.jsx
++++ b/frontend/src/components/FileItem.jsx
+@@ -58,27 +58,10 @@ const FileItem = memo(({
+     const formattedDate = useMemo(() => formatDate(file.modTime), [file.modTime]);
+     const formattedSize = useMemo(() => formatFileSize(file.size), [file.size]);
+     
+-    // Refs for click timing and debouncing
+-    const clickTimeoutRef = useRef(null);
+-    const lastOpenTimeRef = useRef(0);
+-    const clickCountRef = useRef(0);
+-    
+-    // Configuration for click timing - Made configurable for performance tuning
+-    const INSTANT_MODE = false; // Set to true for zero-latency mode (disables double-click protection)
+-    const DOUBLE_CLICK_DELAY = INSTANT_MODE ? 0 : 300; // ms to wait for potential double-click (Windows standard)
+-    const OPEN_COOLDOWN = INSTANT_MODE ? 100 : 500; // ms cooldown between opens to prevent rapid-fire
++    // Configuration for performance logging
+     const PERFORMANCE_LOGGING = false; // Set to true to enable performance logs
+ 
+-    // Cleanup timeout on unmount
+-    useEffect(() => {
+-        return () => {
+-            if (clickTimeoutRef.current) {
+-                clearTimeout(clickTimeoutRef.current);
+-            }
+-        };
+-    }, []);
+-
+-    // Optimized click handler with configurable timing
++    // Optimized click handler - simplified to only handle single clicks
+     const handleClick = useCallback((e) => {
+         if (isInspectMode) {
+             return; // Let parent handle inspect mode clicks
+@@ -86,81 +69,12 @@ const FileItem = memo(({
+         
+         e.stopPropagation();
+         
+-        const now = Date.now();
+-        const timeSinceLastOpen = now - lastOpenTimeRef.current;
+-        
+-        // Prevent rapid-fire opens during cooldown period
+-        if (timeSinceLastOpen < OPEN_COOLDOWN) {
+-            if (PERFORMANCE_LOGGING) {
+-                log(`⏱️ Click ignored - cooldown active (${timeSinceLastOpen}ms < ${OPEN_COOLDOWN}ms)`);
+-            }
+-            return;
+-        }
+-        
+-        clickCountRef.current++;
+-        
+-        // Instant mode bypasses double-click detection
+-        if (INSTANT_MODE) {
+-            handleSingleClick();
+-            return;
+-        }
+-        
+-        // Clear any existing timeout
+-        if (clickTimeoutRef.current) {
+-            clearTimeout(clickTimeoutRef.current);
+-        }
+-        
+-        // Set timeout for single-click action
+-        clickTimeoutRef.current = setTimeout(() => {
+-            if (clickCountRef.current === 1) {
+-                handleSingleClick();
+-            }
+-            clickCountRef.current = 0;
+-        }, DOUBLE_CLICK_DELAY);
+-        
+-    }, [onSelect, fileIndex, isInspectMode]);
+-
+-    const handleSingleClick = useCallback(() => {
+-        if (PERFORMANCE_LOGGING) {
+-            log(`👆 Single click detected on: ${file.name}`);
+-        }
+-        onSelect(fileIndex);
+-    }, [onSelect, fileIndex, file.name]);
+-
+-    // Double-click handler for file opening
+-    const handleDoubleClick = useCallback((e) => {
+-        if (isInspectMode) {
+-            return; // Let parent handle inspect mode clicks
+-        }
+-        
+-        e.stopPropagation();
+-        
+-        const now = Date.now();
+-        const timeSinceLastOpen = now - lastOpenTimeRef.current;
+-        
+-        // Prevent rapid-fire opens
+-        if (timeSinceLastOpen < OPEN_COOLDOWN) {
+-            if (PERFORMANCE_LOGGING) {
+-                log(`⏱️ Double-click ignored - cooldown active (${timeSinceLastOpen}ms < ${OPEN_COOLDOWN}ms)`);
+-            }
+-            return;
+-        }
+-        
+-        // Clear single-click timeout
+-        if (clickTimeoutRef.current) {
+-            clearTimeout(clickTimeoutRef.current);
+-            clickTimeoutRef.current = null;
+-        }
+-        
+-        clickCountRef.current = 0;
+-        lastOpenTimeRef.current = now;
+-        
+         if (PERFORMANCE_LOGGING) {
+-            log(`👆👆 Double click detected on: ${file.name}`);
++            log(`👆 Click detected on: ${file.name}`);
+         }
++        onSelect(fileIndex, e.shiftKey, e.ctrlKey);
+         
+-        onOpen(file);
+-    }, [onOpen, file, isInspectMode]);
++    }, [onSelect, fileIndex, isInspectMode, file.name]);
+ 
+     // Context menu handler
+     const handleContextMenu = useCallback((e) => {
+@@ -222,7 +136,6 @@ const FileItem = memo(({
+         <div 
+             className={itemClasses}
+             onClick={handleClick}
+-            onDoubleClick={handleDoubleClick}
+             onContextMenu={handleContextMenu}
+             onDragStart={handleDragStart}
+             onDragOver={handleDragOver}
+diff --git a/frontend/src/components/StreamingVirtualizedFileList.jsx b/frontend/src/components/StreamingVirtualizedFileList.jsx
+index ed91cbf..ddf09f7 100644
+--- a/frontend/src/components/StreamingVirtualizedFileList.jsx
++++ b/frontend/src/components/StreamingVirtualizedFileList.jsx
+@@ -119,10 +119,6 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
+         onFileSelect(fileIndex, event.shiftKey, event.ctrlKey);
+     }, [onFileSelect]);
+ 
+-    const handleFileDoubleClick = useCallback((file) => {
+-        onFileOpen(file);
+-    }, [onFileOpen]);
+-    
+     const handleFileContextMenu = useCallback((event, file) => {
+         onContextMenu(event, file);
+     }, [onContextMenu]);
+@@ -215,7 +211,7 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
+                                 file={file}
+                                 fileIndex={actualIndex}
+                                 onSelect={handleFileClick}
+-                                onOpen={handleFileDoubleClick}
++                                onOpen={onFileOpen}
+                                 onContextMenu={handleFileContextMenu}
+                                 isLoading={false}
+                                 isSelected={selectedFiles.has(actualIndex)}
+diff --git a/output.txt b/output.txt
+deleted file mode 100644
+index f19606e..0000000
+--- a/output.txt
++++ /dev/null
+@@ -1,1798 +0,0 @@
+-diff --git a/README.md b/README.md
+-index a76eddb..2161e94 100644
+---- a/README.md
+-+++ b/README.md
+-@@ -1,44 +1,177 @@
+- # Lightning Explorer
+- 
+--A blazing-fast, minimalist file explorer for ONLY **Windows 11** (Sorry, Linux and MacOS's File Explorer is already good enouh), built with Wails V2 (Go + Preact). Engineered for performance and a responsive user experience.
+--
+--## ✨ Features
+--
+--*   **Speed & Performance Focused:**
+--    *   Native Win32 API (`FindFirstFileExW`) for rapid directory listing.
+--    *   Streaming data: Basic info loads instantly, details hydrate in the background.
+--    *   Optimized MessagePack (forced Base64 mode) for efficient API communication.
+--    *   Virtualized file lists (Preact) for smooth scrolling through large directories.
+--*   **Essential File Management:**
+--    *   Navigate (breadcrumbs, sidebar, up), view, open, create, rename.
+--    *   Copy, Cut, Move.
+--    *   Delete (Permanent & Native Windows Recycle Bin via `SHFileOperationW`).
+--    *   Show/hide hidden files (respects native Windows attributes via `GetFileAttributesW`).
+--*   **Windows Integration:**
+--    *   Open in system File Explorer.
+--    *   Open PowerShell 7 in current directory (via `ShellExecuteW`).
+--    *   Drive listing & Quick Access paths.
+--*   **Modern & Responsive UI:**
+--    *   Clean interface built with Preact & TailwindCSS.
+--    *   Context menus, keyboard shortcuts, internal Drag & Drop.
+--
+--## 🚀 Tech Stack
+--
+--*   **Framework:** Wails V2
+--*   **Backend:** Go
+--    *   Windows Native APIs (Win32, Shell32, Advapi32)
+--    *   Goroutines for concurrency
+--    *   MessagePack for serialization
+--*   **Frontend:** Preact
+--    *   Vite build tool
+--    *   TailwindCSS for styling
+--    *   Custom Hooks for state management
+--    *   MessagePack client-side decoding
+--
+--## 🛠️ Building
+--
+--Optimized build for Windows:
+--```bash
+--wails build -ldflags="-s -w" -trimpath
+-+An ultra-fast, keyboard-driven file explorer for **Windows 11** written with **Go + Wails v2** on the backend and **Preact + Tailwind CSS** on the frontend. Lightning Explorer focuses on raw speed, minimalist *Neo-Brutalism* aesthetics (no gradients or shadows 🚫), and a power-user feature-set that leaves the stock Explorer in the dust.
+-+
+-+---
+-+
+-+## ✨ Key Features
+-+
+-+• **Streaming directory enumeration** – gigantic folders appear instantly thanks to a Go channel that delivers file metadata to the UI as it is read.
+-+
+-+• **Virtualised lists** – the Preact frontend only renders what is on-screen, allowing tens-of-thousands of items to scroll butter-smoothly.
+-+
+-+• **Rich context menus** (file, empty space, drive) with copy, cut, rename, hide, recycle-bin delete, permanent delete and PowerShell shortcuts.
+-+
+-+• **Native drag-and-drop** with accurate visual feedback between drives, folders, the clipboard and external applications.
+-+
+-+• **Full keyboard control** – familiar shortcuts (Ctrl-C/V/X, F2, Delete, Alt-Up, F5, etc.) plus multi-file navigation with arrow keys.
+-+
+-+• **Clipboard & drive hot-plug awareness** – live updates when media is mounted or ejected and when clipboard contents change.
+-+
+-+• **Inspect mode** for on-the-fly UI introspection during development.
+-+
+-+• **Neo-Brutalist UI** – sharp rectangles, solid colours, 1 px borders, no gradients, no drop-shadows. Looks great on light or dark Windows 11 themes.
+-+
+-+---
+-+
+-+## 🏗️ Tech Stack
+-+
+-+| Layer | Tech | Notes |
+-+|-------|------|-------|
+-+| Backend | Go 1.23 +, Wails v2.10 | Windows-only build that talks to Win32 & Shell API for file operations. |
+-+| Frontend | Preact 10, Tailwind CSS v3, Vite | Ultra-small bundle (~ 3 KB gzip for Preact core). |
+-+| Package Manager | **Bun 1.x** | Replaces npm/yarn/pnpm – lightning-fast installs & scripts. |
+-+| IPC | Wails event bus + MsgPack | Streams file info efficiently. |
+-+
+-+---
+-+
+-+## 📂 Repository Layout
+-+
+-+```
+-+├─ backend/            # Go code that touches the Windows API
+-+│  ├─ app.go           # Application lifecycle & bridge exports
+-+│  ├─ filesystem.go    # Low-level file/drive helpers
+-+│  └─ …
+-+├─ frontend/
+-+│  ├─ src/
+-+│  │  ├─ components/   # Preact components (ContextMenu, Sidebar, …)
+-+│  │  ├─ hooks/        # Reusable logic (useDragAndDrop, useClipboard, …)
+-+│  │  └─ utils/        # Pure helpers & MsgPack serializers
+-+│  ├─ tailwind.config.js
+-+│  └─ vite.config.js
+-+├─ main.go             # Small bootstrap that starts Wails
+-+├─ wails.json          # Project metadata & Bun-powered scripts
+-+└─ README.md
+-+```
+-+
+-+---
+-+
+-+## ▶️ Getting Started (Development)
+-+
+-+> All commands below are **PowerShell** because the project is Windows-only. Replace paths as needed.
+-+
+-+1. **Install Go 1.23+**
+-+   ```powershell
+-+   winget install Go.Go
+-+   ```
+-+
+-+2. **Install Bun (>= 1.0.0)** – the lightning-fast JavaScript runtime & package manager.
+-+   ```powershell
+-+   iwr https://bun.sh/install.ps1 -useb | iex
+-+   ```
+-+
+-+3. **Install Wails CLI** (adds the `wails` command).
+-+   ```powershell
+-+   go install github.com/wailsapp/wails/v2/cmd/wails@latest
+-+   $env:Path += ';' + (go env GOPATH) + '\bin'
+-+   ```
+-+
+-+4. **Clone & bootstrap the repo**
+-+   ```powershell
+-+   git clone https://github.com/yourname/lightning-explorer.git
+-+   cd lightning-explorer
+-+   bun install    # installs frontend deps; Go modules are resolved automatically
+-+   ```
+-+
+-+5. **Start the live-reload dev environment**
+-+   ```powershell
+-+   wails dev      # spawns Bun + Vite + Wails hot-reload server
+-+   ```
+-+
+-+A window will appear almost instantly. Any change inside `frontend/src/` or the Go backend will hot-reload within 100–300 ms.
+-+
+-+---
+-+
+-+## 📦 Production Build
+-+
+-+```powershell
+-+wails build -clean
+-+```
+-+
+-+* The command outputs `build/bin/lightning_explorer.exe` (self-contained, ~10 MB).
+-+* Pass `-upx` to compress the binary further (UPX must be in `PATH`).
+-+* Create an installer with [Inno Setup](https://jrsoftware.org/isinfo.php) or your favourite packager.
+-+
+-+---
+-+
+-+## 🔒 Security / Sandboxing
+-+
+-+Lightning Explorer only targets Windows 11 and uses the same NTFS permissions as Explorer itself. Destructive operations (permanent delete) trigger confirmation dialogs by default.
+-+
+-+---
+-+
+-+## 📈 Performance Notes
+-+
+-+```
+-+50k items  👉  <160 ms initial paint, <50 MB RAM
+-+500k items 👉  Still smooth thanks to streaming + virtualisation
+-+```
+-+
+-+Benchmarks run on Ryzen 7 7840HS, Go 1.23, Windows 11 23H2.
+-+
+-+---
+-+
+-+## 🗺️  High-level Architecture
+-+
+-+```mermaid
+-+flowchart LR
+-+    subgraph Frontend [Preact/Tailwind]
+-+        A[Virtualised File List]
+-+        B[Context & Dialog System]
+-+        C[Hooks (Clipboard, DnD, …)]
+-+    end
+-+    subgraph Wails_Bridge [Wails ≥2.10]
+-+        D[MsgPack IPC]
+-+    end
+-+    subgraph Backend [Go]
+-+        E[Filesystem & Win32 API]
+-+        F[Drive Monitor]
+-+    end
+-+    A -- select/drag --> A
+-+    A -- emits events --> B
+-+    B -->|invoke| D
+-+    D -->|channel| E
+-+    E -- stream entries --> D
+-+    D --> A
+-+    F -- drive events --> D --> B
+- ```
+--(Or run `build.ps1` if available)
+-\ No newline at end of file
+-+
+-+---
+-+
+-+## 🤝 Contributing
+-+
+-+PRs are welcome! Please follow these guidelines:
+-+
+-+1. **Always use Bun** – never add `package-lock.json`/`yarn.lock`.
+-+2. **No shadows, no gradients** – keep the Neo-Brutalist style.
+-+3. **Go FMT & `bun run lint`** must pass before commit.
+-+4. Windows 11 only – avoid platform-conditionals for other OSes.
+-+
+-+---
+-+
+-+## 📜 License
+-+
+-+[MIT](LICENSE) – because sharing is caring.
+-+
+-+---
+-+
+-+### Acknowledgements
+-+
+-+* [Wails](https://wails.io/) for making desktop apps *fun* in Go.
+-+* [Preact](https://preactjs.com/) for the tiny yet powerful UI library.
+-+* [Tailwind CSS](https://tailwindcss.com/) for rapid styling.
+-+* Iconography from [Phosphor Icons](https://phosphoricons.com/) (MIT-licensed).
+-+
+-+---
+-+
+-+Happy exploring ⚡ 
+-\ No newline at end of file
+-diff --git a/build.ps1 b/build.ps1
+-deleted file mode 100644
+-index 43d5324..0000000
+---- a/build.ps1
+-+++ /dev/null
+-@@ -1,10 +0,0 @@
+--# —— Mini‐profile release build ——
+--Write-Host "🚀 Building Lightning Explorer with optimizations using Wails..." -ForegroundColor Green
+--$env:GOOS = "windows"
+--$env:GOARCH = "amd64"
+--$env:CGO_ENABLED = "0"
+--wails build `
+--  -tags prod `
+--  -ldflags="-s -w -buildid=" `
+--  -trimpath `
+--  -o lightning_explorer.exe 
+-\ No newline at end of file
+-diff --git a/frontend/bun.lock b/frontend/bun.lock
+-index fb71cb3..68f886e 100644
+---- a/frontend/bun.lock
+-+++ b/frontend/bun.lock
+-@@ -5,6 +5,7 @@
+-       "name": "frontend",
+-       "dependencies": {
+-         "@msgpack/msgpack": "^3.1.2",
+-+        "@phosphor-icons/react": "^2.1.10",
+-         "preact": "^10.10.1",
+-       },
+-       "devDependencies": {
+-@@ -89,6 +90,8 @@
+- 
+-     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
+- 
+-+    "@phosphor-icons/react": ["@phosphor-icons/react@2.1.10", "", { "peerDependencies": { "react": ">= 16.8", "react-dom": ">= 16.8" } }, "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA=="],
+-+
+-     "@pkgjs/parseargs": ["@pkgjs/parseargs@0.11.0", "", {}, "sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg=="],
+- 
+-     "@preact/compat": ["@preact/compat@18.3.1", "", { "peerDependencies": { "preact": "*" } }, "sha512-Kog4PSRxtT4COtOXjsuQPV1vMXpUzREQfv+6Dmcy9/rMk0HOPK0HTE9fspFjAmY8R80T/T8gtgmZ68u5bOSngw=="],
+-@@ -351,6 +354,10 @@
+- 
+-     "queue-microtask": ["queue-microtask@1.2.3", "", {}, "sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A=="],
+- 
+-+    "react": ["react@19.1.0", "", {}, "sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg=="],
+-+
+-+    "react-dom": ["react-dom@19.1.0", "", { "dependencies": { "scheduler": "^0.26.0" }, "peerDependencies": { "react": "^19.1.0" } }, "sha512-Xs1hdnE+DyKgeHJeJznQmYMIBG3TKIHJJT95Q58nHLSrElKlGQqDTR2HQ9fx5CN/Gk6Vh/kupBTDLU11/nDk/g=="],
+-+
+-     "read-cache": ["read-cache@1.0.0", "", { "dependencies": { "pify": "^2.3.0" } }, "sha512-Owdv/Ft7IjOgm/i0xvNDZ1LrRANRfew4b2prF3OWMQLxLfu3bS8FVhCsrSCMK4lR56Y9ya+AThoTpDCTxCmpRA=="],
+- 
+-     "readdirp": ["readdirp@3.6.0", "", { "dependencies": { "picomatch": "^2.2.1" } }, "sha512-hOS089on8RduqdbhvQ5Z37A0ESjsqz6qnRcffsMU3495FuTdqSm+7bhJ29JvIOsBDEEnan5DPu9t3To9VRlMzA=="],
+-@@ -363,6 +370,8 @@
+- 
+-     "run-parallel": ["run-parallel@1.2.0", "", { "dependencies": { "queue-microtask": "^1.2.2" } }, "sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA=="],
+- 
+-+    "scheduler": ["scheduler@0.26.0", "", {}, "sha512-NlHwttCI/l5gCPR3D1nNXtWABUmBwvZpEQiD4IXSbIDq8BzLIK/7Ir5gTFSGZDUu37K5cMNp0hFtzO38sC7gWA=="],
+-+
+-     "semver": ["semver@6.3.1", "", { "bin": "bin/semver.js" }, "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA=="],
+- 
+-     "shebang-command": ["shebang-command@2.0.0", "", { "dependencies": { "shebang-regex": "^3.0.0" } }, "sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA=="],
+-diff --git a/frontend/package.json b/frontend/package.json
+-index 70b9b7e..07afe6c 100644
+---- a/frontend/package.json
+-+++ b/frontend/package.json
+-@@ -12,6 +12,7 @@
+-   },
+-   "dependencies": {
+-     "@msgpack/msgpack": "^3.1.2",
+-+    "@phosphor-icons/react": "^2.1.10",
+-     "preact": "^10.10.1"
+-   },
+-   "devDependencies": {
+-diff --git a/frontend/package.json.md5 b/frontend/package.json.md5
+-index d6a0c91..f09653e 100644
+---- a/frontend/package.json.md5
+-+++ b/frontend/package.json.md5
+-@@ -1 +1 @@
+--7759363a8ed025339dfa1cf5c45678bb
+-\ No newline at end of file
+-+3e22dac55bd00afcde2661f970cc1547
+-\ No newline at end of file
+-diff --git a/frontend/src/components/ContextMenu.jsx b/frontend/src/components/ContextMenu.jsx
+-index 79cac6a..b22bbf5 100644
+---- a/frontend/src/components/ContextMenu.jsx
+-+++ b/frontend/src/components/ContextMenu.jsx
+-@@ -1,5 +1,13 @@
+- import { useRef, useEffect } from "preact/hooks";
+- import { memo } from "preact/compat";
+-+import { 
+-+    CopyIcon, 
+-+    ScissorsIcon, 
+-+    PencilIcon, 
+-+    EyeSlashIcon, 
+-+    TrashIcon, 
+-+    XIcon 
+-+} from '@phosphor-icons/react';
+- 
+- // Memoized Context Menu Component
+- const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, onMoveToTrash, onCopy, onCut, onRename, onHide }) => {
+-@@ -50,6 +58,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
+-                     }
+-                     break;
+-                 case 'f2':
+-+                case 'r':
+-                     if (files.length === 1) {
+-                         event.preventDefault();
+-                         onRename();
+-@@ -68,6 +77,12 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
+-         }
+-     }, [visible, onCopy, onCut, onHide, onPermanentDelete, onMoveToTrash, onRename, onClose, files.length]);
+-     
+-+    useEffect(() => {
+-+        if (visible && menuRef.current) {
+-+            menuRef.current.focus();
+-+        }
+-+    }, [visible]);
+-+    
+-     if (!visible) return null;
+-     
+-     return (
+-@@ -84,12 +99,14 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
+-             tabIndex={-1}
+-         >
+-             <div className="context-menu-item-modern" onClick={onCopy}>
+-+                <CopyIcon size={16} weight="bold" className="context-menu-icon" />
+-                 <span className="context-menu-text-modern">Copy</span>
+-                 <span className="context-menu-count">({files.length})</span>
+-                 <span className="context-menu-shortcut">C</span>
+-             </div>
+-             
+-             <div className="context-menu-item-modern" onClick={onCut}>
+-+                <ScissorsIcon size={16} weight="bold" className="context-menu-icon" />
+-                 <span className="context-menu-text-modern">Cut</span>
+-                 <span className="context-menu-count">({files.length})</span>
+-                 <span className="context-menu-shortcut">X</span>
+-@@ -99,6 +116,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
+-             
+-             {files.length === 1 && (
+-                 <div className="context-menu-item-modern" onClick={onRename}>
+-+                    <PencilIcon size={16} weight="bold" className="context-menu-icon" />
+-                     <span className="context-menu-text-modern">Rename</span>
+-                     <span className="context-menu-shortcut">F2</span>
+-                 </div>
+-@@ -107,6 +125,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
+-             <div className="context-menu-separator-modern"></div>
+-             
+-             <div className="context-menu-item-modern warning" onClick={onHide}>
+-+                <EyeSlashIcon size={16} weight="bold" className="context-menu-icon" />
+-                 <span className="context-menu-text-modern">Hide</span>
+-                 <span className="context-menu-count">({files.length})</span>
+-                 <span className="context-menu-shortcut">H</span>
+-@@ -115,12 +134,14 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
+-             <div className="context-menu-separator-modern"></div>
+-             
+-             <div className="context-menu-item-modern warning" onClick={onMoveToTrash}>
+-+                <TrashIcon size={16} weight="bold" className="context-menu-icon" />
+-                 <span className="context-menu-text-modern">Move to Trash</span>
+-                 <span className="context-menu-count">({files.length})</span>
+-                 <span className="context-menu-shortcut">Del</span>
+-             </div>
+-             
+-             <div className="context-menu-item-modern danger" onClick={onPermanentDelete}>
+-+                <XIcon size={16} weight="bold" className="context-menu-icon" />
+-                 <span className="context-menu-text-modern">Permanent Delete</span>
+-                 <span className="context-menu-count">({files.length})</span>
+-                 <span className="context-menu-shortcut">⇧Del</span>
+-diff --git a/frontend/src/components/EmptySpaceContextMenu.jsx b/frontend/src/components/EmptySpaceContextMenu.jsx
+-index 24cb00b..92d4ac4 100644
+---- a/frontend/src/components/EmptySpaceContextMenu.jsx
+-+++ b/frontend/src/components/EmptySpaceContextMenu.jsx
+-@@ -1,5 +1,9 @@
+- import { useRef, useEffect } from "preact/hooks";
+- import { memo } from "preact/compat";
+-+import { 
+-+    FolderPlusIcon, 
+-+    TerminalIcon 
+-+} from '@phosphor-icons/react';
+- 
+- // Memoized Empty Space Context Menu Component  
+- const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, onCreateFolder }) => {
+-@@ -28,7 +32,7 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell,
+-             
+-             switch (event.key.toLowerCase()) {
+-                 case '+':
+--                case '=': // Plus key without shift
+-+                case 'n':
+-                     event.preventDefault();
+-                     onCreateFolder();
+-                     break;
+-@@ -49,6 +53,12 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell,
+-         }
+-     }, [visible, onCreateFolder, onOpenPowerShell, onClose]);
+-     
+-+    useEffect(() => {
+-+        if (visible && menuRef.current) {
+-+            menuRef.current.focus();
+-+        }
+-+    }, [visible]);
+-+    
+-     if (!visible) return null;
+-     
+-     return (
+-@@ -65,6 +75,7 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell,
+-             tabIndex={-1}
+-         >
+-             <div className="context-menu-item-modern" onClick={onCreateFolder}>
+-+                <FolderPlusIcon size={16} weight="bold" className="context-menu-icon" />
+-                 <span className="context-menu-text-modern">New Folder</span>
+-                 <span className="context-menu-shortcut">+</span>
+-             </div>
+-@@ -72,6 +83,7 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell,
+-             <div className="context-menu-separator-modern"></div>
+-             
+-             <div className="context-menu-item-modern" onClick={onOpenPowerShell}>
+-+                <TerminalIcon size={16} weight="bold" className="context-menu-icon" />
+-                 <span className="context-menu-text-modern">Open PowerShell Here</span>
+-                 <span className="context-menu-shortcut">P</span>
+-             </div>
+-diff --git a/frontend/src/components/ExplorerToolbar.jsx b/frontend/src/components/ExplorerToolbar.jsx
+-index 25a2bd5..8428600 100644
+---- a/frontend/src/components/ExplorerToolbar.jsx
+-+++ b/frontend/src/components/ExplorerToolbar.jsx
+-@@ -1,3 +1,14 @@
+-+import { 
+-+    ArrowUpIcon, 
+-+    ArrowClockwiseIcon, 
+-+    FolderOpenIcon, 
+-+    EyeIcon, 
+-+    EyeSlashIcon,
+-+    SortAscendingIcon,
+-+    SortDescendingIcon,
+-+    CaretDownIcon
+-+} from '@phosphor-icons/react';
+-+
+- export function ExplorerToolbar({
+-     currentPath,
+-     handleNavigateUp,
+-@@ -15,51 +26,56 @@ export function ExplorerToolbar({
+-                 className="toolbar-btn"
+-                 onClick={handleNavigateUp}
+-                 disabled={!currentPath}
+-+                title="Navigate up one level"
+-             >
+-+                <ArrowUpIcon size={16} weight="bold" />
+-                 Up
+-             </button>
+-             <button
+-                 className="toolbar-btn"
+-                 onClick={handleRefresh}
+-                 disabled={!currentPath}
+-+                title="Refresh current directory"
+-             >
+-+                <ArrowClockwiseIcon size={16} weight="bold" />
+-                 Refresh
+-             </button>
+-             <button
+-                 className="toolbar-btn"
+-                 onClick={handleOpenInExplorer}
+-                 disabled={!currentPath}
+-+                title="Open in system file explorer"
+-             >
+-+                <FolderOpenIcon size={16} weight="bold" />
+-                 Open
+-             </button>
+-             <button
+-                 className={`toolbar-btn ${showHiddenFiles ? "active" : ""}`}
+-                 onClick={toggleShowHiddenFiles}
+-+                title={showHiddenFiles ? "Hide hidden files" : "Show hidden files"}
+-             >
+-+                {showHiddenFiles ? <EyeIcon size={16} weight="bold" /> : <EyeSlashIcon size={16} weight="bold" />}
+-                 Hidden
+-             </button>
+--
+--            {/* Sort dropdown */}
+-+            
+-+            {/* Sort Controls */}
+-             <div className="sort-dropdown">
+--                <button className="toolbar-btn sort-btn" disabled={!currentPath}>
+-+                <button 
+-+                    className="toolbar-btn"
+-+                    title={`Sort by ${sortBy} (${sortOrder})`}
+-+                >
+-+                    {sortOrder === 'asc' ? 
+-+                        <SortAscendingIcon size={16} weight="bold" /> : 
+-+                        <SortDescendingIcon size={16} weight="bold" />
+-+                    }
+-                     Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
+--                    {sortOrder === "desc" ? " ↓" : " ↑"}
+-+                    <CaretDownIcon size={12} weight="bold" />
+-                 </button>
+-                 <div className="sort-dropdown-content">
+--                    {[
+--                        { key: "name", label: "Name" },
+--                        { key: "size", label: "Size" },
+--                        { key: "type", label: "Type" },
+--                        { key: "modified", label: "Modified" },
+--                    ].map(({ key, label }) => (
+--                        <button
+--                            key={key}
+--                            className={`sort-option ${sortBy === key ? "active" : ""}`}
+--                            onClick={() => handleSortChange(key)}
+--                        >
+--                            {label} {sortBy === key ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+--                        </button>
+--                    ))}
+-+                    <div onClick={() => handleSortChange('name')}>Name</div>
+-+                    <div onClick={() => handleSortChange('size')}>Size</div>
+-+                    <div onClick={() => handleSortChange('type')}>Type</div>
+-+                    <div onClick={() => handleSortChange('modified')}>Date Modified</div>
+-                 </div>
+-             </div>
+-         </div>
+-diff --git a/frontend/src/components/FileItem.jsx b/frontend/src/components/FileItem.jsx
+-index f7ae401..5a07705 100644
+---- a/frontend/src/components/FileItem.jsx
+-+++ b/frontend/src/components/FileItem.jsx
+-@@ -1,6 +1,6 @@
+- import { useMemo, useCallback, useRef, useEffect } from "preact/hooks";
+- import { memo } from "preact/compat";
+--import { getFileIcon, getFileType } from "../utils/fileUtils.js";
+-+import { getFileIcon, getFileType, getFileIconType } from "../utils/fileUtils.js";
+- import { log, error } from "../utils/logger";
+- import { serializationUtils } from "../utils/serialization";
+- 
+-@@ -49,8 +49,11 @@ const FileItem = memo(({
+-     isInspectMode = false
+- 
+- }) => {
+--    const icon = useMemo(() => getFileIcon(file.name, file.isDir), [file.name, file.isDir]);
+-+    // Get the Phosphor Icon component for this file
+-+    const IconComponent = useMemo(() => getFileIcon(file.name, file.isDir), [file.name, file.isDir]);
+-     const type = useMemo(() => getFileType(file.name, file.isDir), [file.name, file.isDir]);
+-+    const iconType = useMemo(() => getFileIconType(file.name, file.isDir), [file.name, file.isDir]);
+-+    
+-     // Memoize formatted file metadata
+-     const formattedDate = useMemo(() => formatDate(file.modTime), [file.modTime]);
+-     const formattedSize = useMemo(() => formatFileSize(file.size), [file.size]);
+-@@ -65,222 +68,191 @@ const FileItem = memo(({
+-     const DOUBLE_CLICK_DELAY = INSTANT_MODE ? 0 : 300; // ms to wait for potential double-click (Windows standard)
+-     const OPEN_COOLDOWN = INSTANT_MODE ? 100 : 500; // ms cooldown between opens to prevent rapid-fire
+-     const PERFORMANCE_LOGGING = false; // Set to true to enable performance logs
+--    
+--    const handleClick = useCallback((event) => {
+--        const clickStartTime = PERFORMANCE_LOGGING ? performance.now() : 0;
+--        log('📋 File clicked:', file.name, 'Path:', file.path, 'IsDir:', file.isDir, 'IsSelected:', isSelected);
+--        
+--        // In inspect mode, don't handle normal file clicks
+-+
+-+    // Cleanup timeout on unmount
+-+    useEffect(() => {
+-+        return () => {
+-+            if (clickTimeoutRef.current) {
+-+                clearTimeout(clickTimeoutRef.current);
+-+            }
+-+        };
+-+    }, []);
+-+
+-+    // Optimized click handler with configurable timing
+-+    const handleClick = useCallback((e) => {
+-         if (isInspectMode) {
+--            return;
+-+            return; // Let parent handle inspect mode clicks
+-         }
+-         
+--        if (isLoading) return;
+-+        e.stopPropagation();
+-         
+-         const now = Date.now();
+--        clickCountRef.current += 1;
+--        
+--        // Clear any existing timeout
+--        if (clickTimeoutRef.current) {
+--            clearTimeout(clickTimeoutRef.current);
+--            clickTimeoutRef.current = null;
+--        }
+-+        const timeSinceLastOpen = now - lastOpenTimeRef.current;
+-         
+--        // Check if this is too soon after last open (cooldown protection)
+--        if (now - lastOpenTimeRef.current < OPEN_COOLDOWN) {
+--            log('🛡️ Open cooldown active, ignoring click');
+--            clickCountRef.current = 0;
+-+        // Prevent rapid-fire opens during cooldown period
+-+        if (timeSinceLastOpen < OPEN_COOLDOWN) {
+-+            if (PERFORMANCE_LOGGING) {
+-+                log(`⏱️ Click ignored - cooldown active (${timeSinceLastOpen}ms < ${OPEN_COOLDOWN}ms)`);
+-+            }
+-             return;
+-         }
+-         
+--        // Handle immediate actions (with modifier keys or unselected files)
+--        if (event.shiftKey || event.ctrlKey || !isSelected) {
+--            log('🖱️ Processing selection for:', file.name);
+--            if (PERFORMANCE_LOGGING) {
+--                log(`⚡ Immediate response: ${(performance.now() - clickStartTime).toFixed(2)}ms`);
+--            }
+--            onSelect(fileIndex, event.shiftKey, event.ctrlKey);
+--            clickCountRef.current = 0;
+-+        clickCountRef.current++;
+-+        
+-+        // Instant mode bypasses double-click detection
+-+        if (INSTANT_MODE) {
+-+            handleSingleClick();
+-             return;
+-         }
+-         
+--        // For selected files without modifier keys, wait to see if it's a double-click
+--        if (PERFORMANCE_LOGGING) {
+--            log(`⏱️ Delaying open by ${DOUBLE_CLICK_DELAY}ms to detect double-click`);
+-+        // Clear any existing timeout
+-+        if (clickTimeoutRef.current) {
+-+            clearTimeout(clickTimeoutRef.current);
+-         }
+-         
+-+        // Set timeout for single-click action
+-         clickTimeoutRef.current = setTimeout(() => {
+-             if (clickCountRef.current === 1) {
+--                // Single click on selected file - open it
+--                log('🚀 Single click confirmed, opening:', file.name);
+--                if (PERFORMANCE_LOGGING) {
+--                    log(`⚡ Delayed open executed: ${(performance.now() - clickStartTime).toFixed(2)}ms total`);
+--                }
+--                lastOpenTimeRef.current = Date.now();
+--                onOpen(file);
+-+                handleSingleClick();
+-             }
+-             clickCountRef.current = 0;
+-         }, DOUBLE_CLICK_DELAY);
+--    }, [file, isLoading, isSelected, fileIndex, onOpen, onSelect, isInspectMode]);
+--    
+--    const handleDoubleClick = useCallback((event) => {
+--        log('🔍 File double-clicked:', file.name, 'Path:', file.path, 'IsDir:', file.isDir);
+-         
+--        // In inspect mode, don't handle normal file double-clicks
+-+    }, [onSelect, fileIndex, isInspectMode]);
+-+
+-+    const handleSingleClick = useCallback(() => {
+-+        if (PERFORMANCE_LOGGING) {
+-+            log(`👆 Single click detected on: ${file.name}`);
+-+        }
+-+        onSelect(fileIndex);
+-+    }, [onSelect, fileIndex, file.name]);
+-+
+-+    // Double-click handler for file opening
+-+    const handleDoubleClick = useCallback((e) => {
+-         if (isInspectMode) {
+--            return;
+-+            return; // Let parent handle inspect mode clicks
+-         }
+-         
+--        if (isLoading) return;
+-+        e.stopPropagation();
+-         
+-         const now = Date.now();
+-+        const timeSinceLastOpen = now - lastOpenTimeRef.current;
+-         
+--        // Clear single-click timeout since this is a double-click
+-+        // Prevent rapid-fire opens
+-+        if (timeSinceLastOpen < OPEN_COOLDOWN) {
+-+            if (PERFORMANCE_LOGGING) {
+-+                log(`⏱️ Double-click ignored - cooldown active (${timeSinceLastOpen}ms < ${OPEN_COOLDOWN}ms)`);
+-+            }
+-+            return;
+-+        }
+-+        
+-+        // Clear single-click timeout
+-         if (clickTimeoutRef.current) {
+-             clearTimeout(clickTimeoutRef.current);
+-             clickTimeoutRef.current = null;
+-         }
+-         
+--        // Check cooldown
+--        if (now - lastOpenTimeRef.current < OPEN_COOLDOWN) {
+--            log('🛡️ Open cooldown active, ignoring double-click');
+--            clickCountRef.current = 0;
+--            return;
+-+        clickCountRef.current = 0;
+-+        lastOpenTimeRef.current = now;
+-+        
+-+        if (PERFORMANCE_LOGGING) {
+-+            log(`👆👆 Double click detected on: ${file.name}`);
+-         }
+-         
+--        // Double click always opens, regardless of selection state
+--        log('🚀 Double-click confirmed, opening:', file.name);
+--        lastOpenTimeRef.current = now;
+--        clickCountRef.current = 0;
+-         onOpen(file);
+--    }, [file, isLoading, onOpen, isInspectMode]);
+--    
+--    // Cleanup timeout on unmount
+--    useEffect(() => {
+--        return () => {
+--            if (clickTimeoutRef.current) {
+--                clearTimeout(clickTimeoutRef.current);
+--            }
+--        };
+--    }, []);
+--    
+--    const handleRightClick = useCallback((event) => {
+--        log('🖱️ Right-click on:', file.name, 'IsSelected:', isSelected);
+--        
+--        // In inspect mode, allow native context menu
+-+    }, [onOpen, file, isInspectMode]);
+-+
+-+    // Context menu handler
+-+    const handleContextMenu = useCallback((e) => {
+-         if (isInspectMode) {
+--            return; // Don't prevent default, allow native context menu
+-+            return; // Let parent handle inspect mode
+-         }
+-         
+--        event.preventDefault();
+--        
+--        if (!isLoading) {
+--            // If file is not selected, select it first
+--            if (!isSelected) {
+--                onSelect(fileIndex, false, false);
+--            }
+--            
+--            // Show context menu
+--            onContextMenu(event, file);
+--        }
+--    }, [file, isLoading, isSelected, fileIndex, onSelect, onContextMenu, isInspectMode]);
+--    
+--    const handleDragStart = useCallback((event) => {
+--        if (isLoading) {
+--            event.preventDefault();
+-+        e.preventDefault();
+-+        e.stopPropagation();
+-+        onContextMenu(e, file, fileIndex);
+-+    }, [onContextMenu, file, fileIndex, isInspectMode]);
+-+
+-+    // Drag handlers
+-+    const handleDragStart = useCallback((e) => {
+-+        if (isInspectMode) {
+-+            e.preventDefault();
+-             return;
+-         }
+-         
+--        // If the dragged item is not selected, select it first
+--        if (!isSelected) {
+--            onSelect(fileIndex, false, false);
+--        }
+--        
+--        if (onDragStart) {
+--            onDragStart(event, file);
+--        }
+--    }, [isLoading, isSelected, fileIndex, file, onSelect, onDragStart]);
+--    
+--    const handleDragOver = useCallback((event) => {
+--        if (!file.isDir || isLoading) return;
+--        
+--        event.preventDefault();
+--        event.dataTransfer.dropEffect = event.ctrlKey ? 'copy' : 'move';
+--        
+--        if (onDragOver) {
+--            onDragOver(event, file);
+--        }
+--    }, [file.isDir, isLoading, onDragOver, file]);
+--    
+--    const handleDragEnter = useCallback((event) => {
+--        if (!file.isDir || isLoading) return;
+--        
+--        event.preventDefault();
+--        if (onDragEnter) {
+--            onDragEnter(event, file);
+--        }
+--    }, [file.isDir, isLoading, onDragEnter, file]);
+--    
+--    const handleDragLeave = useCallback((event) => {
+--        if (!file.isDir || isLoading) return;
+--        
+--        if (onDragLeave) {
+--            onDragLeave(event, file);
+--        }
+--    }, [file.isDir, isLoading, onDragLeave, file]);
+--    
+--    const handleDrop = useCallback((event) => {
+--        if (!file.isDir || isLoading) return;
+--        
+--        event.preventDefault();
+--        
+--        // Enhanced drop handler that works with the new drag and drop system
+--        // The actual parsing logic is now handled in the enhanced useDragAndDrop hook
+--        if (onDrop) {
+--            onDrop(event, file, null); // Pass null for dragData since it's parsed in the hook
+--        }
+--    }, [file, isLoading, onDrop]);
+--    
+-+        onDragStart && onDragStart(e, file, fileIndex);
+-+    }, [onDragStart, file, fileIndex, isInspectMode]);
+-+
+-+    const handleDragOver = useCallback((e) => {
+-+        if (!file.isDir || isInspectMode) return;
+-+        onDragOver && onDragOver(e, file);
+-+    }, [onDragOver, file, isInspectMode]);
+-+
+-+    const handleDragEnter = useCallback((e) => {
+-+        if (!file.isDir || isInspectMode) return;
+-+        onDragEnter && onDragEnter(e, file);
+-+    }, [onDragEnter, file, isInspectMode]);
+-+
+-+    const handleDragLeave = useCallback((e) => {
+-+        if (!file.isDir || isInspectMode) return;
+-+        onDragLeave && onDragLeave(e, file);
+-+    }, [onDragLeave, file, isInspectMode]);
+-+
+-+    const handleDrop = useCallback((e) => {
+-+        if (!file.isDir || isInspectMode) return;
+-+        onDrop && onDrop(e, file);
+-+    }, [onDrop, file, isInspectMode]);
+-+
+-+    // Compute CSS classes
+-+    const itemClasses = `file-item ${isSelected ? 'selected' : ''} ${isCut ? 'cut' : ''} ${isDragOver ? 'drag-over' : ''}`;
+-+
+-+    if (isLoading) {
+-+        return (
+-+            <div className="file-item loading">
+-+                <div className="file-icon skeleton"></div>
+-+                <div className="file-details">
+-+                    <div className="file-name skeleton"></div>
+-+                    <div className="file-meta skeleton"></div>
+-+                </div>
+-+            </div>
+-+        );
+-+    }
+- 
+--    
+-     return (
+-         <div 
+--            className={`file-item ${isSelected ? 'selected' : ''} ${isLoading ? 'disabled' : ''} ${isCut ? 'cut' : ''} ${isDragOver ? 'drag-over' : ''}`}
+-+            className={itemClasses}
+-             onClick={handleClick}
+-             onDoubleClick={handleDoubleClick}
+--            onContextMenu={handleRightClick}
+--            onSelectStart={(e) => e.preventDefault()}
+--            draggable={!isLoading}
+-+            onContextMenu={handleContextMenu}
+-             onDragStart={handleDragStart}
+-             onDragOver={handleDragOver}
+-             onDragEnter={handleDragEnter}
+-             onDragLeave={handleDragLeave}
+-             onDrop={handleDrop}
+--            style={{ 
+--                cursor: isLoading ? 'wait' : 'pointer',
+--                opacity: isLoading ? 0.7 : (isCut ? 0.5 : 1) 
+--            }}
+-+            draggable={!isInspectMode}
+-+            data-file-index={fileIndex}
+-+            data-file-name={file.name}
+-+            data-file-type={type}
+-         >
+--            <div className={`file-icon ${type}`}>
+--                {icon}
+-+            <div className={`file-icon ${iconType}`}>
+-+                <IconComponent 
+-+                    size={20}
+-+                    weight="regular"
+-+                    className="phosphor-icon"
+-+                />
+-             </div>
+-             <div className="file-details">
+--                <div className="file-name">{file.name}</div>
+-+                <div className="file-name" title={file.name}>
+-+                    {file.name}
+-+                </div>
+-                 <div className="file-meta">
+--                    {file.isDir ? (
+--                        <span>DIR</span>
+--                    ) : (
+--                        <>
+--                            <span className="file-size">{formattedSize}</span>
+--                            <span className="file-separator"> • </span>
+--                            <span className="file-date">{formattedDate}</span>
+--                        </>
+--                    )}
+-+                    {file.isDir ? 'Folder' : `${formattedSize} • ${formattedDate}`}
+-                 </div>
+-             </div>
+-         </div>
+-     );
+- });
+- 
+--export { FileItem };
+--export default FileItem; 
+-\ No newline at end of file
+-+FileItem.displayName = 'FileItem';
+-+
+-+export { FileItem }; 
+-\ No newline at end of file
+-diff --git a/frontend/src/components/Sidebar.jsx b/frontend/src/components/Sidebar.jsx
+-index 3c1f25f..af067ce 100644
+---- a/frontend/src/components/Sidebar.jsx
+-+++ b/frontend/src/components/Sidebar.jsx
+-@@ -1,5 +1,17 @@
+- import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+- import { memo } from "preact/compat";
+-+import { 
+-+    HouseIcon, 
+-+    FolderIcon, 
+-+    DesktopIcon, 
+-+    DownloadIcon, 
+-+    MusicNotesIcon, 
+-+    ImageIcon, 
+-+    HardDriveIcon,
+-+    CaretRightIcon,
+-+    CaretDownIcon,
+-+    SpinnerIcon
+-+} from '@phosphor-icons/react';
+- 
+- // Memoized Sidebar component
+- const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onDriveContextMenu }) => {
+-@@ -26,10 +38,12 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
+-     const pathSep = homeDir.includes('\\') ? '\\' : '/';
+-     
+-     const quickAccess = useMemo(() => [
+--        { name: 'Home', path: homeDir },
+--        { name: 'Desktop', path: homeDir + pathSep + 'Desktop' },
+--        { name: 'Documents', path: homeDir + pathSep + 'Documents' },
+--        { name: 'Downloads', path: homeDir + pathSep + 'Downloads' },
+-+        { name: 'Home', path: homeDir, icon: HouseIcon },
+-+        { name: 'Desktop', path: homeDir + pathSep + 'Desktop', icon: DesktopIcon },
+-+        { name: 'Documents', path: homeDir + pathSep + 'Documents', icon: FolderIcon },
+-+        { name: 'Downloads', path: homeDir + pathSep + 'Downloads', icon: DownloadIcon },
+-+        { name: 'Music', path: homeDir + pathSep + 'Music', icon: MusicNotesIcon },
+-+        { name: 'Pictures', path: homeDir + pathSep + 'Pictures', icon: ImageIcon }
+-     ].filter(item => item.path), [homeDir, pathSep]);
+-     
+-     const handleQuickAccessClick = useCallback((path) => {
+-@@ -41,30 +55,31 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
+-     }, [onNavigate]);
+-     
+-     const handleDriveExpand = useCallback(async () => {
+--        if (!drivesExpanded && onDriveExpand) {
+-+        if (!drivesExpanded && !loadingDrives) {
+-             setLoadingDrives(true);
+--            try {
+--                await onDriveExpand();
+--            } finally {
+--                setLoadingDrives(false);
+--            }
+-+            await onDriveExpand();
+-+            setLoadingDrives(false);
+-         }
+-         setDrivesExpanded(!drivesExpanded);
+--    }, [drivesExpanded, onDriveExpand]);
+-+    }, [drivesExpanded, loadingDrives, onDriveExpand]);
+-     
+-     return (
+-         <div className="sidebar" onSelectStart={(e) => e.preventDefault()}>
+-             <div className="sidebar-section">
+-                 <div className="sidebar-title">Quick Access</div>
+--                {quickAccess.map((item) => (
+--                    <div 
+--                        key={item.path}
+--                        className={`sidebar-item ${currentPath === item.path ? 'active' : ''}`}
+--                        onClick={() => handleQuickAccessClick(item.path)}
+--                    >
+--                        {item.name}
+--                    </div>
+--                ))}
+-+                {quickAccess.map((item) => {
+-+                    const IconComponent = item.icon;
+-+                    return (
+-+                        <div 
+-+                            key={item.path}
+-+                            className={`sidebar-item ${currentPath === item.path ? 'active' : ''}`}
+-+                            onClick={() => handleQuickAccessClick(item.path)}
+-+                        >
+-+                            <IconComponent size={16} weight="bold" className="sidebar-icon" />
+-+                            {item.name}
+-+                        </div>
+-+                    );
+-+                })}
+-             </div>
+-             
+-             {/* Lazy-loaded drives section */}
+-@@ -81,7 +96,13 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
+-                 >
+-                     Drives
+-                     <span style={{ fontSize: 'var(--font-sm)' }}>
+--                        {loadingDrives ? '...' : (drivesExpanded ? '▼' : '▶')}
+-+                        {loadingDrives ? (
+-+                            <SpinnerIcon size={12} className="spinning" />
+-+                        ) : drivesExpanded ? (
+-+                            <CaretDownIcon size={12} weight="bold" />
+-+                        ) : (
+-+                            <CaretRightIcon size={12} weight="bold" />
+-+                        )}
+-                     </span>
+-                 </div>
+-                 {drivesExpanded && drives.length > 0 && (
+-@@ -96,12 +117,14 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
+-                                 }
+-                             }}
+-                         >
+-+                            <HardDriveIcon size={16} weight="bold" className="sidebar-icon" />
+-                             {drive.name}
+-                         </div>
+-                     ))
+-                 )}
+-                 {drivesExpanded && drives.length === 0 && !loadingDrives && (
+-                     <div className="sidebar-item disabled" style={{ color: '#666', fontStyle: 'italic' }}>
+-+                        <HardDriveIcon size={16} weight="regular" className="sidebar-icon" />
+-                         No drives found
+-                     </div>
+-                 )}
+-diff --git a/frontend/src/hooks/useDragAndDrop.js b/frontend/src/hooks/useDragAndDrop.js
+-index 4d8fc89..98f4c9a 100644
+---- a/frontend/src/hooks/useDragAndDrop.js
+-+++ b/frontend/src/hooks/useDragAndDrop.js
+-@@ -346,14 +346,14 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
+-             pointer-events: none;
+-         `;
+- 
+--        const icon = operation === 'copy' ? '📋' : '🔄';
+-+        const iconText = operation === 'copy' ? 'Copy' : 'Move';
+-         const action = operation === 'copy' ? 'Copy' : 'Move';
+-         
+-         let content = '';
+-         if (files.length === 1) {
+--            content = `${icon} ${action} "${files[0].name}"`;
+-+            content = `${iconText} "${files[0].name}"`;
+-         } else {
+--            content = `${icon} ${action} ${files.length} items`;
+-+            content = `${iconText} ${files.length} items`;
+-         }
+-         
+-         preview.innerHTML = content;
+-diff --git a/frontend/src/style.css b/frontend/src/style.css
+-index 97a9ae0..e95b3fe 100644
+---- a/frontend/src/style.css
+-+++ b/frontend/src/style.css
+-@@ -351,10 +351,41 @@ body {
+-   justify-content: center;
+-   font-size: var(--font-base);
+- }
+-+
+-+/* Phosphor icon styling */
+-+.file-icon .phosphor-icon {
+-+  color: var(--brut-text-primary);
+-+  transition: color 100ms ease-out;
+-+}
+-+
+-+.file-item.selected .file-icon .phosphor-icon {
+-+  color: var(--brut-accent-text);
+-+}
+-+
+-+/* Icon background colors based on file types */
+- .file-icon.folder { background-color: var(--brut-text-secondary); }
+-+.file-icon.folder .phosphor-icon { color: var(--brut-surface); }
+-+
+- .file-icon.image { background-color: #f59e0b; }
+-+.file-icon.image .phosphor-icon { color: var(--brut-surface); }
+-+
+- .file-icon.code { background-color: #2563eb; }
+-+.file-icon.code .phosphor-icon { color: var(--brut-surface); }
+-+
+- .file-icon.archive { background-color: #78716c; }
+-+.file-icon.archive .phosphor-icon { color: var(--brut-surface); }
+-+
+-+.file-icon.video { background-color: #dc2626; }
+-+.file-icon.video .phosphor-icon { color: var(--brut-surface); }
+-+
+-+.file-icon.audio { background-color: #059669; }
+-+.file-icon.audio .phosphor-icon { color: var(--brut-surface); }
+-+
+-+.file-icon.document { background-color: #7c3aed; }
+-+.file-icon.document .phosphor-icon { color: var(--brut-surface); }
+-+
+-+.file-icon.executable { background-color: #ea580c; }
+-+.file-icon.executable .phosphor-icon { color: var(--brut-surface); }
+- 
+- .file-details { flex: 1; display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
+- .file-name { font-size: var(--font-base); font-weight: 500; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+-@@ -398,6 +429,24 @@ body {
+- .error-notification-details-content { font-size: var(--font-xs); background: var(--brut-secondary-bg); padding: var(--space-md); border-radius: var(--brut-radius); max-height: clamp(10rem, 10.42vh, 15rem); overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+- 
+- /* Context Menus */
+-+.context-menu-item-modern {
+-+  display: flex;
+-+  align-items: center;
+-+  gap: var(--space-md);
+-+}
+-+
+-+.context-menu-icon {
+-+  flex-shrink: 0;
+-+  color: var(--brut-text-primary);
+-+}
+-+
+-+.context-menu-item-modern.warning .context-menu-icon {
+-+  color: #f59e0b;
+-+}
+-+
+-+.context-menu-item-modern.danger .context-menu-icon {
+-+  color: #ef4444;
+-+}
+- .modern-context-menu { position: fixed; background: var(--brut-surface); border: var(--brut-border-width) solid var(--brut-border-color); border-radius: var(--brut-radius-lg); z-index: 1000; min-width: clamp(12rem, 7.64vw, 18rem); padding: var(--space-sm); }
+- .context-menu-item-modern { display: flex; align-items: center; gap: var(--space-md); padding: var(--space-md) var(--space-md); border-radius: var(--brut-radius); cursor: pointer; transition: background-color 100ms ease-out, color 100ms ease-out; font-size: var(--font-base); color: var(--brut-text-primary); white-space: nowrap; }
+- .context-menu-item-modern:hover { background: var(--brut-border-color); color: var(--brut-surface); }
+-diff --git a/frontend/src/utils/fileTypeMaps.js b/frontend/src/utils/fileTypeMaps.js
+-index 0534f80..5b4c79b 100644
+---- a/frontend/src/utils/fileTypeMaps.js
+-+++ b/frontend/src/utils/fileTypeMaps.js
+-@@ -1,6 +1,59 @@
+--// Pre-compiled file type and icon maps for optimal performance
+-+// Pre-compiled file type and icon maps for optimal performance using Phosphor Icons
+- // These are constants that are computed once at module load time
+- 
+-+// Import Phosphor Icons
+-+import {
+-+    FileIcon,
+-+    FolderIcon,
+-+    FileImageIcon,
+-+    FileVideoIcon,
+-+    MusicNotesIcon,
+-+    FileTextIcon,
+-+    FileCodeIcon,
+-+    FileZipIcon,
+-+    GearIcon,
+-+    FileJsIcon,
+-+    FileTsIcon,
+-+    FileJsxIcon,
+-+    FileVueIcon,
+-+    FileHtmlIcon,
+-+    FileCssIcon,
+-+    DatabaseIcon,
+-+    FilePdfIcon,
+-+    MicrosoftWordLogoIcon,
+-+    MicrosoftExcelLogoIcon,
+-+    MicrosoftPowerpointLogoIcon,
+-+    ArchiveIcon,
+-+    CaretRightIcon,
+-+    CaretDownIcon,
+-+    FolderOpenIcon,
+-+    TerminalIcon,
+-+    GitBranchIcon,
+-+    HammerIcon,
+-+    PuzzlePieceIcon,
+-+    WrenchIcon,
+-+    BooksIcon,
+-+    TestTubeIcon,
+-+    PackageIcon,
+-+    GlobeIcon,
+-+    LockIcon,
+-+    TrashIcon,
+-+    NotePencilIcon,
+-+    CameraIcon,
+-+    PaintBrushIcon,
+-+    SpeakerHighIcon,
+-+    VideoIcon,
+-+    BookOpenIcon,
+-+    FloppyDiskIcon,
+-+    LightningIcon,
+-+    TextTIcon,
+-+    CubeIcon,
+-+    DiamondIcon,
+-+    RulerIcon,
+-+    FilePyIcon,
+-+    // Add more icons as needed
+-+} from '@phosphor-icons/react';
+-+
+- // Specific file mappings (highest priority)
+- export const SPECIFIC_FILE_MAP = {
+-     'readme': 'readme',
+-@@ -135,141 +188,154 @@ export const EXTENSION_TYPE_MAP = {
+-     'dwg': 'cad', 'dxf': 'cad', 'step': 'cad', 'iges': 'cad'
+- };
+- 
+--// Special folder icons
+-+// Special folder icons - Phosphor Icon components
+- export const SPECIAL_FOLDER_MAP = {
+--    'node_modules': '📦',
+--    '.git': '🔀',
+--    '.vscode': '🔵',
+--    '.idea': '💡',
+--    'dist': '📦',
+--    'build': '🔨',
+--    'src': '📂',
+--    'assets': '🎨',
+--    'images': '🖼️',
+--    'img': '🖼️',
+--    'css': '🎨',
+--    'js': '📜',
+--    'components': '🧩',
+--    'utils': '🔧',
+--    'config': '⚙️',
+--    'docs': '📚',
+--    'documentation': '📚',
+--    'test': '🧪',
+--    'tests': '🧪',
+--    '__pycache__': '🐍',
+--    'venv': '🐍',
+--    'env': '🌍',
+--    'bin': '⚙️',
+--    'lib': '📚',
+--    'include': '📂',
+--    'public': '🌐',
+--    'private': '🔒',
+--    'temp': '🗂️',
+--    'tmp': '🗂️',
+--    'cache': '💾',
+--    'log': '📝',
+--    'logs': '📝'
+-+    'node_modules': PackageIcon,
+-+    '.git': GitBranchIcon,
+-+    '.vscode': FileCodeIcon,
+-+    '.idea': FileCodeIcon,
+-+    'dist': PackageIcon,
+-+    'build': HammerIcon,
+-+    'src': FolderIcon,
+-+    'assets': PaintBrushIcon,
+-+    'images': FileImageIcon,
+-+    'img': FileImageIcon,
+-+    'css': FileCssIcon,
+-+    'js': FileJsIcon,
+-+    'components': PuzzlePieceIcon,
+-+    'utils': WrenchIcon,
+-+    'config': GearIcon,
+-+    'docs': BooksIcon,
+-+    'documentation': BooksIcon,
+-+    'test': TestTubeIcon,
+-+    'tests': TestTubeIcon,
+-+    '__pycache__': FilePyIcon,
+-+    'venv': FilePyIcon,
+-+    'env': GlobeIcon,
+-+    'bin': GearIcon,
+-+    'lib': BooksIcon,
+-+    'include': FolderIcon,
+-+    'public': GlobeIcon,
+-+    'private': LockIcon,
+-+    'temp': FolderIcon,
+-+    'tmp': FolderIcon,
+-+    'cache': FloppyDiskIcon,
+-+    'log': NotePencilIcon,
+-+    'logs': NotePencilIcon
+- };
+- 
+--// Type to icon mappings
+-+// Type to icon mappings - Phosphor Icon components
+- export const TYPE_ICON_MAP = {
+-     // Programming languages
+--    'javascript': '🟨',
+--    'typescript': '🔷',
+--    'react': '⚛️',
+--    'vue': '💚',
+--    'svelte': '🧡',
+--    'html': '🌐',
+--    'css': '🎨',
+--    'sass': '💅',
+--    'php': '🐘',
+--    'python': '🐍',
+--    'java': '☕',
+--    'csharp': '🔷',
+--    'cpp': '⚙️',
+--    'c': '🔧',
+--    'go': '🐹',
+--    'rust': '🦀',
+--    'swift': '🐦',
+--    'kotlin': '🟣',
+--    'dart': '🎯',
+--    'ruby': '💎',
+--    'perl': '🐪',
+--    'lua': '🌙',
+--    'r': '📊',
+--    'julia': '🔴',
+--    'powershell': '💙',
+--    'batch': '⚫',
+--    'assembly': '🔩',
+-+    'javascript': FileJsIcon,
+-+    'typescript': FileTsIcon,
+-+    'react': FileJsxIcon,
+-+    'vue': FileVueIcon,
+-+    'svelte': FileCodeIcon,
+-+    'html': FileHtmlIcon,
+-+    'css': FileCssIcon,
+-+    'sass': FileCssIcon,
+-+    'php': FileCodeIcon,
+-+    'python': FilePyIcon,
+-+    'java': FileCodeIcon,
+-+    'csharp': FileCodeIcon,
+-+    'cpp': FileCodeIcon,
+-+    'c': FileCodeIcon,
+-+    'go': FileCodeIcon,
+-+    'rust': FileCodeIcon,
+-+    'swift': FileCodeIcon,
+-+    'kotlin': FileCodeIcon,
+-+    'dart': FileCodeIcon,
+-+    'ruby': FileCodeIcon,
+-+    'perl': FileCodeIcon,
+-+    'lua': FileCodeIcon,
+-+    'r': FileCodeIcon,
+-+    'julia': FileCodeIcon,
+-+    'powershell': TerminalIcon,
+-+    'batch': TerminalIcon,
+-+    'assembly': FileCodeIcon,
+-     
+-     // Data and config
+--    'json': '📋',
+--    'xml': '📄',
+--    'yaml': '📝',
+--    'database': '🗄️',
+--    'config': '⚙️',
+-+    'json': FileCodeIcon,
+-+    'xml': FileCodeIcon,
+-+    'yaml': FileCodeIcon,
+-+    'database': DatabaseIcon,
+-+    'config': GearIcon,
+-     
+-     // Special files
+--    'readme': '📖',
+--    'license': '📜',
+--    'docker': '🐳',
+--    'build': '🔨',
+--    'nodejs': '💚',
+--    'git': '🔀',
+-+    'readme': BookOpenIcon,
+-+    'license': FileTextIcon,
+-+    'docker': PackageIcon,
+-+    'build': HammerIcon,
+-+    'nodejs': FileJsIcon,
+-+    'git': GitBranchIcon,
+-     
+-     // Images
+--    'image': '🖼️',
+--    'gif': '🎞️',
+--    'vector': '🎨',
+--    'icon': '🔳',
+--    'camera': '📷',
+--    'photoshop': '🎨',
+--    'illustrator': '🎨',
+--    'design': '🎨',
+--    'figma': '🎨',
+--    'xd': '🎨',
+-+    'image': FileImageIcon,
+-+    'gif': FileImageIcon,
+-+    'vector': PaintBrushIcon,
+-+    'icon': FileImageIcon,
+-+    'camera': CameraIcon,
+-+    'photoshop': PaintBrushIcon,
+-+    'illustrator': PaintBrushIcon,
+-+    'design': PaintBrushIcon,
+-+    'figma': PaintBrushIcon,
+-+    'xd': PaintBrushIcon,
+-     
+-     // Media
+--    'audio': '🎵',
+--    'music': '🎼',
+--    'video': '🎬',
+-+    'audio': SpeakerHighIcon,
+-+    'music': SpeakerHighIcon,
+-+    'video': VideoIcon,
+-     
+-     // Documents
+--    'pdf': '📕',
+--    'word': '📘',
+--    'excel': '📗',
+--    'csv': '📊',
+--    'powerpoint': '📙',
+--    'document': '📄',
+--    'text': '📝',
+--    'markdown': '📝',
+--    'latex': '📖',
+--    'ebook': '📚',
+-+    'pdf': FilePdfIcon,
+-+    'word': MicrosoftWordLogoIcon,
+-+    'excel': MicrosoftExcelLogoIcon,
+-+    'csv': MicrosoftExcelLogoIcon,
+-+    'powerpoint': MicrosoftPowerpointLogoIcon,
+-+    'document': FileTextIcon,
+-+    'text': FileTextIcon,
+-+    'markdown': FileTextIcon,
+-+    'latex': BookOpenIcon,
+-+    'ebook': BookOpenIcon,
+-     
+-     // Archives and packages
+--    'archive': '📦',
+--    'package': '📦',
+--    'disc': '💿',
+-+    'archive': ArchiveIcon,
+-+    'package': PackageIcon,
+-+    'disc': FloppyDiskIcon,
+-     
+-     // Executables
+--    'executable': '⚡',
+--    'installer': '📦',
+--    'batch': '⚫',
+-+    'executable': LightningIcon,
+-+    'installer': PackageIcon,
+-+    'batch': TerminalIcon,
+-     
+-     // Fonts
+--    'font': '🔤',
+-+    'font': TextTIcon,
+-     
+-     // 3D and design
+--    '3d': '🎲',
+--    'blender': '🎲',
+--    'cad': '📐',
+-+    '3d': CubeIcon,
+-+    'blender': CubeIcon,
+-+    'cad': RulerIcon,
+-     
+-     // Default
+--    'file': '📄',
+--    'folder': '📁'
+-+    'file': FileIcon,
+-+    'folder': FolderIcon
+-+};
+-+
+-+// Default icon components
+-+export const DEFAULT_FILE_ICON = FileIcon;
+-+export const DEFAULT_FOLDER_ICON = FolderIcon;
+-+
+-+// Helper function to get icon component
+-+export const getIconComponent = (type, isDir = false) => {
+-+    if (isDir) {
+-+        return FolderIcon;
+-+    }
+-+    
+-+    return TYPE_ICON_MAP[type] || FileIcon;
+- };
+- 
+--// Default constants
+--export const DEFAULT_FILE_ICON = '📄';
+--export const DEFAULT_FOLDER_ICON = '📁';
+--export const DEFAULT_FILE_TYPE = 'file'; 
+-\ No newline at end of file
+-+// Special folder icon getter
+-+export const getSpecialFolderIcon = (folderName) => {
+-+    return SPECIAL_FOLDER_MAP[folderName.toLowerCase()] || FolderIcon;
+-+}; 
+-\ No newline at end of file
+-diff --git a/frontend/src/utils/fileUtils.js b/frontend/src/utils/fileUtils.js
+-index 923d914..08427c9 100644
+---- a/frontend/src/utils/fileUtils.js
+-+++ b/frontend/src/utils/fileUtils.js
+-@@ -1,4 +1,17 @@
+- // Optimized file utilities with caching and performance optimizations
+-+// Updated to work with Phosphor Icons
+-+
+-+// Import the icon mappings
+-+import { 
+-+    SPECIFIC_FILE_MAP, 
+-+    EXTENSION_TYPE_MAP, 
+-+    TYPE_ICON_MAP, 
+-+    SPECIAL_FOLDER_MAP,
+-+    DEFAULT_FILE_ICON,
+-+    DEFAULT_FOLDER_ICON,
+-+    getIconComponent,
+-+    getSpecialFolderIcon
+-+} from './fileTypeMaps.js';
+- 
+- // Cache for file type and icon lookups to avoid repeated computations
+- const iconCache = new Map();
+-@@ -17,41 +30,35 @@ const startCacheCleanup = () => {
+-     }
+- };
+- 
+--// Start cache cleanup
+-+// Initialize cleanup when module loads
+- startCacheCleanup();
+- 
+-+// Performance-optimized extension sets using the same patterns as before
+-+const imageExtensions = new Set(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'tif']);
+-+const videoExtensions = new Set(['mp4', 'm4v', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', '3gp', 'mpg', 'mpeg']);
+-+const audioExtensions = new Set(['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'wma', 'aiff', 'midi', 'mid']);
+-+const documentExtensions = new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'md', 'markdown']);
+-+const codeExtensions = new Set(['js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'sass', 'php', 'py', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 'rb', 'pl', 'lua', 'r', 'jl']);
+-+const archiveExtensions = new Set(['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'cab']);
+-+const executableExtensions = new Set(['exe', 'msi', 'deb', 'rpm', 'dmg', 'pkg']);
+-+
+- /**
+-- * Optimized file filtering with precomputed hidden status
+-- * @param {Array} files - Array of file objects
+-- * @param {boolean} showHidden - Whether to show hidden files
+-- * @returns {Array} - Filtered array
+-+ * Optimized extension extraction with caching
+-  */
+--export function filterFiles(files, showHidden) {
+--    if (!files || !Array.isArray(files)) return [];
+-+function getExtension(filename) {
+-+    if (extensionCache.has(filename)) {
+-+        return extensionCache.get(filename);
+-+    }
+-     
+--    // If showing all files, return as-is (backend already filtered system files)
+--    if (showHidden) return files;
+-+    const lastDot = filename.lastIndexOf('.');
+-+    const ext = lastDot === -1 ? '' : filename.slice(lastDot + 1).toLowerCase();
+-     
+--    // Filter out hidden files efficiently
+--    return files.filter(file => !file.isHidden);
+--}
+--
+--/**
+-- * Batch filter files with optimized performance for large lists
+-- * @param {Array} directories - Directory entries
+-- * @param {Array} files - File entries
+-- * @param {boolean} showHidden - Whether to show hidden files
+-- * @returns {Object} - Object with filtered directories and files
+-- */
+--export function batchFilterFiles(directories, files, showHidden) {
+--    return {
+--        directories: filterFiles(directories, showHidden),
+--        files: filterFiles(files, showHidden)
+--    };
+-+    extensionCache.set(filename, ext);
+-+    return ext;
+- }
+- 
+- /**
+-- * Cached file type detection
+-+ * Enhanced file type detection with comprehensive mappings
+-  */
+- export function getFileType(filename, isDir) {
+-     if (isDir) return 'folder';
+-@@ -61,117 +68,184 @@ export function getFileType(filename, isDir) {
+-         return typeCache.get(cacheKey);
+-     }
+-     
+--    const ext = getExtension(filename);
+--    let type = 'file';
+-+    // Check specific file mappings first (highest priority)
+-+    const lowerFilename = filename.toLowerCase();
+-+    if (SPECIFIC_FILE_MAP[lowerFilename]) {
+-+        const type = SPECIFIC_FILE_MAP[lowerFilename];
+-+        typeCache.set(cacheKey, type);
+-+        return type;
+-+    }
+-     
+--    // Fast type detection based on extension
+--    if (imageExtensions.has(ext)) type = 'image';
+--    else if (videoExtensions.has(ext)) type = 'video';
+--    else if (audioExtensions.has(ext)) type = 'audio';
+--    else if (documentExtensions.has(ext)) type = 'document';
+--    else if (codeExtensions.has(ext)) type = 'code';
+--    else if (archiveExtensions.has(ext)) type = 'archive';
+-+    // Check extension mappings
+-+    const ext = getExtension(filename);
+-+    const type = EXTENSION_TYPE_MAP[ext] || 'file';
+-     
+-     typeCache.set(cacheKey, type);
+-     return type;
+- }
+- 
+- /**
+-- * Cached file icon detection with performance optimization
+-+ * Get icon component for file/folder
+-+ * Returns the actual Phosphor Icon component
+-  */
+- export function getFileIcon(filename, isDir) {
+--    if (isDir) return '📁';
+-+    if (isDir) {
+-+        // Check for special folder icons
+-+        const specialIcon = getSpecialFolderIcon(filename);
+-+        return specialIcon;
+-+    }
+-     
+-     const cacheKey = filename.toLowerCase();
+-     if (iconCache.has(cacheKey)) {
+-         return iconCache.get(cacheKey);
+-     }
+-     
+-+    const fileType = getFileType(filename, isDir);
+-+    const iconComponent = getIconComponent(fileType, isDir);
+-+    
+-+    iconCache.set(cacheKey, iconComponent);
+-+    return iconComponent;
+-+}
+-+
+-+/**
+-+ * Get icon type class for CSS styling
+-+ * This provides backwards compatibility for the CSS classes
+-+ */
+-+export function getFileIconType(filename, isDir) {
+-+    if (isDir) return 'folder';
+-+    
+-     const ext = getExtension(filename);
+--    let icon = '📄'; // Default file icon
+--    
+--    // Fast icon lookup using Sets for O(1) performance
+--    if (imageExtensions.has(ext)) icon = '🖼️';
+--    else if (videoExtensions.has(ext)) icon = '🎬';
+--    else if (audioExtensions.has(ext)) icon = '🎵';
+--    else if (documentExtensions.has(ext)) icon = '📝';
+--    else if (codeExtensions.has(ext)) icon = '💻';
+--    else if (archiveExtensions.has(ext)) icon = '📦';
+--    else if (executableExtensions.has(ext)) icon = '⚙️';
+--    
+--    iconCache.set(cacheKey, icon);
+--    return icon;
+-+    
+-+    // Fast type detection using Sets for O(1) performance
+-+    if (imageExtensions.has(ext)) return 'image';
+-+    if (videoExtensions.has(ext)) return 'video';
+-+    if (audioExtensions.has(ext)) return 'audio';
+-+    if (documentExtensions.has(ext)) return 'document';
+-+    if (codeExtensions.has(ext)) return 'code';
+-+    if (archiveExtensions.has(ext)) return 'archive';
+-+    if (executableExtensions.has(ext)) return 'executable';
+-+    
+-+    return 'file';
+- }
+- 
+- /**
+-- * Optimized extension extraction with caching
+-+ * Filter files based on visibility settings with performance optimization
+-  */
+--export function getExtension(filename) {
+--    if (!filename) return '';
+-+export function filterFiles(files, showHidden = false) {
+-+    if (!files || files.length === 0) return [];
+-     
+--    if (extensionCache.has(filename)) {
+--        return extensionCache.get(filename);
+-+    if (showHidden) {
+-+        return files; // No filtering needed
+-     }
+-     
+--    const lastDot = filename.lastIndexOf('.');
+--    const ext = lastDot > 0 ? filename.slice(lastDot + 1).toLowerCase() : '';
+-+    // Use filter for hidden file detection
+-+    return files.filter(file => {
+-+        // Skip files/folders that start with '.'
+-+        if (file.name.startsWith('.')) return false;
+-+        
+-+        // Skip system files on Windows
+-+        if (file.isSystem || file.isHidden) return false;
+-+        
+-+        return true;
+-+    });
+-+}
+-+
+-+/**
+-+ * Check if a file is considered "hidden"
+-+ */
+-+export function isHiddenFile(filename) {
+-+    return filename.startsWith('.') || filename.toLowerCase() === 'desktop.ini' || filename.toLowerCase() === 'thumbs.db';
+-+}
+-+
+-+/**
+-+ * Get file category for grouping
+-+ */
+-+export function getFileCategory(filename, isDir) {
+-+    if (isDir) return 'folder';
+-     
+--    extensionCache.set(filename, ext);
+--    return ext;
+-+    const ext = getExtension(filename);
+-+    
+-+    if (imageExtensions.has(ext)) return 'image';
+-+    if (videoExtensions.has(ext)) return 'video';
+-+    if (audioExtensions.has(ext)) return 'audio';
+-+    if (documentExtensions.has(ext)) return 'document';
+-+    if (codeExtensions.has(ext)) return 'code';
+-+    if (archiveExtensions.has(ext)) return 'archive';
+-+    
+-+    return 'other';
+-+}
+-+
+-+/**
+-+ * Check if file extension indicates a specific type
+-+ */
+-+export const isImageFile = (filename) => imageExtensions.has(getExtension(filename));
+-+export const isVideoFile = (filename) => videoExtensions.has(getExtension(filename));
+-+export const isAudioFile = (filename) => audioExtensions.has(getExtension(filename));
+-+export const isDocumentFile = (filename) => documentExtensions.has(getExtension(filename));
+-+export const isCodeFile = (filename) => codeExtensions.has(getExtension(filename));
+-+export const isArchiveFile = (filename) => archiveExtensions.has(getExtension(filename));
+-+
+-+/**
+-+ * Get human-readable file type description
+-+ */
+-+export function getFileTypeDescription(filename, isDir) {
+-+    if (isDir) return 'Folder';
+-+    
+-+    const type = getFileType(filename, isDir);
+-+    const ext = getExtension(filename).toUpperCase();
+-+    
+-+    const typeDescriptions = {
+-+        'javascript': 'JavaScript File',
+-+        'typescript': 'TypeScript File',
+-+        'react': 'React Component',
+-+        'html': 'HTML Document',
+-+        'css': 'CSS Stylesheet',
+-+        'python': 'Python Script',
+-+        'java': 'Java Source File',
+-+        'image': `${ext} Image`,
+-+        'video': `${ext} Video`,
+-+        'audio': `${ext} Audio`,
+-+        'pdf': 'PDF Document',
+-+        'word': 'Word Document',
+-+        'excel': 'Excel Spreadsheet',
+-+        'archive': `${ext} Archive`,
+-+        'executable': 'Executable File'
+-+    };
+-+    
+-+    return typeDescriptions[type] || `${ext} File` || 'File';
+-+}
+-+
+-+/**
+-+ * Batch filter files with optimized performance for large lists
+-+ * @param {Array} directories - Directory entries
+-+ * @param {Array} files - File entries
+-+ * @param {boolean} showHidden - Whether to show hidden files
+-+ * @returns {Object} - Object with filtered directories and files
+-+ */
+-+export function batchFilterFiles(directories, files, showHidden) {
+-+    return {
+-+        directories: filterFiles(directories, showHidden),
+-+        files: filterFiles(files, showHidden)
+-+    };
+- }
+- 
+- /**
+-- * Split filename into name and extension for rename operations
+-- * Returns object with {name, extension, hasExtension}
+-+ * Split filename into name and extension status
+-  * @param {string} filename - The filename to split
+-- * @returns {Object} - Object with name, extension, and hasExtension properties
+-+ * @returns {Object} - Object with name and hasExtension properties
+-  */
+- export function splitFilename(filename) {
+--    if (!filename) return { name: '', extension: '', hasExtension: false };
+--    
+-     const lastDot = filename.lastIndexOf('.');
+--    
+--    // If no dot found, or dot is at the beginning (hidden file), treat as no extension
+--    if (lastDot <= 0) {
+--        return { name: filename, extension: '', hasExtension: false };
+-+    if (lastDot === -1 || lastDot === 0) {
+-+        return { name: filename, hasExtension: false };
+-     }
+-     
+-     return {
+--        name: filename.slice(0, lastDot),
+--        extension: filename.slice(lastDot + 1),
+-+        name: filename.substring(0, lastDot),
+-         hasExtension: true
+-     };
+- }
+- 
+--// Pre-computed Sets for O(1) lookup performance (much faster than arrays)
+--const imageExtensions = new Set([
+--    'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'tif'
+--]);
+--
+--const videoExtensions = new Set([
+--    'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', 'm4v', '3gp'
+--]);
+--
+--const audioExtensions = new Set([
+--    'mp3', 'wav', 'flac', 'aac', 'ogg', 'wma', 'm4a', 'opus'
+--]);
+--
+--const documentExtensions = new Set([
+--    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt'
+--]);
+--
+--const codeExtensions = new Set([
+--    'js', 'jsx', 'ts', 'tsx', 'py', 'java', 'cpp', 'c', 'h', 'cs', 'php', 'rb', 'go', 'rs', 'swift'
+--]);
+--
+--const archiveExtensions = new Set([
+--    'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'
+--]);
+--
+--const executableExtensions = new Set([
+--    'exe', 'msi', 'deb', 'rpm', 'dmg', 'app'
+--]);
+--
+- // Export sets for external use if needed
+- export { 
+-     imageExtensions, 

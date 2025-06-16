@@ -119,10 +119,6 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
         onFileSelect(fileIndex, event.shiftKey, event.ctrlKey);
     }, [onFileSelect]);
 
-    const handleFileDoubleClick = useCallback((file) => {
-        onFileOpen(file);
-    }, [onFileOpen]);
-    
     const handleFileContextMenu = useCallback((event, file) => {
         onContextMenu(event, file);
     }, [onContextMenu]);
@@ -215,7 +211,7 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
                                 file={file}
                                 fileIndex={actualIndex}
                                 onSelect={handleFileClick}
-                                onOpen={handleFileDoubleClick}
+                                onOpen={onFileOpen}
                                 onContextMenu={handleFileContextMenu}
                                 isLoading={false}
                                 isSelected={selectedFiles.has(actualIndex)}

@@ -4,7 +4,7 @@ import {
     CopyIcon, 
     ScissorsIcon, 
     PencilIcon, 
-    EyeSlashIcon, 
+    EyeClosedIcon, 
     TrashIcon, 
     XIcon 
 } from '@phosphor-icons/react';
@@ -125,7 +125,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
             <div className="context-menu-separator-modern"></div>
             
             <div className="context-menu-item-modern warning" onClick={onHide}>
-                <EyeSlashIcon size={16} weight="bold" className="context-menu-icon" />
+                <EyeClosedIcon size={16} weight="bold" className="context-menu-icon" />
                 <span className="context-menu-text-modern">Hide</span>
                 <span className="context-menu-count">({files.length})</span>
                 <span className="context-menu-shortcut">H</span>

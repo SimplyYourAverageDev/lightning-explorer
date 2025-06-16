@@ -58,27 +58,10 @@ const FileItem = memo(({
     const formattedDate = useMemo(() => formatDate(file.modTime), [file.modTime]);
     const formattedSize = useMemo(() => formatFileSize(file.size), [file.size]);
     
-    // Refs for click timing and debouncing
-    const clickTimeoutRef = useRef(null);
-    const lastOpenTimeRef = useRef(0);
-    const clickCountRef = useRef(0);
-    
-    // Configuration for click timing - Made configurable for performance tuning
-    const INSTANT_MODE = false; // Set to true for zero-latency mode (disables double-click protection)
-    const DOUBLE_CLICK_DELAY = INSTANT_MODE ? 0 : 300; // ms to wait for potential double-click (Windows standard)
-    const OPEN_COOLDOWN = INSTANT_MODE ? 100 : 500; // ms cooldown between opens to prevent rapid-fire
+    // Configuration for performance logging
     const PERFORMANCE_LOGGING = false; // Set to true to enable performance logs
 
-    // Cleanup timeout on unmount
-    useEffect(() => {
-        return () => {
-            if (clickTimeoutRef.current) {
-                clearTimeout(clickTimeoutRef.current);
-            }
-        };
-    }, []);
-
-    // Optimized click handler with configurable timing
+    // Optimized click handler - simplified to only handle single clicks
     const handleClick = useCallback((e) => {
         if (isInspectMode) {
             return; // Let parent handle inspect mode clicks
@@ -86,81 +69,12 @@ const FileItem = memo(({
         
         e.stopPropagation();
         
-        const now = Date.now();
-        const timeSinceLastOpen = now - lastOpenTimeRef.current;
-        
-        // Prevent rapid-fire opens during cooldown period
-        if (timeSinceLastOpen < OPEN_COOLDOWN) {
-            if (PERFORMANCE_LOGGING) {
-                log(`⏱️ Click ignored - cooldown active (${timeSinceLastOpen}ms < ${OPEN_COOLDOWN}ms)`);
-            }
-            return;
-        }
-        
-        clickCountRef.current++;
-        
-        // Instant mode bypasses double-click detection
-        if (INSTANT_MODE) {
-            handleSingleClick();
-            return;
-        }
-        
-        // Clear any existing timeout
-        if (clickTimeoutRef.current) {
-            clearTimeout(clickTimeoutRef.current);
-        }
-        
-        // Set timeout for single-click action
-        clickTimeoutRef.current = setTimeout(() => {
-            if (clickCountRef.current === 1) {
-                handleSingleClick();
-            }
-            clickCountRef.current = 0;
-        }, DOUBLE_CLICK_DELAY);
-        
-    }, [onSelect, fileIndex, isInspectMode]);
-
-    const handleSingleClick = useCallback(() => {
         if (PERFORMANCE_LOGGING) {
-            log(`👆 Single click detected on: ${file.name}`);
+            log(`👆 Click detected on: ${file.name}`);
         }
-        onSelect(fileIndex);
-    }, [onSelect, fileIndex, file.name]);
-
-    // Double-click handler for file opening
-    const handleDoubleClick = useCallback((e) => {
-        if (isInspectMode) {
-            return; // Let parent handle inspect mode clicks
-        }
+        onSelect(fileIndex, e.shiftKey, e.ctrlKey);
         
-        e.stopPropagation();
-        
-        const now = Date.now();
-        const timeSinceLastOpen = now - lastOpenTimeRef.current;
-        
-        // Prevent rapid-fire opens
-        if (timeSinceLastOpen < OPEN_COOLDOWN) {
-            if (PERFORMANCE_LOGGING) {
-                log(`⏱️ Double-click ignored - cooldown active (${timeSinceLastOpen}ms < ${OPEN_COOLDOWN}ms)`);
-            }
-            return;
-        }
-        
-        // Clear single-click timeout
-        if (clickTimeoutRef.current) {
-            clearTimeout(clickTimeoutRef.current);
-            clickTimeoutRef.current = null;
-        }
-        
-        clickCountRef.current = 0;
-        lastOpenTimeRef.current = now;
-        
-        if (PERFORMANCE_LOGGING) {
-            log(`👆👆 Double click detected on: ${file.name}`);
-        }
-        
-        onOpen(file);
-    }, [onOpen, file, isInspectMode]);
+    }, [onSelect, fileIndex, isInspectMode, file.name]);
 
     // Context menu handler
     const handleContextMenu = useCallback((e) => {
@@ -222,7 +136,6 @@ const FileItem = memo(({
         <div 
             className={itemClasses}
             onClick={handleClick}
-            onDoubleClick={handleDoubleClick}
             onContextMenu={handleContextMenu}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}

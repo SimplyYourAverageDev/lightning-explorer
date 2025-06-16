@@ -155,7 +155,7 @@ PRs are welcome! Please follow these guidelines:
 1. **Always use Bun** – never add `package-lock.json`/`yarn.lock`.
 2. **No shadows, no gradients** – keep the Neo-Brutalist style.
 3. **Go FMT & `bun run lint`** must pass before commit.
-4. Windows 11 only – avoid platform-conditionals for other OSes.
+4. Windows 11 only – other OSes already have good enough file explorers.
 
 ---
 
