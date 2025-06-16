@@ -1,4 +1,17 @@
 // Optimized file utilities with caching and performance optimizations
+// Updated to work with Phosphor Icons
+
+// Import the icon mappings
+import { 
+    SPECIFIC_FILE_MAP, 
+    EXTENSION_TYPE_MAP, 
+    TYPE_ICON_MAP, 
+    SPECIAL_FOLDER_MAP,
+    DEFAULT_FILE_ICON,
+    DEFAULT_FOLDER_ICON,
+    getIconComponent,
+    getSpecialFolderIcon
+} from './fileTypeMaps.js';
 
 // Cache for file type and icon lookups to avoid repeated computations
 const iconCache = new Map();
@@ -17,23 +30,189 @@ const startCacheCleanup = () => {
     }
 };
 
-// Start cache cleanup
+// Initialize cleanup when module loads
 startCacheCleanup();
 
+// Performance-optimized extension sets using the same patterns as before
+const imageExtensions = new Set(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'tif']);
+const videoExtensions = new Set(['mp4', 'm4v', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', '3gp', 'mpg', 'mpeg']);
+const audioExtensions = new Set(['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'wma', 'aiff', 'midi', 'mid']);
+const documentExtensions = new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'md', 'markdown']);
+const codeExtensions = new Set(['js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'sass', 'php', 'py', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 'rb', 'pl', 'lua', 'r', 'jl']);
+const archiveExtensions = new Set(['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'cab']);
+const executableExtensions = new Set(['exe', 'msi', 'deb', 'rpm', 'dmg', 'pkg']);
+
 /**
- * Optimized file filtering with precomputed hidden status
- * @param {Array} files - Array of file objects
- * @param {boolean} showHidden - Whether to show hidden files
- * @returns {Array} - Filtered array
+ * Optimized extension extraction with caching
  */
-export function filterFiles(files, showHidden) {
-    if (!files || !Array.isArray(files)) return [];
+function getExtension(filename) {
+    if (extensionCache.has(filename)) {
+        return extensionCache.get(filename);
+    }
     
-    // If showing all files, return as-is (backend already filtered system files)
-    if (showHidden) return files;
+    const lastDot = filename.lastIndexOf('.');
+    const ext = lastDot === -1 ? '' : filename.slice(lastDot + 1).toLowerCase();
     
-    // Filter out hidden files efficiently
-    return files.filter(file => !file.isHidden);
+    extensionCache.set(filename, ext);
+    return ext;
+}
+
+/**
+ * Enhanced file type detection with comprehensive mappings
+ */
+export function getFileType(filename, isDir) {
+    if (isDir) return 'folder';
+    
+    const cacheKey = filename.toLowerCase();
+    if (typeCache.has(cacheKey)) {
+        return typeCache.get(cacheKey);
+    }
+    
+    // Check specific file mappings first (highest priority)
+    const lowerFilename = filename.toLowerCase();
+    if (SPECIFIC_FILE_MAP[lowerFilename]) {
+        const type = SPECIFIC_FILE_MAP[lowerFilename];
+        typeCache.set(cacheKey, type);
+        return type;
+    }
+    
+    // Check extension mappings
+    const ext = getExtension(filename);
+    const type = EXTENSION_TYPE_MAP[ext] || 'file';
+    
+    typeCache.set(cacheKey, type);
+    return type;
+}
+
+/**
+ * Get icon component for file/folder
+ * Returns the actual Phosphor Icon component
+ */
+export function getFileIcon(filename, isDir) {
+    if (isDir) {
+        // Check for special folder icons
+        const specialIcon = getSpecialFolderIcon(filename);
+        return specialIcon;
+    }
+    
+    const cacheKey = filename.toLowerCase();
+    if (iconCache.has(cacheKey)) {
+        return iconCache.get(cacheKey);
+    }
+    
+    const fileType = getFileType(filename, isDir);
+    const iconComponent = getIconComponent(fileType, isDir);
+    
+    iconCache.set(cacheKey, iconComponent);
+    return iconComponent;
+}
+
+/**
+ * Get icon type class for CSS styling
+ * This provides backwards compatibility for the CSS classes
+ */
+export function getFileIconType(filename, isDir) {
+    if (isDir) return 'folder';
+    
+    const ext = getExtension(filename);
+    
+    // Fast type detection using Sets for O(1) performance
+    if (imageExtensions.has(ext)) return 'image';
+    if (videoExtensions.has(ext)) return 'video';
+    if (audioExtensions.has(ext)) return 'audio';
+    if (documentExtensions.has(ext)) return 'document';
+    if (codeExtensions.has(ext)) return 'code';
+    if (archiveExtensions.has(ext)) return 'archive';
+    if (executableExtensions.has(ext)) return 'executable';
+    
+    return 'file';
+}
+
+/**
+ * Filter files based on visibility settings with performance optimization
+ */
+export function filterFiles(files, showHidden = false) {
+    if (!files || files.length === 0) return [];
+    
+    if (showHidden) {
+        return files; // No filtering needed
+    }
+    
+    // Use filter for hidden file detection
+    return files.filter(file => {
+        // Skip files/folders that start with '.'
+        if (file.name.startsWith('.')) return false;
+        
+        // Skip system files on Windows
+        if (file.isSystem || file.isHidden) return false;
+        
+        return true;
+    });
+}
+
+/**
+ * Check if a file is considered "hidden"
+ */
+export function isHiddenFile(filename) {
+    return filename.startsWith('.') || filename.toLowerCase() === 'desktop.ini' || filename.toLowerCase() === 'thumbs.db';
+}
+
+/**
+ * Get file category for grouping
+ */
+export function getFileCategory(filename, isDir) {
+    if (isDir) return 'folder';
+    
+    const ext = getExtension(filename);
+    
+    if (imageExtensions.has(ext)) return 'image';
+    if (videoExtensions.has(ext)) return 'video';
+    if (audioExtensions.has(ext)) return 'audio';
+    if (documentExtensions.has(ext)) return 'document';
+    if (codeExtensions.has(ext)) return 'code';
+    if (archiveExtensions.has(ext)) return 'archive';
+    
+    return 'other';
+}
+
+/**
+ * Check if file extension indicates a specific type
+ */
+export const isImageFile = (filename) => imageExtensions.has(getExtension(filename));
+export const isVideoFile = (filename) => videoExtensions.has(getExtension(filename));
+export const isAudioFile = (filename) => audioExtensions.has(getExtension(filename));
+export const isDocumentFile = (filename) => documentExtensions.has(getExtension(filename));
+export const isCodeFile = (filename) => codeExtensions.has(getExtension(filename));
+export const isArchiveFile = (filename) => archiveExtensions.has(getExtension(filename));
+
+/**
+ * Get human-readable file type description
+ */
+export function getFileTypeDescription(filename, isDir) {
+    if (isDir) return 'Folder';
+    
+    const type = getFileType(filename, isDir);
+    const ext = getExtension(filename).toUpperCase();
+    
+    const typeDescriptions = {
+        'javascript': 'JavaScript File',
+        'typescript': 'TypeScript File',
+        'react': 'React Component',
+        'html': 'HTML Document',
+        'css': 'CSS Stylesheet',
+        'python': 'Python Script',
+        'java': 'Java Source File',
+        'image': `${ext} Image`,
+        'video': `${ext} Video`,
+        'audio': `${ext} Audio`,
+        'pdf': 'PDF Document',
+        'word': 'Word Document',
+        'excel': 'Excel Spreadsheet',
+        'archive': `${ext} Archive`,
+        'executable': 'Executable File'
+    };
+    
+    return typeDescriptions[type] || `${ext} File` || 'File';
 }
 
 /**
@@ -51,126 +230,21 @@ export function batchFilterFiles(directories, files, showHidden) {
 }
 
 /**
- * Cached file type detection
- */
-export function getFileType(filename, isDir) {
-    if (isDir) return 'folder';
-    
-    const cacheKey = filename.toLowerCase();
-    if (typeCache.has(cacheKey)) {
-        return typeCache.get(cacheKey);
-    }
-    
-    const ext = getExtension(filename);
-    let type = 'file';
-    
-    // Fast type detection based on extension
-    if (imageExtensions.has(ext)) type = 'image';
-    else if (videoExtensions.has(ext)) type = 'video';
-    else if (audioExtensions.has(ext)) type = 'audio';
-    else if (documentExtensions.has(ext)) type = 'document';
-    else if (codeExtensions.has(ext)) type = 'code';
-    else if (archiveExtensions.has(ext)) type = 'archive';
-    
-    typeCache.set(cacheKey, type);
-    return type;
-}
-
-/**
- * Cached file icon detection with performance optimization
- */
-export function getFileIcon(filename, isDir) {
-    if (isDir) return '📁';
-    
-    const cacheKey = filename.toLowerCase();
-    if (iconCache.has(cacheKey)) {
-        return iconCache.get(cacheKey);
-    }
-    
-    const ext = getExtension(filename);
-    let icon = '📄'; // Default file icon
-    
-    // Fast icon lookup using Sets for O(1) performance
-    if (imageExtensions.has(ext)) icon = '🖼️';
-    else if (videoExtensions.has(ext)) icon = '🎬';
-    else if (audioExtensions.has(ext)) icon = '🎵';
-    else if (documentExtensions.has(ext)) icon = '📝';
-    else if (codeExtensions.has(ext)) icon = '💻';
-    else if (archiveExtensions.has(ext)) icon = '📦';
-    else if (executableExtensions.has(ext)) icon = '⚙️';
-    
-    iconCache.set(cacheKey, icon);
-    return icon;
-}
-
-/**
- * Optimized extension extraction with caching
- */
-export function getExtension(filename) {
-    if (!filename) return '';
-    
-    if (extensionCache.has(filename)) {
-        return extensionCache.get(filename);
-    }
-    
-    const lastDot = filename.lastIndexOf('.');
-    const ext = lastDot > 0 ? filename.slice(lastDot + 1).toLowerCase() : '';
-    
-    extensionCache.set(filename, ext);
-    return ext;
-}
-
-/**
- * Split filename into name and extension for rename operations
- * Returns object with {name, extension, hasExtension}
+ * Split filename into name and extension status
  * @param {string} filename - The filename to split
- * @returns {Object} - Object with name, extension, and hasExtension properties
+ * @returns {Object} - Object with name and hasExtension properties
  */
 export function splitFilename(filename) {
-    if (!filename) return { name: '', extension: '', hasExtension: false };
-    
     const lastDot = filename.lastIndexOf('.');
-    
-    // If no dot found, or dot is at the beginning (hidden file), treat as no extension
-    if (lastDot <= 0) {
-        return { name: filename, extension: '', hasExtension: false };
+    if (lastDot === -1 || lastDot === 0) {
+        return { name: filename, hasExtension: false };
     }
     
     return {
-        name: filename.slice(0, lastDot),
-        extension: filename.slice(lastDot + 1),
+        name: filename.substring(0, lastDot),
         hasExtension: true
     };
 }
-
-// Pre-computed Sets for O(1) lookup performance (much faster than arrays)
-const imageExtensions = new Set([
-    'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico', 'tiff', 'tif'
-]);
-
-const videoExtensions = new Set([
-    'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', 'm4v', '3gp'
-]);
-
-const audioExtensions = new Set([
-    'mp3', 'wav', 'flac', 'aac', 'ogg', 'wma', 'm4a', 'opus'
-]);
-
-const documentExtensions = new Set([
-    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt'
-]);
-
-const codeExtensions = new Set([
-    'js', 'jsx', 'ts', 'tsx', 'py', 'java', 'cpp', 'c', 'h', 'cs', 'php', 'rb', 'go', 'rs', 'swift'
-]);
-
-const archiveExtensions = new Set([
-    'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'
-]);
-
-const executableExtensions = new Set([
-    'exe', 'msi', 'deb', 'rpm', 'dmg', 'app'
-]);
 
 // Export sets for external use if needed
 export { 

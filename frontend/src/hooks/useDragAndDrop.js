@@ -346,14 +346,14 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
             pointer-events: none;
         `;
 
-        const icon = operation === 'copy' ? '📋' : '🔄';
+        const iconText = operation === 'copy' ? 'Copy' : 'Move';
         const action = operation === 'copy' ? 'Copy' : 'Move';
         
         let content = '';
         if (files.length === 1) {
-            content = `${icon} ${action} "${files[0].name}"`;
+            content = `${iconText} "${files[0].name}"`;
         } else {
-            content = `${icon} ${action} ${files.length} items`;
+            content = `${iconText} ${files.length} items`;
         }
         
         preview.innerHTML = content;

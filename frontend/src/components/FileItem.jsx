@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useRef, useEffect } from "preact/hooks";
 import { memo } from "preact/compat";
-import { getFileIcon, getFileType } from "../utils/fileUtils.js";
+import { getFileIcon, getFileType, getFileIconType } from "../utils/fileUtils.js";
 import { log, error } from "../utils/logger";
 import { serializationUtils } from "../utils/serialization";
 
@@ -49,8 +49,11 @@ const FileItem = memo(({
     isInspectMode = false
 
 }) => {
-    const icon = useMemo(() => getFileIcon(file.name, file.isDir), [file.name, file.isDir]);
+    // Get the Phosphor Icon component for this file
+    const IconComponent = useMemo(() => getFileIcon(file.name, file.isDir), [file.name, file.isDir]);
     const type = useMemo(() => getFileType(file.name, file.isDir), [file.name, file.isDir]);
+    const iconType = useMemo(() => getFileIconType(file.name, file.isDir), [file.name, file.isDir]);
+    
     // Memoize formatted file metadata
     const formattedDate = useMemo(() => formatDate(file.modTime), [file.modTime]);
     const formattedSize = useMemo(() => formatFileSize(file.size), [file.size]);
@@ -65,96 +68,7 @@ const FileItem = memo(({
     const DOUBLE_CLICK_DELAY = INSTANT_MODE ? 0 : 300; // ms to wait for potential double-click (Windows standard)
     const OPEN_COOLDOWN = INSTANT_MODE ? 100 : 500; // ms cooldown between opens to prevent rapid-fire
     const PERFORMANCE_LOGGING = false; // Set to true to enable performance logs
-    
-    const handleClick = useCallback((event) => {
-        const clickStartTime = PERFORMANCE_LOGGING ? performance.now() : 0;
-        log('📋 File clicked:', file.name, 'Path:', file.path, 'IsDir:', file.isDir, 'IsSelected:', isSelected);
-        
-        // In inspect mode, don't handle normal file clicks
-        if (isInspectMode) {
-            return;
-        }
-        
-        if (isLoading) return;
-        
-        const now = Date.now();
-        clickCountRef.current += 1;
-        
-        // Clear any existing timeout
-        if (clickTimeoutRef.current) {
-            clearTimeout(clickTimeoutRef.current);
-            clickTimeoutRef.current = null;
-        }
-        
-        // Check if this is too soon after last open (cooldown protection)
-        if (now - lastOpenTimeRef.current < OPEN_COOLDOWN) {
-            log('🛡️ Open cooldown active, ignoring click');
-            clickCountRef.current = 0;
-            return;
-        }
-        
-        // Handle immediate actions (with modifier keys or unselected files)
-        if (event.shiftKey || event.ctrlKey || !isSelected) {
-            log('🖱️ Processing selection for:', file.name);
-            if (PERFORMANCE_LOGGING) {
-                log(`⚡ Immediate response: ${(performance.now() - clickStartTime).toFixed(2)}ms`);
-            }
-            onSelect(fileIndex, event.shiftKey, event.ctrlKey);
-            clickCountRef.current = 0;
-            return;
-        }
-        
-        // For selected files without modifier keys, wait to see if it's a double-click
-        if (PERFORMANCE_LOGGING) {
-            log(`⏱️ Delaying open by ${DOUBLE_CLICK_DELAY}ms to detect double-click`);
-        }
-        
-        clickTimeoutRef.current = setTimeout(() => {
-            if (clickCountRef.current === 1) {
-                // Single click on selected file - open it
-                log('🚀 Single click confirmed, opening:', file.name);
-                if (PERFORMANCE_LOGGING) {
-                    log(`⚡ Delayed open executed: ${(performance.now() - clickStartTime).toFixed(2)}ms total`);
-                }
-                lastOpenTimeRef.current = Date.now();
-                onOpen(file);
-            }
-            clickCountRef.current = 0;
-        }, DOUBLE_CLICK_DELAY);
-    }, [file, isLoading, isSelected, fileIndex, onOpen, onSelect, isInspectMode]);
-    
-    const handleDoubleClick = useCallback((event) => {
-        log('🔍 File double-clicked:', file.name, 'Path:', file.path, 'IsDir:', file.isDir);
-        
-        // In inspect mode, don't handle normal file double-clicks
-        if (isInspectMode) {
-            return;
-        }
-        
-        if (isLoading) return;
-        
-        const now = Date.now();
-        
-        // Clear single-click timeout since this is a double-click
-        if (clickTimeoutRef.current) {
-            clearTimeout(clickTimeoutRef.current);
-            clickTimeoutRef.current = null;
-        }
-        
-        // Check cooldown
-        if (now - lastOpenTimeRef.current < OPEN_COOLDOWN) {
-            log('🛡️ Open cooldown active, ignoring double-click');
-            clickCountRef.current = 0;
-            return;
-        }
-        
-        // Double click always opens, regardless of selection state
-        log('🚀 Double-click confirmed, opening:', file.name);
-        lastOpenTimeRef.current = now;
-        clickCountRef.current = 0;
-        onOpen(file);
-    }, [file, isLoading, onOpen, isInspectMode]);
-    
+
     // Cleanup timeout on unmount
     useEffect(() => {
         return () => {
@@ -163,124 +77,182 @@ const FileItem = memo(({
             }
         };
     }, []);
-    
-    const handleRightClick = useCallback((event) => {
-        log('🖱️ Right-click on:', file.name, 'IsSelected:', isSelected);
-        
-        // In inspect mode, allow native context menu
+
+    // Optimized click handler with configurable timing
+    const handleClick = useCallback((e) => {
         if (isInspectMode) {
-            return; // Don't prevent default, allow native context menu
+            return; // Let parent handle inspect mode clicks
         }
         
-        event.preventDefault();
+        e.stopPropagation();
         
-        if (!isLoading) {
-            // If file is not selected, select it first
-            if (!isSelected) {
-                onSelect(fileIndex, false, false);
+        const now = Date.now();
+        const timeSinceLastOpen = now - lastOpenTimeRef.current;
+        
+        // Prevent rapid-fire opens during cooldown period
+        if (timeSinceLastOpen < OPEN_COOLDOWN) {
+            if (PERFORMANCE_LOGGING) {
+                log(`⏱️ Click ignored - cooldown active (${timeSinceLastOpen}ms < ${OPEN_COOLDOWN}ms)`);
             }
-            
-            // Show context menu
-            onContextMenu(event, file);
-        }
-    }, [file, isLoading, isSelected, fileIndex, onSelect, onContextMenu, isInspectMode]);
-    
-    const handleDragStart = useCallback((event) => {
-        if (isLoading) {
-            event.preventDefault();
             return;
         }
         
-        // If the dragged item is not selected, select it first
-        if (!isSelected) {
-            onSelect(fileIndex, false, false);
+        clickCountRef.current++;
+        
+        // Instant mode bypasses double-click detection
+        if (INSTANT_MODE) {
+            handleSingleClick();
+            return;
         }
         
-        if (onDragStart) {
-            onDragStart(event, file);
+        // Clear any existing timeout
+        if (clickTimeoutRef.current) {
+            clearTimeout(clickTimeoutRef.current);
         }
-    }, [isLoading, isSelected, fileIndex, file, onSelect, onDragStart]);
-    
-    const handleDragOver = useCallback((event) => {
-        if (!file.isDir || isLoading) return;
         
-        event.preventDefault();
-        event.dataTransfer.dropEffect = event.ctrlKey ? 'copy' : 'move';
+        // Set timeout for single-click action
+        clickTimeoutRef.current = setTimeout(() => {
+            if (clickCountRef.current === 1) {
+                handleSingleClick();
+            }
+            clickCountRef.current = 0;
+        }, DOUBLE_CLICK_DELAY);
         
-        if (onDragOver) {
-            onDragOver(event, file);
-        }
-    }, [file.isDir, isLoading, onDragOver, file]);
-    
-    const handleDragEnter = useCallback((event) => {
-        if (!file.isDir || isLoading) return;
-        
-        event.preventDefault();
-        if (onDragEnter) {
-            onDragEnter(event, file);
-        }
-    }, [file.isDir, isLoading, onDragEnter, file]);
-    
-    const handleDragLeave = useCallback((event) => {
-        if (!file.isDir || isLoading) return;
-        
-        if (onDragLeave) {
-            onDragLeave(event, file);
-        }
-    }, [file.isDir, isLoading, onDragLeave, file]);
-    
-    const handleDrop = useCallback((event) => {
-        if (!file.isDir || isLoading) return;
-        
-        event.preventDefault();
-        
-        // Enhanced drop handler that works with the new drag and drop system
-        // The actual parsing logic is now handled in the enhanced useDragAndDrop hook
-        if (onDrop) {
-            onDrop(event, file, null); // Pass null for dragData since it's parsed in the hook
-        }
-    }, [file, isLoading, onDrop]);
-    
+    }, [onSelect, fileIndex, isInspectMode]);
 
-    
+    const handleSingleClick = useCallback(() => {
+        if (PERFORMANCE_LOGGING) {
+            log(`👆 Single click detected on: ${file.name}`);
+        }
+        onSelect(fileIndex);
+    }, [onSelect, fileIndex, file.name]);
+
+    // Double-click handler for file opening
+    const handleDoubleClick = useCallback((e) => {
+        if (isInspectMode) {
+            return; // Let parent handle inspect mode clicks
+        }
+        
+        e.stopPropagation();
+        
+        const now = Date.now();
+        const timeSinceLastOpen = now - lastOpenTimeRef.current;
+        
+        // Prevent rapid-fire opens
+        if (timeSinceLastOpen < OPEN_COOLDOWN) {
+            if (PERFORMANCE_LOGGING) {
+                log(`⏱️ Double-click ignored - cooldown active (${timeSinceLastOpen}ms < ${OPEN_COOLDOWN}ms)`);
+            }
+            return;
+        }
+        
+        // Clear single-click timeout
+        if (clickTimeoutRef.current) {
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
+        }
+        
+        clickCountRef.current = 0;
+        lastOpenTimeRef.current = now;
+        
+        if (PERFORMANCE_LOGGING) {
+            log(`👆👆 Double click detected on: ${file.name}`);
+        }
+        
+        onOpen(file);
+    }, [onOpen, file, isInspectMode]);
+
+    // Context menu handler
+    const handleContextMenu = useCallback((e) => {
+        if (isInspectMode) {
+            return; // Let parent handle inspect mode
+        }
+        
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu(e, file, fileIndex);
+    }, [onContextMenu, file, fileIndex, isInspectMode]);
+
+    // Drag handlers
+    const handleDragStart = useCallback((e) => {
+        if (isInspectMode) {
+            e.preventDefault();
+            return;
+        }
+        
+        onDragStart && onDragStart(e, file, fileIndex);
+    }, [onDragStart, file, fileIndex, isInspectMode]);
+
+    const handleDragOver = useCallback((e) => {
+        if (!file.isDir || isInspectMode) return;
+        onDragOver && onDragOver(e, file);
+    }, [onDragOver, file, isInspectMode]);
+
+    const handleDragEnter = useCallback((e) => {
+        if (!file.isDir || isInspectMode) return;
+        onDragEnter && onDragEnter(e, file);
+    }, [onDragEnter, file, isInspectMode]);
+
+    const handleDragLeave = useCallback((e) => {
+        if (!file.isDir || isInspectMode) return;
+        onDragLeave && onDragLeave(e, file);
+    }, [onDragLeave, file, isInspectMode]);
+
+    const handleDrop = useCallback((e) => {
+        if (!file.isDir || isInspectMode) return;
+        onDrop && onDrop(e, file);
+    }, [onDrop, file, isInspectMode]);
+
+    // Compute CSS classes
+    const itemClasses = `file-item ${isSelected ? 'selected' : ''} ${isCut ? 'cut' : ''} ${isDragOver ? 'drag-over' : ''}`;
+
+    if (isLoading) {
+        return (
+            <div className="file-item loading">
+                <div className="file-icon skeleton"></div>
+                <div className="file-details">
+                    <div className="file-name skeleton"></div>
+                    <div className="file-meta skeleton"></div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div 
-            className={`file-item ${isSelected ? 'selected' : ''} ${isLoading ? 'disabled' : ''} ${isCut ? 'cut' : ''} ${isDragOver ? 'drag-over' : ''}`}
+            className={itemClasses}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
-            onContextMenu={handleRightClick}
-            onSelectStart={(e) => e.preventDefault()}
-            draggable={!isLoading}
+            onContextMenu={handleContextMenu}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            style={{ 
-                cursor: isLoading ? 'wait' : 'pointer',
-                opacity: isLoading ? 0.7 : (isCut ? 0.5 : 1) 
-            }}
+            draggable={!isInspectMode}
+            data-file-index={fileIndex}
+            data-file-name={file.name}
+            data-file-type={type}
         >
-            <div className={`file-icon ${type}`}>
-                {icon}
+            <div className={`file-icon ${iconType}`}>
+                <IconComponent 
+                    size={20}
+                    weight="regular"
+                    className="phosphor-icon"
+                />
             </div>
             <div className="file-details">
-                <div className="file-name">{file.name}</div>
+                <div className="file-name" title={file.name}>
+                    {file.name}
+                </div>
                 <div className="file-meta">
-                    {file.isDir ? (
-                        <span>DIR</span>
-                    ) : (
-                        <>
-                            <span className="file-size">{formattedSize}</span>
-                            <span className="file-separator"> • </span>
-                            <span className="file-date">{formattedDate}</span>
-                        </>
-                    )}
+                    {file.isDir ? 'Folder' : `${formattedSize} • ${formattedDate}`}
                 </div>
             </div>
         </div>
     );
 });
 
-export { FileItem };
-export default FileItem; 
+FileItem.displayName = 'FileItem';
+
+export { FileItem }; 

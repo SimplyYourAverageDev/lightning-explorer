@@ -1,5 +1,13 @@
 import { useRef, useEffect } from "preact/hooks";
 import { memo } from "preact/compat";
+import { 
+    CopyIcon, 
+    ScissorsIcon, 
+    PencilIcon, 
+    EyeSlashIcon, 
+    TrashIcon, 
+    XIcon 
+} from '@phosphor-icons/react';
 
 // Memoized Context Menu Component
 const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, onMoveToTrash, onCopy, onCut, onRename, onHide }) => {
@@ -50,6 +58,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
                     }
                     break;
                 case 'f2':
+                case 'r':
                     if (files.length === 1) {
                         event.preventDefault();
                         onRename();
@@ -68,6 +77,12 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
         }
     }, [visible, onCopy, onCut, onHide, onPermanentDelete, onMoveToTrash, onRename, onClose, files.length]);
     
+    useEffect(() => {
+        if (visible && menuRef.current) {
+            menuRef.current.focus();
+        }
+    }, [visible]);
+    
     if (!visible) return null;
     
     return (
@@ -84,12 +99,14 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
             tabIndex={-1}
         >
             <div className="context-menu-item-modern" onClick={onCopy}>
+                <CopyIcon size={16} weight="bold" className="context-menu-icon" />
                 <span className="context-menu-text-modern">Copy</span>
                 <span className="context-menu-count">({files.length})</span>
                 <span className="context-menu-shortcut">C</span>
             </div>
             
             <div className="context-menu-item-modern" onClick={onCut}>
+                <ScissorsIcon size={16} weight="bold" className="context-menu-icon" />
                 <span className="context-menu-text-modern">Cut</span>
                 <span className="context-menu-count">({files.length})</span>
                 <span className="context-menu-shortcut">X</span>
@@ -99,6 +116,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
             
             {files.length === 1 && (
                 <div className="context-menu-item-modern" onClick={onRename}>
+                    <PencilIcon size={16} weight="bold" className="context-menu-icon" />
                     <span className="context-menu-text-modern">Rename</span>
                     <span className="context-menu-shortcut">F2</span>
                 </div>
@@ -107,6 +125,7 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
             <div className="context-menu-separator-modern"></div>
             
             <div className="context-menu-item-modern warning" onClick={onHide}>
+                <EyeSlashIcon size={16} weight="bold" className="context-menu-icon" />
                 <span className="context-menu-text-modern">Hide</span>
                 <span className="context-menu-count">({files.length})</span>
                 <span className="context-menu-shortcut">H</span>
@@ -115,12 +134,14 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
             <div className="context-menu-separator-modern"></div>
             
             <div className="context-menu-item-modern warning" onClick={onMoveToTrash}>
+                <TrashIcon size={16} weight="bold" className="context-menu-icon" />
                 <span className="context-menu-text-modern">Move to Trash</span>
                 <span className="context-menu-count">({files.length})</span>
                 <span className="context-menu-shortcut">Del</span>
             </div>
             
             <div className="context-menu-item-modern danger" onClick={onPermanentDelete}>
+                <XIcon size={16} weight="bold" className="context-menu-icon" />
                 <span className="context-menu-text-modern">Permanent Delete</span>
                 <span className="context-menu-count">({files.length})</span>
                 <span className="context-menu-shortcut">⇧Del</span>

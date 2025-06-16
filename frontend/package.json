@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@msgpack/msgpack": "^3.1.2",
+    "@phosphor-icons/react": "^2.1.10",
     "preact": "^10.10.1"
   },
   "devDependencies": {

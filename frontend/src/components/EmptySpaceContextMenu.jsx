@@ -1,5 +1,9 @@
 import { useRef, useEffect } from "preact/hooks";
 import { memo } from "preact/compat";
+import { 
+    FolderPlusIcon, 
+    TerminalIcon 
+} from '@phosphor-icons/react';
 
 // Memoized Empty Space Context Menu Component  
 const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, onCreateFolder }) => {
@@ -28,7 +32,7 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
             
             switch (event.key.toLowerCase()) {
                 case '+':
-                case '=': // Plus key without shift
+                case 'n':
                     event.preventDefault();
                     onCreateFolder();
                     break;
@@ -49,6 +53,12 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
         }
     }, [visible, onCreateFolder, onOpenPowerShell, onClose]);
     
+    useEffect(() => {
+        if (visible && menuRef.current) {
+            menuRef.current.focus();
+        }
+    }, [visible]);
+    
     if (!visible) return null;
     
     return (
@@ -65,6 +75,7 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
             tabIndex={-1}
         >
             <div className="context-menu-item-modern" onClick={onCreateFolder}>
+                <FolderPlusIcon size={16} weight="bold" className="context-menu-icon" />
                 <span className="context-menu-text-modern">New Folder</span>
                 <span className="context-menu-shortcut">+</span>
             </div>
@@ -72,6 +83,7 @@ const EmptySpaceContextMenu = memo(({ visible, x, y, onClose, onOpenPowerShell, 
             <div className="context-menu-separator-modern"></div>
             
             <div className="context-menu-item-modern" onClick={onOpenPowerShell}>
+                <TerminalIcon size={16} weight="bold" className="context-menu-icon" />
                 <span className="context-menu-text-modern">Open PowerShell Here</span>
                 <span className="context-menu-shortcut">P</span>
             </div>

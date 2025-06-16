@@ -1,5 +1,58 @@
-// Pre-compiled file type and icon maps for optimal performance
+// Pre-compiled file type and icon maps for optimal performance using Phosphor Icons
 // These are constants that are computed once at module load time
+
+// Import Phosphor Icons
+import {
+    FileIcon,
+    FolderIcon,
+    FileImageIcon,
+    FileVideoIcon,
+    MusicNotesIcon,
+    FileTextIcon,
+    FileCodeIcon,
+    FileZipIcon,
+    GearIcon,
+    FileJsIcon,
+    FileTsIcon,
+    FileJsxIcon,
+    FileVueIcon,
+    FileHtmlIcon,
+    FileCssIcon,
+    DatabaseIcon,
+    FilePdfIcon,
+    MicrosoftWordLogoIcon,
+    MicrosoftExcelLogoIcon,
+    MicrosoftPowerpointLogoIcon,
+    ArchiveIcon,
+    CaretRightIcon,
+    CaretDownIcon,
+    FolderOpenIcon,
+    TerminalIcon,
+    GitBranchIcon,
+    HammerIcon,
+    PuzzlePieceIcon,
+    WrenchIcon,
+    BooksIcon,
+    TestTubeIcon,
+    PackageIcon,
+    GlobeIcon,
+    LockIcon,
+    TrashIcon,
+    NotePencilIcon,
+    CameraIcon,
+    PaintBrushIcon,
+    SpeakerHighIcon,
+    VideoIcon,
+    BookOpenIcon,
+    FloppyDiskIcon,
+    LightningIcon,
+    TextTIcon,
+    CubeIcon,
+    DiamondIcon,
+    RulerIcon,
+    FilePyIcon,
+    // Add more icons as needed
+} from '@phosphor-icons/react';
 
 // Specific file mappings (highest priority)
 export const SPECIFIC_FILE_MAP = {
@@ -135,141 +188,154 @@ export const EXTENSION_TYPE_MAP = {
     'dwg': 'cad', 'dxf': 'cad', 'step': 'cad', 'iges': 'cad'
 };
 
-// Special folder icons
+// Special folder icons - Phosphor Icon components
 export const SPECIAL_FOLDER_MAP = {
-    'node_modules': '📦',
-    '.git': '🔀',
-    '.vscode': '🔵',
-    '.idea': '💡',
-    'dist': '📦',
-    'build': '🔨',
-    'src': '📂',
-    'assets': '🎨',
-    'images': '🖼️',
-    'img': '🖼️',
-    'css': '🎨',
-    'js': '📜',
-    'components': '🧩',
-    'utils': '🔧',
-    'config': '⚙️',
-    'docs': '📚',
-    'documentation': '📚',
-    'test': '🧪',
-    'tests': '🧪',
-    '__pycache__': '🐍',
-    'venv': '🐍',
-    'env': '🌍',
-    'bin': '⚙️',
-    'lib': '📚',
-    'include': '📂',
-    'public': '🌐',
-    'private': '🔒',
-    'temp': '🗂️',
-    'tmp': '🗂️',
-    'cache': '💾',
-    'log': '📝',
-    'logs': '📝'
+    'node_modules': PackageIcon,
+    '.git': GitBranchIcon,
+    '.vscode': FileCodeIcon,
+    '.idea': FileCodeIcon,
+    'dist': PackageIcon,
+    'build': HammerIcon,
+    'src': FolderIcon,
+    'assets': PaintBrushIcon,
+    'images': FileImageIcon,
+    'img': FileImageIcon,
+    'css': FileCssIcon,
+    'js': FileJsIcon,
+    'components': PuzzlePieceIcon,
+    'utils': WrenchIcon,
+    'config': GearIcon,
+    'docs': BooksIcon,
+    'documentation': BooksIcon,
+    'test': TestTubeIcon,
+    'tests': TestTubeIcon,
+    '__pycache__': FilePyIcon,
+    'venv': FilePyIcon,
+    'env': GlobeIcon,
+    'bin': GearIcon,
+    'lib': BooksIcon,
+    'include': FolderIcon,
+    'public': GlobeIcon,
+    'private': LockIcon,
+    'temp': FolderIcon,
+    'tmp': FolderIcon,
+    'cache': FloppyDiskIcon,
+    'log': NotePencilIcon,
+    'logs': NotePencilIcon
 };
 
-// Type to icon mappings
+// Type to icon mappings - Phosphor Icon components
 export const TYPE_ICON_MAP = {
     // Programming languages
-    'javascript': '🟨',
-    'typescript': '🔷',
-    'react': '⚛️',
-    'vue': '💚',
-    'svelte': '🧡',
-    'html': '🌐',
-    'css': '🎨',
-    'sass': '💅',
-    'php': '🐘',
-    'python': '🐍',
-    'java': '☕',
-    'csharp': '🔷',
-    'cpp': '⚙️',
-    'c': '🔧',
-    'go': '🐹',
-    'rust': '🦀',
-    'swift': '🐦',
-    'kotlin': '🟣',
-    'dart': '🎯',
-    'ruby': '💎',
-    'perl': '🐪',
-    'lua': '🌙',
-    'r': '📊',
-    'julia': '🔴',
-    'powershell': '💙',
-    'batch': '⚫',
-    'assembly': '🔩',
+    'javascript': FileJsIcon,
+    'typescript': FileTsIcon,
+    'react': FileJsxIcon,
+    'vue': FileVueIcon,
+    'svelte': FileCodeIcon,
+    'html': FileHtmlIcon,
+    'css': FileCssIcon,
+    'sass': FileCssIcon,
+    'php': FileCodeIcon,
+    'python': FilePyIcon,
+    'java': FileCodeIcon,
+    'csharp': FileCodeIcon,
+    'cpp': FileCodeIcon,
+    'c': FileCodeIcon,
+    'go': FileCodeIcon,
+    'rust': FileCodeIcon,
+    'swift': FileCodeIcon,
+    'kotlin': FileCodeIcon,
+    'dart': FileCodeIcon,
+    'ruby': FileCodeIcon,
+    'perl': FileCodeIcon,
+    'lua': FileCodeIcon,
+    'r': FileCodeIcon,
+    'julia': FileCodeIcon,
+    'powershell': TerminalIcon,
+    'batch': TerminalIcon,
+    'assembly': FileCodeIcon,
     
     // Data and config
-    'json': '📋',
-    'xml': '📄',
-    'yaml': '📝',
-    'database': '🗄️',
-    'config': '⚙️',
+    'json': FileCodeIcon,
+    'xml': FileCodeIcon,
+    'yaml': FileCodeIcon,
+    'database': DatabaseIcon,
+    'config': GearIcon,
     
     // Special files
-    'readme': '📖',
-    'license': '📜',
-    'docker': '🐳',
-    'build': '🔨',
-    'nodejs': '💚',
-    'git': '🔀',
+    'readme': BookOpenIcon,
+    'license': FileTextIcon,
+    'docker': PackageIcon,
+    'build': HammerIcon,
+    'nodejs': FileJsIcon,
+    'git': GitBranchIcon,
     
     // Images
-    'image': '🖼️',
-    'gif': '🎞️',
-    'vector': '🎨',
-    'icon': '🔳',
-    'camera': '📷',
-    'photoshop': '🎨',
-    'illustrator': '🎨',
-    'design': '🎨',
-    'figma': '🎨',
-    'xd': '🎨',
+    'image': FileImageIcon,
+    'gif': FileImageIcon,
+    'vector': PaintBrushIcon,
+    'icon': FileImageIcon,
+    'camera': CameraIcon,
+    'photoshop': PaintBrushIcon,
+    'illustrator': PaintBrushIcon,
+    'design': PaintBrushIcon,
+    'figma': PaintBrushIcon,
+    'xd': PaintBrushIcon,
     
     // Media
-    'audio': '🎵',
-    'music': '🎼',
-    'video': '🎬',
+    'audio': SpeakerHighIcon,
+    'music': SpeakerHighIcon,
+    'video': VideoIcon,
     
     // Documents
-    'pdf': '📕',
-    'word': '📘',
-    'excel': '📗',
-    'csv': '📊',
-    'powerpoint': '📙',
-    'document': '📄',
-    'text': '📝',
-    'markdown': '📝',
-    'latex': '📖',
-    'ebook': '📚',
+    'pdf': FilePdfIcon,
+    'word': MicrosoftWordLogoIcon,
+    'excel': MicrosoftExcelLogoIcon,
+    'csv': MicrosoftExcelLogoIcon,
+    'powerpoint': MicrosoftPowerpointLogoIcon,
+    'document': FileTextIcon,
+    'text': FileTextIcon,
+    'markdown': FileTextIcon,
+    'latex': BookOpenIcon,
+    'ebook': BookOpenIcon,
     
     // Archives and packages
-    'archive': '📦',
-    'package': '📦',
-    'disc': '💿',
+    'archive': ArchiveIcon,
+    'package': PackageIcon,
+    'disc': FloppyDiskIcon,
     
     // Executables
-    'executable': '⚡',
-    'installer': '📦',
-    'batch': '⚫',
+    'executable': LightningIcon,
+    'installer': PackageIcon,
+    'batch': TerminalIcon,
     
     // Fonts
-    'font': '🔤',
+    'font': TextTIcon,
     
     // 3D and design
-    '3d': '🎲',
-    'blender': '🎲',
-    'cad': '📐',
+    '3d': CubeIcon,
+    'blender': CubeIcon,
+    'cad': RulerIcon,
     
     // Default
-    'file': '📄',
-    'folder': '📁'
+    'file': FileIcon,
+    'folder': FolderIcon
 };
 
-// Default constants
-export const DEFAULT_FILE_ICON = '📄';
-export const DEFAULT_FOLDER_ICON = '📁';
-export const DEFAULT_FILE_TYPE = 'file'; 
+// Default icon components
+export const DEFAULT_FILE_ICON = FileIcon;
+export const DEFAULT_FOLDER_ICON = FolderIcon;
+
+// Helper function to get icon component
+export const getIconComponent = (type, isDir = false) => {
+    if (isDir) {
+        return FolderIcon;
+    }
+    
+    return TYPE_ICON_MAP[type] || FileIcon;
+};
+
+// Special folder icon getter
+export const getSpecialFolderIcon = (folderName) => {
+    return SPECIAL_FOLDER_MAP[folderName.toLowerCase()] || FolderIcon;
+}; 

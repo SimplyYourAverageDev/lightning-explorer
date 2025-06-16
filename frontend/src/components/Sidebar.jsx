@@ -1,5 +1,17 @@
 import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
 import { memo } from "preact/compat";
+import { 
+    HouseIcon, 
+    FolderIcon, 
+    DesktopIcon, 
+    DownloadIcon, 
+    MusicNotesIcon, 
+    ImageIcon, 
+    HardDriveIcon,
+    CaretRightIcon,
+    CaretDownIcon,
+    SpinnerIcon
+} from '@phosphor-icons/react';
 
 // Memoized Sidebar component
 const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onDriveContextMenu }) => {
@@ -26,10 +38,12 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
     const pathSep = homeDir.includes('\\') ? '\\' : '/';
     
     const quickAccess = useMemo(() => [
-        { name: 'Home', path: homeDir },
-        { name: 'Desktop', path: homeDir + pathSep + 'Desktop' },
-        { name: 'Documents', path: homeDir + pathSep + 'Documents' },
-        { name: 'Downloads', path: homeDir + pathSep + 'Downloads' },
+        { name: 'Home', path: homeDir, icon: HouseIcon },
+        { name: 'Desktop', path: homeDir + pathSep + 'Desktop', icon: DesktopIcon },
+        { name: 'Documents', path: homeDir + pathSep + 'Documents', icon: FolderIcon },
+        { name: 'Downloads', path: homeDir + pathSep + 'Downloads', icon: DownloadIcon },
+        { name: 'Music', path: homeDir + pathSep + 'Music', icon: MusicNotesIcon },
+        { name: 'Pictures', path: homeDir + pathSep + 'Pictures', icon: ImageIcon }
     ].filter(item => item.path), [homeDir, pathSep]);
     
     const handleQuickAccessClick = useCallback((path) => {
@@ -41,30 +55,31 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
     }, [onNavigate]);
     
     const handleDriveExpand = useCallback(async () => {
-        if (!drivesExpanded && onDriveExpand) {
+        if (!drivesExpanded && !loadingDrives) {
             setLoadingDrives(true);
-            try {
-                await onDriveExpand();
-            } finally {
-                setLoadingDrives(false);
-            }
+            await onDriveExpand();
+            setLoadingDrives(false);
         }
         setDrivesExpanded(!drivesExpanded);
-    }, [drivesExpanded, onDriveExpand]);
+    }, [drivesExpanded, loadingDrives, onDriveExpand]);
     
     return (
         <div className="sidebar" onSelectStart={(e) => e.preventDefault()}>
             <div className="sidebar-section">
                 <div className="sidebar-title">Quick Access</div>
-                {quickAccess.map((item) => (
-                    <div 
-                        key={item.path}
-                        className={`sidebar-item ${currentPath === item.path ? 'active' : ''}`}
-                        onClick={() => handleQuickAccessClick(item.path)}
-                    >
-                        {item.name}
-                    </div>
-                ))}
+                {quickAccess.map((item) => {
+                    const IconComponent = item.icon;
+                    return (
+                        <div 
+                            key={item.path}
+                            className={`sidebar-item ${currentPath === item.path ? 'active' : ''}`}
+                            onClick={() => handleQuickAccessClick(item.path)}
+                        >
+                            <IconComponent size={16} weight="bold" className="sidebar-icon" />
+                            {item.name}
+                        </div>
+                    );
+                })}
             </div>
             
             {/* Lazy-loaded drives section */}
@@ -81,7 +96,13 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
                 >
                     Drives
                     <span style={{ fontSize: 'var(--font-sm)' }}>
-                        {loadingDrives ? '...' : (drivesExpanded ? '▼' : '▶')}
+                        {loadingDrives ? (
+                            <SpinnerIcon size={12} className="spinning" />
+                        ) : drivesExpanded ? (
+                            <CaretDownIcon size={12} weight="bold" />
+                        ) : (
+                            <CaretRightIcon size={12} weight="bold" />
+                        )}
                     </span>
                 </div>
                 {drivesExpanded && drives.length > 0 && (
@@ -96,12 +117,14 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
                                 }
                             }}
                         >
+                            <HardDriveIcon size={16} weight="bold" className="sidebar-icon" />
                             {drive.name}
                         </div>
                     ))
                 )}
                 {drivesExpanded && drives.length === 0 && !loadingDrives && (
                     <div className="sidebar-item disabled" style={{ color: '#666', fontStyle: 'italic' }}>
+                        <HardDriveIcon size={16} weight="regular" className="sidebar-icon" />
                         No drives found
                     </div>
                 )}
