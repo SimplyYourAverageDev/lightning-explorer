@@ -1,3 +1,5 @@
+import { SettingsIcon } from './SettingsIcon';
+
 export function HeaderBar({
     currentPath,
     isInspectMode,
@@ -6,7 +8,8 @@ export function HeaderBar({
     showHiddenFiles,
     selectedCount,
     isAppInitialized,
-    navigationStats
+    navigationStats,
+    onSettingsClick
 }) {
     return (
         <header className="app-header">
@@ -31,6 +34,9 @@ export function HeaderBar({
                               )}ms load time`}
                     </span>
                 )}
+            </div>
+            <div className="header-actions">
+                <SettingsIcon onClick={onSettingsClick} />
             </div>
         </header>
     );

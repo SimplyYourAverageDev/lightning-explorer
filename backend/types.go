@@ -42,6 +42,21 @@ type DriveInfo struct {
 	Name   string `json:"name" msgpack:"name"`
 }
 
+// WarmState represents cached warm-start data sent to frontend
+// I am adding this new struct to expose warm preloaded data.
+type WarmState struct {
+	HomeDir string      `json:"homeDir" msgpack:"homeDir"`
+	Drives  []DriveInfo `json:"drives" msgpack:"drives"`
+	Ready   bool        `json:"ready" msgpack:"ready"`
+}
+
+// Settings represents application configuration
+type Settings struct {
+	BackgroundStartup bool   `json:"backgroundStartup" msgpack:"backgroundStartup"`
+	Theme             string `json:"theme" msgpack:"theme"`
+	ShowHiddenFiles   bool   `json:"showHiddenFiles" msgpack:"showHiddenFiles"`
+}
+
 // Interfaces for dependency injection and better testability
 
 // FileSystemManagerInterface defines the file system operations contract
@@ -116,6 +131,16 @@ type App struct {
 	// Lazy initialization sync.Once fields
 	drivesOnce   sync.Once
 	terminalOnce sync.Once
+
+	// Warm startup caches
+	homeDirCache string
+	drivesCache  []DriveInfo
+	warmReady    bool
+	warmOnce     sync.Once
+
+	// Settings management
+	settings     Settings
+	settingsOnce sync.Once
 }
 
 // FileSystemManager implementation

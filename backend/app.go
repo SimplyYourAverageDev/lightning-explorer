@@ -3,7 +3,10 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -35,6 +38,11 @@ func (a *App) Startup(ctx context.Context) {
 	// Start background drive monitoring
 	go a.monitorDrives()
 
+	// Begin warm preloading in background
+	go a.warmPreload()
+
+	// TODO: Add system tray (Windows 11) in future version when Wails v3 stable.
+
 	logPrintln("🚀 Lightning Explorer backend started")
 }
 
@@ -65,6 +73,36 @@ func (a *App) monitorDrives() {
 				wruntime.EventsEmit(a.ctx, "driveListUpdated", drives)
 			}
 		}
+	}
+}
+
+// warmPreload loads heavyweight data (home directory and drive list) once and caches it.
+func (a *App) warmPreload() {
+	a.warmOnce.Do(func() {
+		// Preload home directory
+		a.homeDirCache = a.platform.GetHomeDirectory()
+
+		// Preload drives
+		a.drivesCache = a.GetDriveInfo()
+
+		a.warmReady = true
+
+		// Notify frontend that warmup is done
+		if a.ctx != nil {
+			wruntime.EventsEmit(a.ctx, "warmupDone", true)
+		}
+	})
+}
+
+// GetWarmState returns cached warm-start information to the frontend.
+func (a *App) GetWarmState() WarmState {
+	// Ensure warm preload has started
+	go a.warmPreload()
+
+	return WarmState{
+		HomeDir: a.homeDirCache,
+		Drives:  a.drivesCache,
+		Ready:   a.warmReady,
 	}
 }
 
@@ -304,4 +342,77 @@ func (a *App) ShowDriveProperties(drivePath string) bool {
 	// For now, just open the drive in system explorer as properties dialog is complex
 	// In a full implementation, you would show a custom properties dialog
 	return a.platform.OpenInSystemExplorer(drivePath)
+}
+
+// GetContext exposes the internal context for use in main.go (e.g., bringing window to front).
+func (a *App) GetContext() context.Context {
+	return a.ctx
+}
+
+// Settings Management Methods
+
+// GetSettings returns the current application settings
+func (a *App) GetSettings() Settings {
+	a.settingsOnce.Do(func() {
+		a.loadSettings()
+	})
+	return a.settings
+}
+
+// SaveSettings saves the application settings to disk
+func (a *App) SaveSettings(newSettings Settings) error {
+	a.settings = newSettings
+	return a.saveSettingsToFile()
+}
+
+// loadSettings loads settings from file or creates defaults
+func (a *App) loadSettings() {
+	// Default settings
+	a.settings = Settings{
+		BackgroundStartup: true, // Default to enabled for better UX
+		Theme:             "system",
+		ShowHiddenFiles:   false,
+	}
+
+	// Try to load from file
+	settingsPath := a.getSettingsPath()
+	if data, err := os.ReadFile(settingsPath); err == nil {
+		if err := json.Unmarshal(data, &a.settings); err != nil {
+			logPrintln("⚠️ Failed to parse settings file, using defaults:", err)
+		}
+	}
+}
+
+// saveSettingsToFile saves settings to the user's config directory
+func (a *App) saveSettingsToFile() error {
+	settingsPath := a.getSettingsPath()
+
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(settingsPath), 0755); err != nil {
+		return fmt.Errorf("failed to create settings directory: %w", err)
+	}
+
+	data, err := json.MarshalIndent(a.settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal settings: %w", err)
+	}
+
+	if err := os.WriteFile(settingsPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write settings file: %w", err)
+	}
+
+	logPrintln("💾 Settings saved to:", settingsPath)
+	return nil
+}
+
+// getSettingsPath returns the path to the settings file
+func (a *App) getSettingsPath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		// Fallback to user home directory
+		homeDir, _ := os.UserHomeDir()
+		configDir = filepath.Join(homeDir, ".config")
+	}
+
+	return filepath.Join(configDir, "lightning-explorer", "settings.json")
 }

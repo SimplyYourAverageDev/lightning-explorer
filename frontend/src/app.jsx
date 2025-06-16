@@ -61,7 +61,8 @@ import {
     HeaderBar,
     ExplorerToolbar,
     ExplorerStatusBar,
-    StreamingVirtualizedFileList
+    StreamingVirtualizedFileList,
+    SettingsModal
 } from "./components";
 
 // Import our custom hooks
@@ -98,6 +99,14 @@ export function App() {
     // Startup state to control when heavy operations run
     const [isAppInitialized, setIsAppInitialized] = useState(false);
     const [isDriveDataLoaded, setIsDriveDataLoaded] = useState(false);
+
+    // Settings state
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [appSettings, setAppSettings] = useState({
+        backgroundStartup: true,
+        theme: "system",
+        showHiddenFiles: false
+    });
 
     // Ref for the file list component to enable auto-scrolling
     const fileListRef = useRef();
@@ -448,6 +457,32 @@ export function App() {
         );
     }, [selectedFiles, allFiles, showDialog, fileOperations]);
 
+    // Settings handlers
+    const handleSettingsOpen = useCallback(() => {
+        setIsSettingsOpen(true);
+    }, []);
+
+    const handleSettingsClose = useCallback(() => {
+        setIsSettingsOpen(false);
+    }, []);
+
+    const handleSettingsSave = useCallback((newSettings) => {
+        setAppSettings(newSettings);
+        
+        // Apply settings that affect the current UI state
+        if (newSettings.showHiddenFiles !== showHiddenFiles) {
+            setShowHiddenFiles(newSettings.showHiddenFiles);
+        }
+        
+        // Show notification about background startup changes
+        if (newSettings.backgroundStartup !== appSettings.backgroundStartup) {
+            const message = newSettings.backgroundStartup 
+                ? 'Background startup enabled. App will run in background when closed.'
+                : 'Background startup disabled. App will quit when closed.';
+            showErrorNotification(message, null, true);
+        }
+    }, [appSettings, showHiddenFiles, showErrorNotification]);
+
     // Keyboard shortcuts
     useKeyboardShortcuts({
         handleRefresh,
@@ -571,6 +606,7 @@ export function App() {
                 selectedCount={selectedFiles.size}
                 isAppInitialized={isAppInitialized}
                 navigationStats={navigationStats}
+                onSettingsClick={handleSettingsOpen}
             />
             
             {/* Modern Error Notification System */}
@@ -761,6 +797,12 @@ export function App() {
                     y={inspectMenu.y}
                     element={inspectMenu.element}
                     onClose={closeInspectMenu}
+                />
+
+                <SettingsModal
+                    isOpen={isSettingsOpen}
+                    onClose={handleSettingsClose}
+                    onSave={handleSettingsSave}
                 />
             </Suspense>
             

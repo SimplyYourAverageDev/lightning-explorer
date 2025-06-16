@@ -42,6 +42,10 @@ export function GetAvailableTerminals() {
   return window['go']['backend']['App']['GetAvailableTerminals']();
 }
 
+export function GetContext() {
+  return window['go']['backend']['App']['GetContext']();
+}
+
 export function GetCurrentWorkingDirectory() {
   return window['go']['backend']['App']['GetCurrentWorkingDirectory']();
 }
@@ -62,8 +66,16 @@ export function GetQuickAccessPaths() {
   return window['go']['backend']['App']['GetQuickAccessPaths']();
 }
 
+export function GetSettings() {
+  return window['go']['backend']['App']['GetSettings']();
+}
+
 export function GetSystemRoots() {
   return window['go']['backend']['App']['GetSystemRoots']();
+}
+
+export function GetWarmState() {
+  return window['go']['backend']['App']['GetWarmState']();
 }
 
 export function HealthCheck() {
@@ -112,6 +124,10 @@ export function OpenTerminalHere(arg1) {
 
 export function RenameFile(arg1, arg2) {
   return window['go']['backend']['App']['RenameFile'](arg1, arg2);
+}
+
+export function SaveSettings(arg1) {
+  return window['go']['backend']['App']['SaveSettings'](arg1);
 }
 
 export function ShowDriveProperties(arg1) {

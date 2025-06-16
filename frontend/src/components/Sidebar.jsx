@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "preact/hooks";
+import { useState, useEffect, useCallback } from "preact/hooks";
 import { memo } from "preact/compat";
 import { 
     HouseIcon, 
@@ -15,36 +15,53 @@ import {
 
 // Memoized Sidebar component
 const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onDriveContextMenu }) => {
-    const [homeDir, setHomeDir] = useState('');
+    // Final list of Quick Access items (after filtering out non-existent folders)
+    const [quickAccessItems, setQuickAccessItems] = useState([]);
     const [drivesExpanded, setDrivesExpanded] = useState(false);
     const [loadingDrives, setLoadingDrives] = useState(false);
     
+    // Build the fixed list of Quick-Access folders we want (Home, Desktop, Documents…)
+    // then ask the backend which ones actually exist.
     useEffect(() => {
-        // Get home directory using backend API, imported only when needed
-        const getHomeDir = async () => {
+        const buildQuickAccess = async () => {
             try {
-                const { GetHomeDirectory } = await import('../../wailsjs/go/backend/App');
-                const home = await GetHomeDirectory();
-                setHomeDir(home);
+                const { GetHomeDirectory, FileExists } = await import('../../wailsjs/go/backend/App');
+
+                const homeDir = await GetHomeDirectory();
+                if (!homeDir) return;
+
+                const pathSep = homeDir.includes('\\') ? '\\' : '/';
+
+                const candidates = [
+                    { name: 'Home',      path: homeDir,                               icon: HouseIcon },
+                    { name: 'Desktop',   path: `${homeDir}${pathSep}Desktop`,         icon: DesktopIcon },
+                    { name: 'Documents', path: `${homeDir}${pathSep}Documents`,       icon: FolderIcon },
+                    { name: 'Downloads', path: `${homeDir}${pathSep}Downloads`,       icon: DownloadIcon },
+                    { name: 'Music',     path: `${homeDir}${pathSep}Music`,           icon: MusicNotesIcon },
+                    { name: 'Pictures',  path: `${homeDir}${pathSep}Pictures`,        icon: ImageIcon },
+                ];
+
+                // Ask backend which of these actually exist
+                const filtered = [];
+                for (const item of candidates) {
+                    try {
+                        const exists = await FileExists(item.path);
+                        if (exists) {
+                            filtered.push(item);
+                        }
+                    } catch (e) {
+                        // If the check fails, skip that folder silently
+                    }
+                }
+
+                setQuickAccessItems(filtered);
             } catch (err) {
-                console.error('Failed to get home directory:', err);
+                console.error('Failed to build quick access list:', err);
             }
         };
-        
-        getHomeDir();
+
+        buildQuickAccess();
     }, []);
-    
-    // Use proper path separators for the current OS
-    const pathSep = homeDir.includes('\\') ? '\\' : '/';
-    
-    const quickAccess = useMemo(() => [
-        { name: 'Home', path: homeDir, icon: HouseIcon },
-        { name: 'Desktop', path: homeDir + pathSep + 'Desktop', icon: DesktopIcon },
-        { name: 'Documents', path: homeDir + pathSep + 'Documents', icon: FolderIcon },
-        { name: 'Downloads', path: homeDir + pathSep + 'Downloads', icon: DownloadIcon },
-        { name: 'Music', path: homeDir + pathSep + 'Music', icon: MusicNotesIcon },
-        { name: 'Pictures', path: homeDir + pathSep + 'Pictures', icon: ImageIcon }
-    ].filter(item => item.path), [homeDir, pathSep]);
     
     const handleQuickAccessClick = useCallback((path) => {
         onNavigate(path);
@@ -67,7 +84,7 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
         <div className="sidebar" onSelectStart={(e) => e.preventDefault()}>
             <div className="sidebar-section">
                 <div className="sidebar-title">Quick Access</div>
-                {quickAccess.map((item) => {
+                {quickAccessItems.map((item) => {
                     const IconComponent = item.icon;
                     return (
                         <div 

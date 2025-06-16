@@ -22,4 +22,8 @@ export { StreamingVirtualizedFileList } from './StreamingVirtualizedFileList';
 // App shell components (synchronous)
 export { HeaderBar } from './HeaderBar';
 export { ExplorerToolbar } from './ExplorerToolbar';
-export { ExplorerStatusBar } from './ExplorerStatusBar'; 
+export { ExplorerStatusBar } from './ExplorerStatusBar';
+
+// Settings components (lazy-loaded since they're not immediately visible)
+export { SettingsIcon } from './SettingsIcon';
+export const SettingsModal = lazy(() => import('./SettingsModal').then(m => ({ default: m.SettingsModal }))); 
