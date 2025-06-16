@@ -21,7 +21,7 @@ func NewEventEmitter(ctx context.Context) *EventEmitter {
 func (e *EventEmitter) EmitDirectoryHydrate(fileInfo FileInfo) {
 	if e.ctx != nil {
 		runtime.EventsEmit(e.ctx, "DirectoryHydrate", fileInfo)
-		log.Printf("📡 Emitted hydration event for: %s", fileInfo.Name)
+		// High-frequency event — omit per-file logs to keep console clean
 	}
 }
 

@@ -110,58 +110,61 @@ func (fo *FileOperationsManager) CopyFiles(sourcePaths []string, destDir string)
 		}
 	}
 
-	// Use native Windows API for better performance on Windows
+	// Prefer native Windows shell copy for speed
 	if runtime.GOOS == "windows" {
-		return fo.copyFilesWindowsWithRollback(sourcePaths, destDir, &copiedFiles)
+		success := fo.shFileOperation(FO_COPY, sourcePaths, destDir)
+		if success {
+			return true
+		}
+		// fall back on standard with rollback if shell copy failed
+		log.Printf("SHFileOperationW copy failed – falling back to buffered copy")
 	}
 
-	// Fallback to Go standard library for other platforms
+	// Fallback to Go standard library implementation with rollback
 	return fo.copyFilesStandardWithRollback(sourcePaths, destDir, &copiedFiles)
 }
 
-// copyFilesWindowsWithRollback uses Windows API for optimized file copying with rollback
-func (fo *FileOperationsManager) copyFilesWindowsWithRollback(sourcePaths []string, destDir string, copiedFiles *[]string) bool {
-	// For now, use the standard method but could be enhanced with SHFileOperationW
-	// SHFileOperationW is complex for copy operations, so we'll keep the current optimized Go implementation
-	return fo.copyFilesStandardWithRollback(sourcePaths, destDir, copiedFiles)
-}
-
-// copyFilesStandardWithRollback uses Go standard library for file copying with rollback support
-func (fo *FileOperationsManager) copyFilesStandardWithRollback(sourcePaths []string, destDir string, copiedFiles *[]string) bool {
-	for _, srcPath := range sourcePaths {
-		srcInfo, err := os.Stat(srcPath)
+// shFileOperation wraps SHFileOperationW for copy/move operations. Returns true on success.
+func (fo *FileOperationsManager) shFileOperation(op uint32, sourcePaths []string, destDir string) bool {
+	// Build double-null-terminated UTF-16 source string list
+	var srcUTF16 []uint16
+	for _, p := range sourcePaths {
+		u16, err := syscall.UTF16FromString(p)
 		if err != nil {
-			log.Printf("Error getting source file info: %v", err)
+			log.Printf("Failed to convert path to UTF16: %s – %v", p, err)
 			return false
 		}
+		srcUTF16 = append(srcUTF16, u16[:len(u16)-1]...) // drop terminating null
+		srcUTF16 = append(srcUTF16, 0)                   // single null between paths
+	}
+	srcUTF16 = append(srcUTF16, 0) // extra null at end
 
-		destPath := filepath.Join(destDir, filepath.Base(srcPath))
-
-		var copyErr error
-		if srcInfo.IsDir() {
-			copyErr = fo.copyDir(srcPath, destPath)
-		} else {
-			copyErr = fo.copyFile(srcPath, destPath)
-		}
-
-		if copyErr != nil {
-			log.Printf("Error copying %s: %v", srcPath, copyErr)
-			return false
-		}
-
-		// Track successful copy for potential rollback
-		*copiedFiles = append(*copiedFiles, destPath)
-
-		// Verify the copy was successful
-		if _, err := os.Stat(destPath); err != nil {
-			log.Printf("Copy verification failed for %s: %v", destPath, err)
-			return false
-		}
+	// Destination must be single path for copy/move
+	destUTF16, err := syscall.UTF16FromString(destDir)
+	if err != nil {
+		log.Printf("Failed to convert dest path to UTF16: %s – %v", destDir, err)
+		return false
 	}
 
-	log.Printf("Successfully copied %d files to %s", len(sourcePaths), destDir)
-	// Clear copiedFiles slice to prevent cleanup in defer
-	*copiedFiles = nil
+	fileOp := SHFILEOPSTRUCT{
+		Hwnd:   0,
+		WFunc:  op,
+		PFrom:  uintptr(unsafe.Pointer(&srcUTF16[0])),
+		PTo:    uintptr(unsafe.Pointer(&destUTF16[0])),
+		FFlags: FOF_NOCONFIRMATION | FOF_SILENT | FOF_ALLOWUNDO,
+	}
+
+	ret, _, errCall := shFileOperationW.Call(uintptr(unsafe.Pointer(&fileOp)))
+	if ret != 0 {
+		log.Printf("SHFileOperationW failed op=%d code=%d err=%v", op, ret, errCall)
+		return false
+	}
+
+	if fileOp.FAnyOperationsAborted != 0 {
+		log.Printf("SHFileOperationW op=%d aborted by user/system", op)
+		return false
+	}
+
 	return true
 }
 
@@ -239,7 +242,15 @@ func (fo *FileOperationsManager) MoveFiles(sourcePaths []string, destDir string)
 		}
 	}
 
-	// Perform moves with rollback tracking
+	// Use native Windows shell move when available (handles cross-volume and is faster)
+	if runtime.GOOS == "windows" {
+		if fo.shFileOperation(FO_MOVE, sourcePaths, destDir) {
+			return true
+		}
+		log.Printf("SHFileOperationW move failed – falling back to rename/copy path")
+	}
+
+	// Perform moves with rollback tracking (fallback)
 	for _, srcPath := range sourcePaths {
 		destPath := filepath.Join(destDir, filepath.Base(srcPath))
 		record := moveRecord{srcPath: srcPath, destPath: destPath, wasCopy: false}
@@ -463,6 +474,45 @@ func (fo *FileOperationsManager) HideFiles(filePaths []string) bool {
 // OpenFile opens a file with its default application
 func (fo *FileOperationsManager) OpenFile(filePath string) bool {
 	return fo.platform.OpenFile(filePath)
+}
+
+// copyFilesStandardWithRollback uses Go standard library for file copying with rollback support
+func (fo *FileOperationsManager) copyFilesStandardWithRollback(sourcePaths []string, destDir string, copiedFiles *[]string) bool {
+	for _, srcPath := range sourcePaths {
+		srcInfo, err := os.Stat(srcPath)
+		if err != nil {
+			log.Printf("Error getting source file info: %v", err)
+			return false
+		}
+
+		destPath := filepath.Join(destDir, filepath.Base(srcPath))
+
+		var copyErr error
+		if srcInfo.IsDir() {
+			copyErr = fo.copyDir(srcPath, destPath)
+		} else {
+			copyErr = fo.copyFile(srcPath, destPath)
+		}
+
+		if copyErr != nil {
+			log.Printf("Error copying %s: %v", srcPath, copyErr)
+			return false
+		}
+
+		// Track successful copy for potential rollback
+		*copiedFiles = append(*copiedFiles, destPath)
+
+		// Verify the copy was successful
+		if _, err := os.Stat(destPath); err != nil {
+			log.Printf("Copy verification failed for %s: %v", destPath, err)
+			return false
+		}
+	}
+
+	log.Printf("Successfully copied %d files to %s", len(sourcePaths), destDir)
+	// Clear copiedFiles slice to prevent cleanup in defer
+	*copiedFiles = nil
+	return true
 }
 
 // Helper copy/move implementations have been moved to fileops_copy.go to keep this file concise.

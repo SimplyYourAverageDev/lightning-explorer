@@ -1,5 +1,6 @@
 import { useState, useCallback } from "preact/hooks";
 import { CopyFilePathsToClipboard } from "../../wailsjs/go/backend/App";
+import { log, warn } from "../utils/logger";
 
 export const useClipboard = () => {
     const [clipboardFiles, setClipboardFiles] = useState([]);
@@ -10,13 +11,13 @@ export const useClipboard = () => {
         setClipboardOperation('copy');
         CopyFilePathsToClipboard(filePaths).then(success => {
             if (!success) {
-                console.warn("⚠️ Lightning Explorer: failed to set OS clipboard with file list");
+                warn("⚠️ Lightning Explorer: failed to set OS clipboard with file list");
             }
         }).catch(err => {
-            console.warn("⚠️ Lightning Explorer: error setting OS clipboard:", err);
+            warn("⚠️ Lightning Explorer: error setting OS clipboard:", err);
         });
-        console.log('📋 Copied to internal & OS clipboard:', filePaths);
-        console.log(`📄 ${filePaths.length} item${filePaths.length === 1 ? '' : 's'} copied`);
+        log('📋 Copied to internal & OS clipboard:', filePaths);
+        log(`📄 ${filePaths.length} item${filePaths.length === 1 ? '' : 's'} copied`);
     }, []);
 
     const handleCut = useCallback((filePaths) => {
@@ -24,13 +25,13 @@ export const useClipboard = () => {
         setClipboardOperation('cut');
         CopyFilePathsToClipboard(filePaths).then(success => {
             if (!success) {
-                console.warn("⚠️ Lightning Explorer: failed to set OS clipboard with file list");
+                warn("⚠️ Lightning Explorer: failed to set OS clipboard with file list");
             }
         }).catch(err => {
-            console.warn("⚠️ Lightning Explorer: error setting OS clipboard:", err);
+            warn("⚠️ Lightning Explorer: error setting OS clipboard:", err);
         });
-        console.log('✂️ Cut to internal & OS clipboard:', filePaths);
-        console.log(`✂️ ${filePaths.length} item${filePaths.length === 1 ? '' : 's'} cut`);
+        log('✂️ Cut to internal & OS clipboard:', filePaths);
+        log(`✂️ ${filePaths.length} item${filePaths.length === 1 ? '' : 's'} cut`);
     }, []);
 
     const clearClipboard = useCallback(() => {

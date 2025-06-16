@@ -10,7 +10,8 @@ import (
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-const pollInterval = 1 * time.Second
+// Drive hot-plug is user-visible but not latency-critical – poll every 3 s to cut idle CPU
+const pollInterval = 3 * time.Second
 
 // NewApp creates a new App application struct - simplified
 func NewApp() *App {

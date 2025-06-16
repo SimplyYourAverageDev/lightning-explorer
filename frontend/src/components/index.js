@@ -16,8 +16,8 @@ export const RetroDialog = lazy(() => import('./RetroDialog').then(m => ({ defau
 // Only truly non-critical, rarely used components are lazy-loaded
 export const InspectMenu = lazy(() => import('./InspectMenu').then(m => ({ default: m.InspectMenu })));
 
-// StreamingVirtualizedFileList is large but can still be code-split; initial mount will trigger Suspense fallback briefly.
-export const StreamingVirtualizedFileList = lazy(() => import('./StreamingVirtualizedFileList').then(m => ({ default: m.StreamingVirtualizedFileList }))); 
+// StreamingVirtualizedFileList is critical for the main view – bundle synchronously to avoid Suspense flashes
+export { StreamingVirtualizedFileList } from './StreamingVirtualizedFileList';
 
 // App shell components (synchronous)
 export { HeaderBar } from './HeaderBar';

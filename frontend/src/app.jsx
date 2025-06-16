@@ -218,16 +218,15 @@ export function App() {
         return sortFiles(filtered, sortBy, sortOrder); // Return sorted list when complete
     }, [files, showHiddenFiles, sortBy, sortOrder, loading]);
     
-    // For backward compatibility, split allFiles back into directories and files
-    const filteredDirectories = useMemo(() => 
-        allFiles.filter(file => file.isDir), 
-        [allFiles]
-    );
-    
-    const filteredFiles = useMemo(() => 
-        allFiles.filter(file => !file.isDir), 
-        [allFiles]
-    );
+    // Split into directories/files in a single pass to avoid two extra iterations on large lists
+    const { filteredDirectories, filteredFiles } = useMemo(() => {
+        const out = { filteredDirectories: [], filteredFiles: [] };
+        for (const f of allFiles) {
+            if (f.isDir) out.filteredDirectories.push(f);
+            else out.filteredFiles.push(f);
+        }
+        return out;
+    }, [allFiles]);
 
     // Context menus hook
     const {

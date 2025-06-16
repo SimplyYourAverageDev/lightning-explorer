@@ -63,10 +63,10 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     // ---------------------------------------------------------------------
     // Event handlers - defined outside useEffect to avoid recreation
     const onStart = useCallback((path) => {
-        console.log('📡 Frontend received DirectoryStart:', path);
+        log('📡 Frontend received DirectoryStart:', path);
         const navigationContext = activeNavigationRef.current;
         if (!navigationContext || navigationContext.cancelled) {
-            console.log('⚠️ DirectoryStart received but no active navigation context');
+            log('⚠️ DirectoryStart received but no active navigation context');
             return;
         }
         
@@ -87,10 +87,10 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     }, []);
 
     const onBatch = useCallback((batchFiles) => {
-        console.log('📡 Frontend received DirectoryBatch:', batchFiles?.length, 'files');
+        log('📡 Frontend received DirectoryBatch:', batchFiles?.length, 'files');
         const navigationContext = activeNavigationRef.current;
         if (!navigationContext || navigationContext.cancelled) {
-            console.log('⚠️ DirectoryBatch received but no active navigation context');
+            log('⚠️ DirectoryBatch received but no active navigation context');
             return;
         }
 
@@ -102,7 +102,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     }, [scheduleFlush]);
 
     const onComplete = useCallback((data) => {
-        console.log('📡 Frontend received DirectoryComplete:', data);
+        log('📡 Frontend received DirectoryComplete:', data);
         const navigationContext = activeNavigationRef.current;
         if (!navigationContext || navigationContext.cancelled) return;
         
@@ -131,7 +131,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     }, [hideLoadingIndicator, setNavigationStats, flushPendingFiles]);
 
     const onError = useCallback((message) => {
-        console.log('📡 Frontend received DirectoryError:', message);
+        log('📡 Frontend received DirectoryError:', message);
         const navigationContext = activeNavigationRef.current;
         if (!navigationContext || navigationContext.cancelled) return;
         
@@ -173,7 +173,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         listenersRegistering.current = true; // prevent concurrent registrations
 
         try {
-            console.log('🔧 useStreamingNavigation: Registering event listeners...');
+            log('🔧 useStreamingNavigation: Registering event listeners...');
 
             const { EventsOn } = await import('../../wailsjs/runtime/runtime');
             const unsubDirectoryStart = EventsOn('DirectoryStart', onStart);
@@ -191,9 +191,9 @@ export function useStreamingNavigation(setError, setNavigationStats) {
 
             listenersRegistered.current = true;
             listenersRegistering.current = false;
-            console.log('🔧 useStreamingNavigation: Event listeners registered successfully!');
+            log('🔧 useStreamingNavigation: Event listeners registered successfully!');
         } catch (err) {
-            console.error('❌ Failed to register event listeners:', err);
+            log('❌ Failed to register event listeners:', err);
             error('Failed to register event listeners:', err);
             listenersRegistering.current = false;
             throw err; // propagate so callers can handle
@@ -205,7 +205,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         if (!listenersRegistered.current) return;
 
         try {
-            console.log('🔧 useStreamingNavigation: Cleaning up event listeners...');
+            log('🔧 useStreamingNavigation: Cleaning up event listeners...');
 
             import('../../wailsjs/runtime/runtime').then(({ EventsOff }) => {
                 // Call unsubscribe functions if available
@@ -224,9 +224,9 @@ export function useStreamingNavigation(setError, setNavigationStats) {
             
             eventUnsubscribers.current = [];
             listenersRegistered.current = false;
-            console.log('🔧 useStreamingNavigation: Event listeners cleaned up successfully!');
+            log('🔧 useStreamingNavigation: Event listeners cleaned up successfully!');
         } catch (err) {
-            console.error('❌ Failed to cleanup event listeners:', err);
+            log('❌ Failed to cleanup event listeners:', err);
         }
     }, []);
 
@@ -242,7 +242,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         
         // Ensure event listeners are registered before navigation
         if (!listenersRegistered.current) {
-            console.log('🔧 Event listeners not registered, registering now...');
+            log('🔧 Event listeners not registered, registering now...');
             await registerEventListeners();
         }
         
@@ -278,11 +278,11 @@ export function useStreamingNavigation(setError, setNavigationStats) {
             
             // Check if navigation was cancelled during delay
             if (navigationContext.cancelled) {
-                console.log('🚫 Navigation cancelled during setup');
+                log('🚫 Navigation cancelled during setup');
                 return;
             }
             
-            console.log(`🧭 Starting StreamDirectory for: ${path} (listeners registered: ${listenersRegistered.current})`);
+            log(`🧭 Starting StreamDirectory for: ${path} (listeners registered: ${listenersRegistered.current})`);
             // Start streaming directory contents
             StreamDirectory(path);
         } catch (err) {

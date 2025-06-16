@@ -5,8 +5,7 @@ export namespace backend {
 	    path: string;
 	    isDir: boolean;
 	    size: number;
-	    // Go type: time
-	    modTime: any;
+	    modTime: string;
 	    permissions: string;
 	    extension: string;
 	    isHidden: boolean;
@@ -21,29 +20,11 @@ export namespace backend {
 	        this.path = source["path"];
 	        this.isDir = source["isDir"];
 	        this.size = source["size"];
-	        this.modTime = this.convertValues(source["modTime"], null);
+	        this.modTime = source["modTime"];
 	        this.permissions = source["permissions"];
 	        this.extension = source["extension"];
 	        this.isHidden = source["isHidden"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class DirectoryContents {
 	    currentPath: string;

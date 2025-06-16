@@ -12,7 +12,7 @@ type FileInfo struct {
 	Path        string    `json:"path" msgpack:"path"`
 	IsDir       bool      `json:"isDir" msgpack:"isDir"`
 	Size        int64     `json:"size" msgpack:"size"`
-	ModTime     time.Time `json:"modTime" msgpack:"modTime"`
+	ModTime     time.Time `json:"modTime" msgpack:"modTime" ts_type:"string"`
 	Permissions string    `json:"permissions" msgpack:"permissions"`
 	Extension   string    `json:"extension" msgpack:"extension"`
 	IsHidden    bool      `json:"isHidden" msgpack:"isHidden"`
