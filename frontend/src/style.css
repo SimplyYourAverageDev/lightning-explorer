@@ -97,7 +97,7 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-md);
 }
 
 .app-title {
@@ -743,4 +743,23 @@ body {
 .brut-select-option.selected {
     background: var(--brut-accent);
     color: var(--brut-accent-text);
+}
+
+/* Settings Icon Button - Neo-Brutalist Style */
+.settings-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-sm);
+  background: var(--brut-surface);
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius);
+  color: var(--brut-text-primary);
+  cursor: pointer;
+  transition: background-color 100ms ease-out, color 100ms ease-out;
+}
+
+.settings-icon-button:hover:not(:disabled) {
+  background: var(--brut-border-color);
+  color: var(--brut-surface);
 }

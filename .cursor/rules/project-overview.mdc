@@ -10,3 +10,4 @@ This codebase is only written for Windows 11, DO NOT bother implementing support
 DO NOT USE shadows and gradients in your UI DESIGN!
 
 [app.jsx](mdc:frontend/src/app.jsx)
+[README.md](mdc:README.md)
