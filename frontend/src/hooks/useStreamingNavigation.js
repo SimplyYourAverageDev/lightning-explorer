@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "preact/hooks";
 import { log, error } from "../utils/logger";
+import { EventsOn, EventsOff } from "../../wailsjs/runtime/runtime";
 
 export function useStreamingNavigation(setError, setNavigationStats) {
     const [currentPath, setCurrentPath] = useState('');
@@ -175,7 +176,6 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         try {
             log('🔧 useStreamingNavigation: Registering event listeners...');
 
-            const { EventsOn } = await import('../../wailsjs/runtime/runtime');
             const unsubDirectoryStart = EventsOn('DirectoryStart', onStart);
             const unsubDirectoryBatch = EventsOn('DirectoryBatch', onBatch);
             const unsubDirectoryComplete = EventsOn('DirectoryComplete', onComplete);
@@ -207,20 +207,18 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         try {
             log('🔧 useStreamingNavigation: Cleaning up event listeners...');
 
-            import('../../wailsjs/runtime/runtime').then(({ EventsOff }) => {
-                // Call unsubscribe functions if available
-                eventUnsubscribers.current.forEach(unsub => {
-                    if (typeof unsub === 'function') {
-                        unsub();
-                    }
-                });
-
-                // Fallback cleanup
-                EventsOff('DirectoryStart');
-                EventsOff('DirectoryBatch');
-                EventsOff('DirectoryComplete');
-                EventsOff('DirectoryError');
+            // Call unsubscribe functions if available
+            eventUnsubscribers.current.forEach(unsub => {
+                if (typeof unsub === 'function') {
+                    unsub();
+                }
             });
+
+            // Global fallback to ensure we always detach listeners
+            EventsOff('DirectoryStart');
+            EventsOff('DirectoryBatch');
+            EventsOff('DirectoryComplete');
+            EventsOff('DirectoryError');
             
             eventUnsubscribers.current = [];
             listenersRegistered.current = false;
@@ -263,9 +261,6 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         setError('');
         // Don't show loading indicator to prevent flash
         
-        // Dynamically import the backend streaming function when required
-        const { StreamDirectory } = await import('../../wailsjs/go/backend/App');
-
         // Set measuring state
         setNavigationStats(prev => ({
             ...prev,
@@ -284,6 +279,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
             
             log(`🧭 Starting StreamDirectory for: ${path} (listeners registered: ${listenersRegistered.current})`);
             // Start streaming directory contents
+            const { StreamDirectory } = await import('../../wailsjs/go/backend/App');
             StreamDirectory(path);
         } catch (err) {
             if (!navigationContext.cancelled) {

@@ -194,8 +194,8 @@ func (fs *FileSystemManager) hydrateRemainingEntriesEnhanced(basePath string, en
 		// Return slice to pool (we only pooled the backing array)
 		fileInfoBatchPool.Put(batch[:0])
 
-		// Small delay between batches to allow UI to update
-		time.Sleep(50 * time.Millisecond)
+		// Small, adaptive delay between batches – shorter to keep UI responsive on very large directories
+		time.Sleep(5 * time.Millisecond)
 	}
 
 	// Emit completion event

@@ -47,7 +47,7 @@ const sortFiles = (files, sortBy, sortOrder) => {
 };
 
 // Import utilities
-import { log } from "./utils/logger";
+import { log, error as logError } from "./utils/logger";
 
 // Import our custom components
 import {
@@ -87,7 +87,7 @@ import { useStreamingNavigation } from "./hooks/useStreamingNavigation";
 // Main App component
 export function App() {
     // Basic UI state
-    const [error, setError] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
     const [errorDetails, setErrorDetails] = useState(null);
     const [errorDismissTimer, setErrorDismissTimer] = useState(null);
     const [drives, setDrives] = useState([]);
@@ -112,11 +112,18 @@ export function App() {
     const fileListRef = useRef();
 
     // Toggle hidden files visibility (memoized)
-    const toggleShowHiddenFiles = useCallback(() => setShowHiddenFiles(prev => !prev), []);
+    const toggleShowHiddenFiles = useCallback(() => {
+        setShowHiddenFiles(prev => {
+            const newValue = !prev;
+            // keep Settings state in sync so it reflects current toggle
+            setAppSettings(prevSettings => ({ ...prevSettings, showHiddenFiles: newValue }));
+            return newValue;
+        });
+    }, [setAppSettings]);
 
     // Enhanced error handling functions
     const showErrorNotification = useCallback((message, details = null, autoDismiss = true) => {
-        setError(message);
+        setErrorMessage(message);
         setErrorDetails(details);
         
         // Clear any existing timer
@@ -127,7 +134,7 @@ export function App() {
         // Auto-dismiss after 8 seconds for non-critical errors
         if (autoDismiss && !details) {
             const timer = setTimeout(() => {
-                setError('');
+                setErrorMessage('');
                 setErrorDetails(null);
             }, 8000);
             setErrorDismissTimer(timer);
@@ -139,7 +146,7 @@ export function App() {
             clearTimeout(errorDismissTimer);
             setErrorDismissTimer(null);
         }
-        setError('');
+        setErrorMessage('');
         setErrorDetails(null);
     }, [errorDismissTimer]);
 
@@ -392,7 +399,7 @@ export function App() {
                 handleRefresh();
             }
         } catch (err) {
-            error('❌ Error during paste operation:', err);
+            logError('❌ Error during paste operation:', err);
             showErrorNotification('Failed to paste files', err.message);
         }
     }, [isPasteAvailable, currentPath, clipboardFiles, clipboardOperation, fileOperations, clearClipboard]);
@@ -525,8 +532,7 @@ export function App() {
 
     // Load drives using regular API
     const loadDrives = useCallback(async () => {
-        if (isDriveDataLoaded) return drives;
-
+        // Refresh the drive list even if we previously loaded it to reflect hot-plug changes
         try {
             // Dynamically import the backend API only when needed
             const { GetDriveInfo } = await import('../wailsjs/go/backend/App');
@@ -535,11 +541,11 @@ export function App() {
             setIsDriveDataLoaded(true);
             return driveList;
         } catch (err) {
-            error('❌ Failed to load drive information:', err);
+            logError('❌ Failed to load drive information:', err);
             showErrorNotification('Failed to load drive information', err.message);
             return [];
         }
-    }, [isDriveDataLoaded, drives]);
+    }, []);
 
     const initializeApp = async () => {
         try {
@@ -557,7 +563,7 @@ export function App() {
                 showErrorNotification('Unable to determine starting directory', null, false);
             }
         } catch (err) {
-            error('❌ Error initializing app:', err);
+            logError('❌ Error initializing app:', err);
             showErrorNotification('Failed to initialize file explorer', err.message, false);
         }
     };
@@ -610,13 +616,13 @@ export function App() {
             />
             
             {/* Modern Error Notification System */}
-            {error && (
+            {errorMessage && (
                 <div className="error-notification">
                     <div className="error-notification-content">
                         <div className="error-notification-header">
                             <div className="error-notification-text">
                                 <div className="error-notification-title">System Notification</div>
-                                <div className="error-notification-message">{error}</div>
+                                <div className="error-notification-message">{errorMessage}</div>
                             </div>
                             <button 
                                 className="error-notification-dismiss" 
