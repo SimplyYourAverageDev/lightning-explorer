@@ -1,0 +1,43 @@
+/* === Brutalist Toggle === */
+
+.brut-toggle {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 30px;
+  cursor: pointer;
+}
+
+.brut-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.brut-toggle-track {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--brut-surface);
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius-sm);
+  transition: background-color 150ms ease-in-out;
+}
+
+.brut-toggle-thumb {
+  position: absolute;
+  content: '';
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--brut-text-primary);
+  border-radius: var(--brut-radius-sm);
+  transition: transform 150ms ease-in-out, background-color 150ms ease-in-out;
+}
+
+.brut-toggle input:checked + .brut-toggle-track { background: var(--brut-accent); }
+.brut-toggle input:checked + .brut-toggle-track .brut-toggle-thumb {
+  transform: translate(20px, -50%);
+  background: var(--brut-accent-text);
+} 

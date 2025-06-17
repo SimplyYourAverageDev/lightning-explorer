@@ -14,7 +14,7 @@ const sortFiles = (files, sortBy, sortOrder) => {
         
         switch (sortBy) {
             case 'name':
-                aValue = a.name.toLowerCase();
+                aValue = a.name.toLowerCase();``
                 bValue = b.name.toLowerCase();
                 break;
             case 'size':

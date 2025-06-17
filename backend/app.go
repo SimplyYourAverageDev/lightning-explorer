@@ -1,3 +1,6 @@
+//go:build legacyapp
+// +build legacyapp
+
 package backend
 
 import (

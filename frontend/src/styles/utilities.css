@@ -1,0 +1,30 @@
+/* === Utility Helpers === */
+
+/* Scrollbar - Completely hidden */
+.custom-scrollbar::-webkit-scrollbar { width: 0; height: 0; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: transparent; }
+
+/* Hide scrollbar for Firefox */
+.custom-scrollbar { scrollbar-width: none; }
+
+/* Hide scrollbar for all browsers */
+.custom-scrollbar { -ms-overflow-style: none; }
+
+.text-technical {
+  font-size: var(--font-xs);
+  color: var(--brut-text-secondary);
+  font-weight: 500;
+}
+
+.inspect-mode-indicator {
+  margin-left: var(--space-md);
+  padding: calc(var(--space-sm) * 0.5) var(--space-md);
+  background: var(--brut-accent);
+  color: var(--brut-accent-text);
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius);
+  font-size: var(--font-xs);
+  font-weight: bold;
+} 

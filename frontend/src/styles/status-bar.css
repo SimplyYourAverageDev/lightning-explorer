@@ -1,0 +1,18 @@
+/* === Status Bar === */
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--brut-surface);
+  border-top: var(--brut-border-width) solid var(--brut-border-color);
+  font-size: var(--font-xs);
+  color: var(--brut-text-secondary);
+  flex-shrink: 0;
+  min-height: var(--status-bar-height);
+}
+
+.status-bar-right {
+  margin-left: auto;
+} 

@@ -1,0 +1,84 @@
+/* === Retro Dialog === */
+
+.retro-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(17, 24, 39, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.retro-dialog {
+  background: var(--brut-surface);
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius-lg);
+  min-width: clamp(18rem, 12.5vw, 28rem);
+  max-width: clamp(25rem, 17.36vw, 35rem);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.retro-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-md);
+  border-bottom: var(--brut-border-width) solid var(--brut-border-color);
+}
+
+.retro-dialog-title {
+  font-weight: 700;
+  font-size: var(--font-base);
+  text-transform: uppercase;
+}
+
+.retro-dialog-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-lg);
+}
+
+.retro-dialog-content { padding: var(--space-lg); text-align: center; }
+.retro-dialog-message { line-height: 1.6; font-size: var(--font-lg); margin-bottom: var(--space-lg); }
+
+.retro-dialog-input {
+  width: 100%;
+  padding: var(--space-md);
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius);
+  font-family: inherit;
+  font-size: var(--font-lg);
+}
+.retro-dialog-input:focus {
+  outline: none;
+  border-color: var(--brut-accent-dark);
+  background-color: var(--brut-accent);
+}
+
+.retro-dialog-buttons {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  justify-content: center;
+  border-top: var(--brut-border-width) solid var(--brut-border-color);
+}
+
+.retro-dialog-btn {
+  padding: var(--space-md) var(--space-lg);
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius);
+  font-family: inherit;
+  font-size: var(--font-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 100ms ease-out, color 100ms ease-out;
+}
+.retro-dialog-btn-primary { background: var(--brut-border-color); color: var(--brut-surface); }
+.retro-dialog-btn-primary:hover { background: var(--brut-accent); color: var(--brut-accent-text); }
+.retro-dialog.delete-type .retro-dialog-btn-primary:hover { background-color: var(--brut-error); color: var(--brut-surface); }
+.retro-dialog-btn-secondary { background: var(--brut-surface); color: var(--brut-text-primary); }
+.retro-dialog-btn-secondary:hover { background: var(--brut-secondary-bg); } 

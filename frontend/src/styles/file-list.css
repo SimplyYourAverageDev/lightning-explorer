@@ -1,0 +1,125 @@
+/* === File List & Tiles === */
+
+.file-list-container {
+  flex: 1;
+  position: relative;
+  /* Removing `contain: strict` because it can cause painting issues with transformed children in large scrollable lists. */
+  min-height: 0;
+  background: var(--brut-surface);
+  padding: var(--space-md);
+  overflow: hidden;
+}
+
+.file-list {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.file-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-md);
+  cursor: pointer;
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius-lg);
+  background: var(--brut-surface);
+  transition: background-color 100ms ease-out, color 100ms ease-out;
+  height: 100%;
+  /* Removing paint containment because it clips translated items during virtualization */
+  contain: layout style;
+  overflow: hidden;
+}
+
+.file-item:hover:not(.selected) {
+  background-color: var(--brut-secondary-bg);
+}
+.file-item.selected {
+  background-color: var(--brut-accent);
+  color: var(--brut-accent-text);
+}
+.file-item.cut {
+  opacity: 0.5;
+  border-style: dashed;
+}
+.file-item.drag-over {
+  background-color: var(--brut-accent-dark) !important;
+  outline: var(--brut-border-width) dashed var(--brut-border-color);
+}
+
+.file-icon {
+  width: calc(var(--space-lg) * 1.5);
+  height: calc(var(--space-lg) * 1.5);
+  flex-shrink: 0;
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius-sm);
+  background-color: var(--brut-secondary-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-base);
+}
+
+/* Phosphor icon styling */
+.file-icon .phosphor-icon {
+  color: var(--brut-text-primary);
+  transition: color 100ms ease-out;
+}
+
+.file-item.selected .file-icon .phosphor-icon {
+  color: var(--brut-accent-text);
+}
+
+/* Icon background colors based on file types */
+.file-icon.folder { background-color: var(--brut-text-secondary); }
+.file-icon.folder .phosphor-icon { color: var(--brut-surface); }
+
+.file-icon.image { background-color: #f59e0b; }
+.file-icon.image .phosphor-icon { color: var(--brut-surface); }
+
+.file-icon.code { background-color: #2563eb; }
+.file-icon.code .phosphor-icon { color: var(--brut-surface); }
+
+.file-icon.archive { background-color: #78716c; }
+.file-icon.archive .phosphor-icon { color: var(--brut-surface); }
+
+.file-icon.video { background-color: #dc2626; }
+.file-icon.video .phosphor-icon { color: var(--brut-surface); }
+
+.file-icon.audio { background-color: #059669; }
+.file-icon.audio .phosphor-icon { color: var(--brut-surface); }
+
+.file-icon.document { background-color: #7c3aed; }
+.file-icon.document .phosphor-icon { color: var(--brut-surface); }
+
+.file-icon.executable { background-color: #ea580c; }
+.file-icon.executable .phosphor-icon { color: var(--brut-surface); }
+
+.file-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.file-name {
+  font-size: var(--font-base);
+  font-weight: 500;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-meta {
+  font-size: var(--font-xs);
+  color: var(--brut-text-secondary);
+}
+
+.file-item.selected .file-meta {
+  color: var(--brut-accent-text);
+  opacity: 0.8;
+} 

@@ -1,0 +1,92 @@
+/* === Explorer Toolbar & Sort Dropdown === */
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--brut-surface);
+  border-bottom: var(--brut-border-width) solid var(--brut-border-color);
+  flex-shrink: 0;
+  min-height: var(--toolbar-height);
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-md);
+  background: transparent;
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius);
+  color: var(--brut-text-primary);
+  font-size: var(--font-base);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 100ms ease-out, color 100ms ease-out;
+  font-weight: 500;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background: var(--brut-border-color);
+  color: var(--brut-surface);
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--brut-secondary-bg);
+}
+
+.toolbar-btn.active {
+  background: var(--brut-accent);
+  color: var(--brut-accent-text);
+}
+
+/* Sort dropdown */
+.sort-dropdown {
+  position: relative;
+}
+.sort-dropdown:hover .sort-dropdown-content {
+  display: block;
+}
+
+.sort-dropdown-content {
+  display: none;
+  position: absolute;
+  top: calc(100% + var(--space-sm));
+  left: 0;
+  min-width: clamp(12rem, 6.94vw, 16rem);
+  background: var(--brut-surface);
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius);
+  z-index: 1000;
+  padding: var(--space-sm);
+}
+
+.sort-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-md) var(--space-md);
+  background: transparent;
+  color: var(--brut-text-primary);
+  font-family: inherit;
+  font-size: var(--font-base);
+  cursor: pointer;
+  border-radius: var(--brut-radius);
+  transition: background-color 100ms ease-out, color 100ms ease-out;
+  text-align: left;
+  gap: var(--space-md);
+}
+
+.sort-option:hover {
+  background: var(--brut-border-color);
+  color: var(--brut-surface);
+}
+
+.sort-option.active {
+  background: var(--brut-accent);
+  color: var(--brut-accent-text);
+} 

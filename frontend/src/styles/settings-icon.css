@@ -1,0 +1,19 @@
+/* === Settings Icon Button === */
+
+.settings-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-sm);
+  background: var(--brut-surface);
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius);
+  color: var(--brut-text-primary);
+  cursor: pointer;
+  transition: background-color 100ms ease-out, color 100ms ease-out;
+}
+
+.settings-icon-button:hover:not(:disabled) {
+  background: var(--brut-border-color);
+  color: var(--brut-surface);
+} 

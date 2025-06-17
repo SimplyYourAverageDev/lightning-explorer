@@ -1,0 +1,138 @@
+/* === Settings Modal === */
+
+.brut-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(17, 24, 39, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: var(--space-lg);
+}
+
+.brut-modal {
+  background: var(--brut-surface);
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius-lg);
+  width: 100%;
+  max-width: clamp(30rem, 34.72vw, 40rem);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.brut-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: var(--brut-border-width) solid var(--brut-border-color);
+  flex-shrink: 0;
+}
+
+.brut-modal-title {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--brut-text-primary);
+}
+
+.brut-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--brut-text-secondary);
+  cursor: pointer;
+  font-size: var(--font-xl);
+  line-height: 1;
+  padding: var(--space-sm);
+  transition: color 100ms ease-out;
+}
+.brut-modal-close:hover { color: var(--brut-text-primary); }
+
+.brut-modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-xl);
+  scrollbar-width: thin;
+  scrollbar-color: var(--brut-border-color) var(--brut-secondary-bg);
+}
+.brut-modal-content::-webkit-scrollbar { width: 8px; }
+.brut-modal-content::-webkit-scrollbar-track { background: var(--brut-secondary-bg); }
+.brut-modal-content::-webkit-scrollbar-thumb { background-color: var(--brut-border-color); border-radius: 0; }
+
+.brut-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-top: var(--brut-border-width) solid var(--brut-border-color);
+  flex-shrink: 0;
+  background: var(--brut-surface);
+}
+
+/* Settings Sections */
+.settings-section { margin-bottom: var(--space-2xl); }
+.settings-section:last-child { margin-bottom: 0; }
+.settings-section-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--brut-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-lg);
+  border-bottom: var(--brut-border-width) solid var(--brut-secondary-bg);
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+.settings-item:last-child { margin-bottom: 0; }
+
+.settings-item-info { flex: 1; }
+.settings-label {
+  display: block;
+  font-size: var(--font-base);
+  font-weight: 500;
+  color: var(--brut-text-primary);
+  margin-bottom: var(--space-sm);
+  text-transform: uppercase;
+}
+.settings-description {
+  font-size: var(--font-sm);
+  color: var(--brut-text-secondary);
+  line-height: 1.6;
+}
+
+/* Brutalist Buttons */
+.brut-btn {
+  padding: var(--space-md) var(--space-lg);
+  background: transparent;
+  border: var(--brut-border-width) solid var(--brut-border-color);
+  border-radius: var(--brut-radius);
+  color: var(--brut-text-primary);
+  font-size: var(--font-base);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 100ms ease-out, color 100ms ease-out, border-color 100ms ease-out;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.brut-btn.secondary:hover:not(:disabled) { background: var(--brut-secondary-bg); }
+.brut-btn.primary { background: var(--brut-border-color); color: var(--brut-surface); }
+.brut-btn.primary:hover:not(:disabled) {
+  background: var(--brut-accent);
+  color: var(--brut-accent-text);
+  border-color: var(--brut-accent-text);
+}
+.brut-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--brut-secondary-bg);
+} 

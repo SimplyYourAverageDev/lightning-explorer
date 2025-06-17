@@ -1,0 +1,77 @@
+/* === Modern Tech Brutalism Theme === */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../assets/fonts/JetBrainsMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Root variables - Dynamic units based on viewport */
+:root {
+  /* Base sizing - calculated for 2880x1920 Surface Pro (scaled up 25%) */
+  --base-font-size: clamp(0.9375rem, 0.625vw, 1.25rem);
+  --base-spacing: clamp(0.3125rem, 0.4375vw, 0.625rem);
+  --base-border-width: clamp(1px, 0.0875vw, 4px);
+  
+  /* Color variables */
+  --brut-bg: #f8f9fa;
+  --brut-surface: #ffffff;
+  --brut-text-primary: #111827;
+  --brut-text-secondary: #6b7280;
+  --brut-text-tertiary: #9ca3af;
+  --brut-border-color: #111827;
+  --brut-accent: #bef264;
+  --brut-accent-dark: #a3e635;
+  --brut-accent-text: #111827;
+  --brut-secondary-bg: #f3f4f6;
+  --brut-error: #ef4444;
+  
+  /* Dynamic sizing variables */
+  --brut-border-width: var(--base-border-width);
+  --brut-radius: calc(var(--base-spacing) * 2);
+  --brut-radius-sm: var(--base-spacing);
+  --brut-radius-lg: calc(var(--base-spacing) * 3);
+  
+  /* Spacing scale */
+  --space-xs: calc(var(--base-spacing) * 0.5);
+  --space-sm: var(--base-spacing);
+  --space-md: calc(var(--base-spacing) * 2);
+  --space-lg: calc(var(--base-spacing) * 3);
+  --space-xl: calc(var(--base-spacing) * 4);
+  --space-2xl: calc(var(--base-spacing) * 6);
+  
+  /* Font sizes */
+  --font-xs: calc(var(--base-font-size) * 0.75);
+  --font-sm: calc(var(--base-font-size) * 0.875);
+  --font-base: var(--base-font-size);
+  --font-lg: calc(var(--base-font-size) * 1.125);
+  --font-xl: calc(var(--base-font-size) * 1.25);
+  --font-2xl: calc(var(--base-font-size) * 1.5);
+  
+  /* Layout dimensions (scaled up 25%) */
+  --sidebar-width: clamp(15rem, 10.4125vw, 25rem);
+  --header-height: clamp(3.75rem, 4.375vh, 5rem);
+  --toolbar-height: clamp(3.125rem, 3.75vh, 4.375rem);
+  --status-bar-height: clamp(2.5rem, 3.125vh, 3.75rem);
+  --file-item-height: clamp(3.75rem, 4.1625vh, 6.25rem);
+}
+
+/* Global resets */
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  font-size: var(--font-base);
+  line-height: 1.5;
+  background: var(--brut-bg);
+  color: var(--brut-text-primary);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+} 

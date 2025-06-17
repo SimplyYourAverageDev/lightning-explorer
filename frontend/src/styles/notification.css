@@ -1,0 +1,40 @@
+/* === Error Notification === */
+
+.error-notification {
+  position: fixed;
+  bottom: var(--space-lg);
+  left: var(--space-lg);
+  max-width: clamp(20rem, 13.89vw, 30rem);
+  z-index: 9999;
+  background: var(--brut-surface);
+  border: var(--brut-border-width) solid var(--brut-error);
+  border-radius: var(--brut-radius-lg);
+  padding: var(--space-md);
+}
+
+.error-notification-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+.error-notification-text { flex: 1; }
+.error-notification-title { font-weight: bold; }
+.error-notification-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-lg);
+  line-height: 1;
+  color: var(--brut-text-primary);
+}
+.error-notification-details { margin-top: var(--space-md); }
+.error-notification-details-content {
+  font-size: var(--font-xs);
+  background: var(--brut-secondary-bg);
+  padding: var(--space-md);
+  border-radius: var(--brut-radius);
+  max-height: clamp(10rem, 10.42vh, 15rem);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+} 
