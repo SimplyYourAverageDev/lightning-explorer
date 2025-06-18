@@ -318,22 +318,8 @@ export function App() {
 
     // Modified file selection handler - click to select, click selected to open
     const handleFileSelect = useCallback((fileIndex, isShiftKey, isCtrlKey) => {
-        // If the file is already selected and it's a simple click (no modifiers), open it
-        if (selectedFiles.has(fileIndex) && !isShiftKey && !isCtrlKey && selectedFiles.size === 1) {
-            const file = allFiles[fileIndex];
-            if (file) {
-                const result = fileOperations.handleFileOpen(file);
-                if (result && result.type === 'navigate') {
-                    // Use direct navigation for file opens (immediate response)
-                    navigateToPath(result.path, 'file-open');
-                }
-            }
-            return;
-        }
-        
-        // Otherwise, use the original selection logic
         originalHandleFileSelect(fileIndex, isShiftKey, isCtrlKey);
-    }, [selectedFiles, allFiles, fileOperations, navigateToPath, originalHandleFileSelect]);
+    }, [originalHandleFileSelect]);
 
     // File operation handlers
     const handleFileOpen = useCallback((file) => {

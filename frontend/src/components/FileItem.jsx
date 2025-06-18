@@ -76,6 +76,13 @@ const FileItem = memo(({
         
     }, [onSelect, fileIndex, isInspectMode, file.name]);
 
+    // New: handle double-click (or double-tap) to open immediately
+    const handleDoubleClick = useCallback((e) => {
+        if (isInspectMode) return;
+        e.stopPropagation();
+        onOpen(file, fileIndex);
+    }, [onOpen, file, fileIndex, isInspectMode]);
+
     // Context menu handler
     const handleContextMenu = useCallback((e) => {
         if (isInspectMode) {
@@ -136,6 +143,7 @@ const FileItem = memo(({
         <div 
             className={itemClasses}
             onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
             onContextMenu={handleContextMenu}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}

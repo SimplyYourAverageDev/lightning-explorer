@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "preact/hooks";
 import { log, error } from "../utils/logger";
 import { EventsOn, EventsOff } from "../../wailsjs/runtime/runtime";
+import { StreamDirectory } from "../../wailsjs/go/backend/App";  // static import
 
 export function useStreamingNavigation(setError, setNavigationStats) {
     const [currentPath, setCurrentPath] = useState('');
@@ -268,18 +269,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         }));
 
         try {
-            // Small delay to ensure event listeners are ready
-            await new Promise(resolve => setTimeout(resolve, 10));
-            
-            // Check if navigation was cancelled during delay
-            if (navigationContext.cancelled) {
-                log('🚫 Navigation cancelled during setup');
-                return;
-            }
-            
-            log(`🧭 Starting StreamDirectory for: ${path} (listeners registered: ${listenersRegistered.current})`);
-            // Start streaming directory contents
-            const { StreamDirectory } = await import('../../wailsjs/go/backend/App');
+            // Fire off the streaming call immediately
             StreamDirectory(path);
         } catch (err) {
             if (!navigationContext.cancelled) {
