@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -24,107 +25,46 @@ func (fs *FileSystemManager) SetContext(ctx context.Context) {
 	fs.eventEmitter = NewEventEmitter(ctx)
 }
 
-// ListDirectory lists the contents of a directory with Windows-optimized streaming
+// ListDirectory lists the contents of a directory with Windows-optimized streaming and concurrency
 func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	startTime := time.Now()
-	log.Printf("📂 Listing directory with Windows-optimized streaming: %s", path)
+	log.Printf("📂 Listing directory with concurrent processing: %s", path)
 
 	if path == "" {
 		path = fs.platform.GetHomeDirectory()
 	}
 
-	// Clean and validate path
 	path = filepath.Clean(path)
 
-	// Quick existence check first
 	info, err := os.Stat(path)
 	if err != nil {
-		return NavigationResponse{
-			Success: false,
-			Message: fmt.Sprintf("Cannot access path: %v", err),
-		}
+		return NavigationResponse{Success: false, Message: fmt.Sprintf("Cannot access path: %v", err)}
 	}
-
 	if !info.IsDir() {
-		return NavigationResponse{
-			Success: false,
-			Message: "Path is not a directory",
-		}
+		return NavigationResponse{Success: false, Message: "Path is not a directory"}
 	}
 
-	// Get parent path
 	parentPath := filepath.Dir(path)
 	if parentPath == path {
 		parentPath = ""
 	}
 
-	// Use Windows-optimized enhanced directory listing with FindFirstFileExW
-	enhancedEntries, err := listDirectoryBasicEnhanced(path)
+	// Use our highly optimized concurrent directory listing
+	allEntries, err := fs.listDirectoryConcurrent(path)
 	if err != nil {
-		return NavigationResponse{
-			Success: false,
-			Message: fmt.Sprintf("Cannot read directory: %v", err),
-		}
+		return NavigationResponse{Success: false, Message: fmt.Sprintf("Cannot read directory: %v", err)}
 	}
 
-	log.Printf("🚀 Using Windows enhanced directory listing for %s", path)
-
-	// Filter out skipped files
-	var filteredEntries []EnhancedBasicEntry
-	for _, entry := range enhancedEntries {
-		if !fs.shouldSkipFile(entry.Name) {
-			filteredEntries = append(filteredEntries, entry)
-		}
-	}
-
-	// Split into first page and rest for background processing
-	const pageSize = 100
-	firstPage := filteredEntries
-	var rest []EnhancedBasicEntry
-
-	if len(filteredEntries) > pageSize {
-		firstPage = filteredEntries[:pageSize]
-		rest = filteredEntries[pageSize:]
-	}
-
-	// Convert first page to FileInfo - NO ADDITIONAL STAT CALLS NEEDED!
-	files := make([]FileInfo, 0, pageSize/2)
-	directories := make([]FileInfo, 0, pageSize/2)
-
-	for _, entry := range firstPage {
-		// Create FileInfo directly from enhanced entry data - no stat() needed!
-		fileInfo := FileInfo{
-			Name:        entry.Name,
-			Path:        entry.Path,
-			IsDir:       entry.IsDir,
-			Extension:   entry.Extension,
-			IsHidden:    entry.IsHidden,
-			Size:        entry.Size,
-			ModTime:     time.Unix(entry.ModTime, 0),
-			Permissions: entry.Permissions,
-		}
-
-		// Debug log to verify file sizes are being calculated
-		if !entry.IsDir && entry.Size > 0 {
-			log.Printf("📊 File size from Windows enhanced listing: %s = %d bytes", entry.Name, entry.Size)
-		}
-
+	// Separate into directories and files
+	var files, directories []FileInfo
+	for _, entry := range allEntries {
 		if entry.IsDir {
-			directories = append(directories, fileInfo)
+			directories = append(directories, entry)
 		} else {
-			files = append(files, fileInfo)
+			files = append(files, entry)
 		}
 	}
 
-	// Immediately background‐hydrate the rest in batches
-	if len(rest) > 0 {
-		go fs.hydrateRemainingEntriesEnhanced(path, rest)
-	}
-
-	// NOTE: Windows enhanced listing returns sorted entries. Skip redundant Go-sort:
-	// (removing sort.Slice calls saves ~O(n log n) CPU on large dirs)
-
-	// Build immediate response
 	contents := DirectoryContents{
 		CurrentPath: path,
 		ParentPath:  parentPath,
@@ -135,75 +75,114 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	}
 
 	processingTime := time.Since(startTime)
-	log.Printf("✅ Windows enhanced first page listed in %v: %s (%d dirs, %d files, %d deferred)",
-		processingTime, path, len(directories), len(files), len(rest))
+	log.Printf("✅ Concurrently listed in %v: %s (%d dirs, %d files)",
+		processingTime, path, len(directories), len(files))
 
 	return NavigationResponse{
 		Success: true,
-		Message: fmt.Sprintf("Directory listed (Windows enhanced) in %v", processingTime),
+		Message: fmt.Sprintf("Directory listed concurrently in %v", processingTime),
 		Data:    contents,
 	}
 }
 
-// hydrateRemainingEntriesEnhanced processes remaining enhanced entries in background with batching
-// These entries already have full file information, so no additional stat calls needed
-func (fs *FileSystemManager) hydrateRemainingEntriesEnhanced(basePath string, entries []EnhancedBasicEntry) {
-	log.Printf("🔄 Starting enhanced background hydration for %d entries with batching", len(entries))
-
-	const batchSize = 50 // Process 50 files at a time to reduce frontend state updates
-
-	// Pool to reuse FileInfo batches
-	var fileInfoBatchPool = sync.Pool{
-		New: func() interface{} {
-			return make([]FileInfo, 0, batchSize)
-		},
+// listDirectoryConcurrent performs a directory listing using a worker pool for concurrency
+func (fs *FileSystemManager) listDirectoryConcurrent(path string) ([]FileInfo, error) {
+	// Use Windows-optimized raw listing first
+	rawEntries, err := listDirectoryBasicEnhanced(path)
+	if err != nil {
+		return nil, err
 	}
 
-	for i := 0; i < len(entries); i += batchSize {
-		end := i + batchSize
-		if end > len(entries) {
-			end = len(entries)
+	// Setup worker pool - adjust number of workers based on CPU cores
+	numWorkers := runtime.NumCPU()
+	if numWorkers > 4 {
+		numWorkers = 4 // Cap at 4 workers to avoid excessive I/O contention
+	}
+	pool := NewWorkerPool(numWorkers)
+	pool.Start()
+
+	results := make(chan FileInfo, len(rawEntries))
+	var wg sync.WaitGroup
+
+	for _, entry := range rawEntries {
+		if fs.shouldSkipFile(entry.Name) {
+			continue
 		}
 
-		// Get a zero-len slice from pool
-		batch := fileInfoBatchPool.Get().([]FileInfo)[:0]
-
-		for j := i; j < end; j++ {
-			entry := entries[j]
-
-			// Create FileInfo directly from enhanced entry - no stat needed!
-			fileInfo := FileInfo{
-				Name:        entry.Name,
-				Path:        entry.Path,
-				IsDir:       entry.IsDir,
-				Size:        entry.Size,
-				ModTime:     time.Unix(entry.ModTime, 0),
-				Permissions: entry.Permissions,
-				Extension:   entry.Extension,
-				IsHidden:    entry.IsHidden,
-			}
-
-			batch = append(batch, fileInfo)
-		}
-
-		// Emit batch to frontend
-		if fs.eventEmitter != nil {
-			fs.eventEmitter.EmitDirectoryBatch(batch)
-		}
-
-		// Return slice to pool (we only pooled the backing array)
-		fileInfoBatchPool.Put(batch[:0])
-
-		// Small, adaptive delay between batches – shorter to keep UI responsive on very large directories
-		time.Sleep(5 * time.Millisecond)
+		wg.Add(1)
+		jobEntry := entry // Capture loop variable
+		pool.Submit(Job{
+			Execute: func() {
+				defer wg.Done()
+				// The "enhanced" entry already contains all necessary info.
+				// No extra 'stat' call is needed here.
+				fileInfo := FileInfo{
+					Name:        jobEntry.Name,
+					Path:        jobEntry.Path,
+					IsDir:       jobEntry.IsDir,
+					Size:        jobEntry.Size,
+					ModTime:     time.Unix(jobEntry.ModTime, 0),
+					Permissions: jobEntry.Permissions,
+					Extension:   jobEntry.Extension,
+					IsHidden:    jobEntry.IsHidden,
+				}
+				results <- fileInfo
+			},
+		})
 	}
 
-	// Emit completion event
-	if fs.eventEmitter != nil {
-		fs.eventEmitter.EmitDirectoryComplete(basePath, len(entries), 0)
+	// Wait for all jobs to finish, then close the results channel
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Collect results
+	var allFiles []FileInfo
+	for fileInfo := range results {
+		allFiles = append(allFiles, fileInfo)
 	}
 
-	log.Printf("✅ Enhanced background hydration completed for %s with %d batches", basePath, (len(entries)+batchSize-1)/batchSize)
+	pool.Wait() // Ensure worker pool is cleaned up
+
+	return allFiles, nil
+}
+
+// IsHidden checks if a file is hidden
+func (fs *FileSystemManager) IsHidden(path string) bool {
+	return fs.platform.IsHidden(path)
+}
+
+// GetExtension returns the file extension
+func (fs *FileSystemManager) GetExtension(name string) string {
+	return fs.platform.GetExtension(name)
+}
+
+// CreateFileInfo creates FileInfo from file path and name (backward compatibility)
+func (fs *FileSystemManager) CreateFileInfo(basePath string, name string) FileInfo {
+	fullPath := filepath.Join(basePath, name)
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		log.Printf("Warning: Error getting file info for %s: %v", fullPath, err)
+		// Return basic info even on error
+		return FileInfo{
+			Name:     name,
+			Path:     fullPath,
+			IsDir:    false, // Assume not a directory on error
+			IsHidden: fs.platform.IsHidden(fullPath),
+		}
+	}
+
+	return FileInfo{
+		Name:        name,
+		Path:        fullPath,
+		IsDir:       info.IsDir(),
+		Size:        info.Size(),
+		ModTime:     info.ModTime(),
+		Permissions: info.Mode().String(),
+		Extension:   fs.platform.GetExtension(name),
+		IsHidden:    fs.platform.IsHidden(fullPath),
+	}
 }
 
 // shouldSkipFile determines if a file should be skipped for performance
@@ -229,48 +208,6 @@ func (fs *FileSystemManager) shouldSkipFile(name string) bool {
 	return false
 }
 
-// CreateFileInfoOptimized creates FileInfo with performance optimizations
-func (fs *FileSystemManager) CreateFileInfoOptimized(basePath string, name string, entry os.DirEntry) FileInfo {
-	fullPath := filepath.Join(basePath, name)
-
-	// Use DirEntry info when possible to avoid extra stat calls
-	var info os.FileInfo
-	var err error
-
-	if entry != nil {
-		info, err = entry.Info()
-	} else {
-		info, err = os.Stat(fullPath)
-	}
-
-	if err != nil {
-		log.Printf("Warning: Error getting file info for %s: %v", fullPath, err)
-		// Return basic info even on error
-		return FileInfo{
-			Name:     name,
-			Path:     fullPath,
-			IsDir:    entry != nil && entry.IsDir(),
-			IsHidden: fs.platform.IsHidden(fullPath),
-		}
-	}
-
-	return FileInfo{
-		Name:        name,
-		Path:        fullPath,
-		IsDir:       info.IsDir(),
-		Size:        info.Size(),
-		ModTime:     info.ModTime(),
-		Permissions: info.Mode().String(),
-		Extension:   fs.platform.GetExtension(name),
-		IsHidden:    fs.platform.IsHidden(fullPath),
-	}
-}
-
-// CreateFileInfo creates FileInfo from file path and name (backward compatibility)
-func (fs *FileSystemManager) CreateFileInfo(basePath string, name string) FileInfo {
-	return fs.CreateFileInfoOptimized(basePath, name, nil)
-}
-
 // GetFileInfo returns detailed information about a specific file
 func (fs *FileSystemManager) GetFileInfo(filePath string) (FileInfo, error) {
 	log.Printf("Getting file details for: %s", filePath)
@@ -291,16 +228,6 @@ func (fs *FileSystemManager) GetFileInfo(filePath string) (FileInfo, error) {
 		Extension:   fs.platform.GetExtension(filepath.Base(filePath)),
 		IsHidden:    fs.platform.IsHidden(filePath),
 	}, nil
-}
-
-// IsHidden checks if a file/directory is hidden
-func (fs *FileSystemManager) IsHidden(path string) bool {
-	return fs.platform.IsHidden(path)
-}
-
-// GetExtension returns the file extension
-func (fs *FileSystemManager) GetExtension(name string) string {
-	return fs.platform.GetExtension(name)
 }
 
 // NavigateToPath navigates to a specific path with enhanced logging
@@ -534,12 +461,11 @@ func (fs *FileSystemManager) StreamDirectory(dir string) {
 	}
 	dir = filepath.Clean(dir)
 
-	// Emit start
 	if fs.eventEmitter != nil {
 		fs.eventEmitter.EmitDirectoryStart(dir)
 	}
 
-	// Validate
+	// Validate path and ensure it's a directory
 	info, err := os.Stat(dir)
 	if err != nil {
 		if fs.eventEmitter != nil {
@@ -554,8 +480,8 @@ func (fs *FileSystemManager) StreamDirectory(dir string) {
 		return
 	}
 
-	// Get all entries (using your existing Win32 enhanced listing)
-	entries, err := listDirectoryBasicEnhanced(dir)
+	// Get all entries using the concurrent method
+	allFiles, err := fs.listDirectoryConcurrent(dir)
 	if err != nil {
 		if fs.eventEmitter != nil {
 			fs.eventEmitter.EmitDirectoryError("Cannot read directory: " + err.Error())
@@ -565,42 +491,31 @@ func (fs *FileSystemManager) StreamDirectory(dir string) {
 
 	// Batch parameters
 	const batchSize = 100
-	batch := make([]FileInfo, 0, batchSize)
 	totalFiles, totalDirs := 0, 0
 
-	// Convert+batch
-	for _, e := range entries {
-		if fs.shouldSkipFile(e.Name) {
-			continue
+	// Batch and emit the results
+	for i := 0; i < len(allFiles); i += batchSize {
+		end := i + batchSize
+		if end > len(allFiles) {
+			end = len(allFiles)
 		}
-		fi := FileInfo{
-			Name:        e.Name,
-			Path:        e.Path,
-			IsDir:       e.IsDir,
-			Size:        e.Size,
-			ModTime:     time.Unix(e.ModTime, 0),
-			Permissions: e.Permissions,
-			Extension:   e.Extension,
-			IsHidden:    e.IsHidden,
+		batch := allFiles[i:end]
+
+		// Update counts for this batch
+		for _, fi := range batch {
+			if fi.IsDir {
+				totalDirs++
+			} else {
+				totalFiles++
+			}
 		}
-		if fi.IsDir {
-			totalDirs++
-		} else {
-			totalFiles++
-		}
-		batch = append(batch, fi)
-		if len(batch) >= batchSize {
-			fs.eventEmitter.EmitDirectoryBatch(batch)
-			batch = batch[:0]
-		}
-	}
-	// Flush remainder
-	if len(batch) > 0 {
+
 		fs.eventEmitter.EmitDirectoryBatch(batch)
 	}
 
-	// Emit complete
+	// Emit completion event
 	if fs.eventEmitter != nil {
 		fs.eventEmitter.EmitDirectoryComplete(dir, totalFiles, totalDirs)
 	}
 }
+
