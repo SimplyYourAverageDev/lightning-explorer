@@ -11,7 +11,7 @@ export const EmptySpaceContextMenu = lazy(() => import('./EmptySpaceContextMenu'
 export const DriveContextMenu = lazy(() => import('./DriveContextMenu').then(m => ({ default: m.DriveContextMenu })));
 export const RetroDialog = lazy(() => import('./RetroDialog').then(m => ({ default: m.RetroDialog })));
 
-// VirtualizedFileList is critical for large directories - bundle synchronously for better performance
+
 
 // Only truly non-critical, rarely used components are lazy-loaded
 export const InspectMenu = lazy(() => import('./InspectMenu').then(m => ({ default: m.InspectMenu })));
