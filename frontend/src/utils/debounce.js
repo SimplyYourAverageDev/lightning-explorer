@@ -1,11 +1,21 @@
-// Debounce utility to prevent excessive function calls
+// WeakMap to store function references for better memory management
+const functionReferences = new WeakMap();
+
+// Optimized debounce utility with cancel support
 export function debounce(func, wait, immediate = false) {
     let timeout;
+    let lastCallTime = 0;
     
-    return function executedFunction(...args) {
+    const debounced = function executedFunction(...args) {
+        const now = Date.now();
+        const timeSinceLastCall = now - lastCallTime;
+        
         const later = () => {
             timeout = null;
-            if (!immediate) func.apply(this, args);
+            if (!immediate) {
+                lastCallTime = Date.now();
+                func.apply(this, args);
+            }
         };
         
         const callNow = immediate && !timeout;
@@ -13,38 +23,89 @@ export function debounce(func, wait, immediate = false) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
         
-        if (callNow) func.apply(this, args);
-    };
-}
-
-// Enhanced throttle utility for high-frequency events
-export function throttle(func, limit) {
-    let inThrottle;
-    
-    return function(...args) {
-        if (!inThrottle) {
+        if (callNow) {
+            lastCallTime = now;
             func.apply(this, args);
-            inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
         }
     };
+    
+    // Add cancel method
+    debounced.cancel = () => {
+        clearTimeout(timeout);
+        timeout = null;
+    };
+    
+    return debounced;
 }
 
-// RAF-based throttle for smooth animations and scroll handling
+// Optimized throttle with trailing call support
+export function throttle(func, limit, options = {}) {
+    const { trailing = true, leading = true } = options;
+    let inThrottle = false;
+    let lastArgs = null;
+    let lastThis = null;
+    
+    const throttled = function(...args) {
+        lastArgs = args;
+        lastThis = this;
+        
+        if (!inThrottle) {
+            if (leading) {
+                func.apply(this, args);
+            }
+            
+            inThrottle = true;
+            
+            setTimeout(() => {
+                inThrottle = false;
+                if (trailing && lastArgs) {
+                    func.apply(lastThis, lastArgs);
+                    lastArgs = null;
+                    lastThis = null;
+                }
+            }, limit);
+        }
+    };
+    
+    throttled.cancel = () => {
+        inThrottle = false;
+        lastArgs = null;
+        lastThis = null;
+    };
+    
+    return throttled;
+}
+
+// Optimized RAF-based throttle with cancel support
 export function rafThrottle(func) {
     let rafId = null;
     let lastArgs = null;
+    let lastThis = null;
     
-    return function(...args) {
+    const rafThrottled = function(...args) {
         lastArgs = args;
+        lastThis = this;
         
         if (rafId === null) {
             rafId = requestAnimationFrame(() => {
-                func.apply(this, lastArgs);
+                func.apply(lastThis, lastArgs);
                 rafId = null;
+                lastArgs = null;
+                lastThis = null;
             });
         }
     };
+    
+    rafThrottled.cancel = () => {
+        if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+            lastArgs = null;
+            lastThis = null;
+        }
+    };
+    
+    return rafThrottled;
 }
 
 // RequestIdleCallback wrapper with fallback
@@ -52,44 +113,50 @@ export function idleCallback(func, options = {}) {
     if (typeof requestIdleCallback !== 'undefined') {
         return requestIdleCallback(func, options);
     } else {
-        // Fallback for browsers without requestIdleCallback
-        return setTimeout(func, 1);
+        // Fallback with better timing
+        const timeout = options.timeout || 50;
+        return setTimeout(func, timeout);
     }
 }
 
-// Batch DOM reads to avoid layout thrashing
+// Optimized batch DOM operations using microtasks
 export function batchReads(readFunctions) {
     return new Promise(resolve => {
-        requestAnimationFrame(() => {
-            const results = readFunctions.map(fn => fn());
-            resolve(results);
+        // Use microtask for faster execution
+        queueMicrotask(() => {
+            requestAnimationFrame(() => {
+                const results = readFunctions.map(fn => fn());
+                resolve(results);
+            });
         });
     });
 }
 
-// Batch DOM writes to optimize rendering
 export function batchWrites(writeFunctions) {
-    requestAnimationFrame(() => {
-        writeFunctions.forEach(fn => fn());
+    // Use microtask for faster scheduling
+    queueMicrotask(() => {
+        requestAnimationFrame(() => {
+            writeFunctions.forEach(fn => fn());
+        });
     });
 }
 
-// Specialized debounce for navigation operations (super fast)
+// Specialized debounce for navigation operations (optimized)
 export const debouncedNavigate = debounce((navigateFunc, path) => {
     navigateFunc(path);
-}, 50); // Much faster for responsive navigation
+}, 25); // Even faster for snappier navigation
 
-// Specialized RAF throttle for scroll events (smoother than timer-based)
+// Specialized RAF throttle for scroll events (optimized)
 export const rafThrottledScroll = rafThrottle((scrollFunc, event) => {
     scrollFunc(event);
 });
 
-// Legacy throttle for scroll events (keeping for compatibility)
+// Legacy throttle for scroll events (optimized with options)
 export const throttledScroll = throttle((scrollFunc, event) => {
     scrollFunc(event);
-}, 16); // ~60fps
+}, 16, { trailing: false }); // ~60fps, no trailing call for smoother scrolling
 
-// Specialized debounce for file operations
+// Specialized debounce for file operations (optimized)
 export const debouncedFileOperation = debounce((operationFunc, ...args) => {
     operationFunc(...args);
-}, 75); // Slightly faster for better responsiveness 
+}, 50); // Faster for better responsiveness 

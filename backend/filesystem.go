@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -93,12 +92,8 @@ func (fs *FileSystemManager) listDirectoryConcurrent(path string) ([]FileInfo, e
 		return nil, err
 	}
 
-	// Setup worker pool - adjust number of workers based on CPU cores
-	numWorkers := runtime.NumCPU()
-	if numWorkers > 4 {
-		numWorkers = 4 // Cap at 4 workers to avoid excessive I/O contention
-	}
-	pool := NewWorkerPool(numWorkers)
+	// Setup worker pool with dynamic sizing (0 = auto-detect)
+	pool := NewWorkerPool(0)
 	pool.Start()
 
 	results := make(chan FileInfo, len(rawEntries))
@@ -111,7 +106,7 @@ func (fs *FileSystemManager) listDirectoryConcurrent(path string) ([]FileInfo, e
 
 		wg.Add(1)
 		jobEntry := entry // Capture loop variable
-		pool.Submit(Job{
+		pool.SubmitBlocking(Job{
 			Execute: func() {
 				defer wg.Done()
 				// The "enhanced" entry already contains all necessary info.
@@ -518,4 +513,3 @@ func (fs *FileSystemManager) StreamDirectory(dir string) {
 		fs.eventEmitter.EmitDirectoryComplete(dir, totalFiles, totalDirs)
 	}
 }
-

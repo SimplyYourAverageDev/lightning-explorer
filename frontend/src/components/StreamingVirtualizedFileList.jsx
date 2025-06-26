@@ -1,5 +1,5 @@
 import { memo, forwardRef, useImperativeHandle } from "preact/compat";
-import { useRef, useState, useCallback, useMemo, useEffect } from "preact/hooks";
+import { useRef, useState, useCallback, useMemo, useEffect, useLayoutEffect } from "preact/hooks";
 import { rafThrottle } from "../utils/debounce";
 import { FileItem } from "./FileItem";
 
@@ -11,8 +11,20 @@ const getItemHeight = () => {
     return parseFloat(fileItemHeight) * 16; // Convert rem to px (assuming 1rem = 16px)
 };
 
-const ITEM_HEIGHT = getItemHeight() || 80; // Fallback to 80px (25% larger than original 64px)
-const BUFFER = Math.max(4, Math.floor(ITEM_HEIGHT / 8)); // Dynamic buffer based on item height
+// Cache the item height to avoid repeated DOM queries
+let cachedItemHeight = null;
+const ITEM_HEIGHT = () => {
+    if (cachedItemHeight === null) {
+        cachedItemHeight = getItemHeight() || 80;
+    }
+    return cachedItemHeight;
+};
+
+// Dynamic buffer calculation
+const getBuffer = () => Math.max(4, Math.floor(ITEM_HEIGHT() / 8));
+
+// Use passive event listeners for better scroll performance
+const scrollOptions = { passive: true };
 
 export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVirtualizedFileList({
     files, 
@@ -39,82 +51,102 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
     isInspectMode = false
 }, forwardedRef) {
     const ref = useRef();
-    const [scroll, setScroll] = useState(0);
+    const [scrollTop, setScrollTop] = useState(0);
+    const [containerHeight, setContainerHeight] = useState(window.innerHeight);
     
-    const height = ref.current?.clientHeight || window.innerHeight;
-    const totalHeight = (files.length + (creatingFolder ? 1 : 0)) * ITEM_HEIGHT;
+    // Use layout effect to measure container size more accurately
+    useLayoutEffect(() => {
+        if (!ref.current) return;
+        
+        const updateHeight = () => {
+            const height = ref.current.clientHeight;
+            if (height !== containerHeight) {
+                setContainerHeight(height);
+            }
+        };
+        
+        updateHeight();
+        
+        // Use ResizeObserver for more efficient size tracking
+        const resizeObserver = new ResizeObserver(updateHeight);
+        resizeObserver.observe(ref.current);
+        
+        return () => resizeObserver.disconnect();
+    }, [containerHeight]);
+    
+    // Memoize calculations
+    const calculations = useMemo(() => {
+        const itemHeight = ITEM_HEIGHT();
+        const buffer = getBuffer();
+        const totalHeight = (files.length + (creatingFolder ? 1 : 0)) * itemHeight;
+        
+        const rawStart = Math.floor(scrollTop / itemHeight) - buffer;
+        const visibleStart = Math.max(0, Math.min(files.length - 1, rawStart));
+        
+        const rawEnd = visibleStart + Math.ceil(containerHeight / itemHeight) + buffer * 2;
+        const visibleEnd = Math.max(visibleStart, Math.min(files.length - 1, rawEnd));
+        
+        return {
+            itemHeight,
+            totalHeight,
+            visibleStart,
+            visibleEnd,
+            creatingFolderOffset: creatingFolder ? itemHeight : 0
+        };
+    }, [scrollTop, containerHeight, files.length, creatingFolder]);
+    
+    // Extract visible items with stable reference
+    const visibleItems = useMemo(() => 
+        files.slice(calculations.visibleStart, calculations.visibleEnd + 1),
+        [files, calculations.visibleStart, calculations.visibleEnd]
+    );
 
-    const rawStart = Math.floor(scroll / ITEM_HEIGHT) - BUFFER;
-    // Clamp to valid bounds to avoid negative or out-of-range indices
-    const visibleStart = Math.max(0, Math.min(files.length - 1, rawStart));
+    // Optimized scroll handler
+    const throttledSetScroll = useMemo(
+        () => rafThrottle((value) => {
+            setScrollTop(value);
+        }),
+        []
+    );
 
-    // Ensure at least one item is requested so the slice is never empty when files are available
-    const rawEnd = visibleStart + Math.ceil(height / ITEM_HEIGHT) + BUFFER * 2;
-    const visibleEnd = Math.max(visibleStart, Math.min(files.length - 1, rawEnd));
-    // Memoize the visible slice to prevent unnecessary allocations
-    const items = useMemo(() => files.slice(visibleStart, visibleEnd + 1), [files, visibleStart, visibleEnd]);
+    const onScroll = useCallback((e) => {
+        const newScrollTop = e.currentTarget.scrollTop;
+        throttledSetScroll(newScrollTop);
+    }, [throttledSetScroll]);
 
-    // Scroll to item function - ensures the item at the given index is visible
+    // Scroll to item function
     const scrollToItem = useCallback((index) => {
         if (!ref.current || index < 0 || index >= files.length) return;
         
         const container = ref.current;
-        const containerHeight = container.clientHeight;
-        const currentScrollTop = container.scrollTop;
+        const itemTop = index * calculations.itemHeight + calculations.creatingFolderOffset;
+        const itemBottom = itemTop + calculations.itemHeight;
         
-        // Calculate the position of the target item (accounting for folder creation offset)
-        const itemTop = index * ITEM_HEIGHT + (creatingFolder ? ITEM_HEIGHT : 0);
-        const itemBottom = itemTop + ITEM_HEIGHT;
+        const visibleTop = container.scrollTop;
+        const visibleBottom = container.scrollTop + containerHeight;
         
-        // Calculate the visible area
-        const visibleTop = currentScrollTop;
-        const visibleBottom = currentScrollTop + containerHeight;
+        let newScrollTop = container.scrollTop;
         
-        let newScrollTop = currentScrollTop;
-        
-        // Check if item is above the visible area
         if (itemTop < visibleTop) {
             newScrollTop = itemTop;
-        }
-        // Check if item is below the visible area
-        else if (itemBottom > visibleBottom) {
+        } else if (itemBottom > visibleBottom) {
             newScrollTop = itemBottom - containerHeight;
         }
         
-        // Only scroll if we need to
-        if (newScrollTop !== currentScrollTop) {
+        if (newScrollTop !== container.scrollTop) {
             container.scrollTo({
                 top: newScrollTop,
                 behavior: 'smooth'
             });
         }
-    }, [files.length, creatingFolder]);
+    }, [files.length, calculations.itemHeight, calculations.creatingFolderOffset, containerHeight]);
 
     // Expose scrollToItem via imperative handle
     useImperativeHandle(forwardedRef, () => ({
         scrollToItem
     }), [scrollToItem]);
 
-    // Create a RAF-throttled setter that takes a numeric scrollTop
-    const throttledSetScroll = useMemo(
-        () => rafThrottle((value) => {
-            // Debug output – helps pinpoint virtualization issues when list appears blank
-            console.debug('[VirtualList] Scroll event', {
-                scrollTop: value,
-                visibleStart: Math.max(0, Math.floor(value / ITEM_HEIGHT) - BUFFER),
-                viewportHeight: ref.current?.clientHeight || window.innerHeight,
-                filesLength: files.length
-            });
-            setScroll(value);
-        }),
-        [files.length]
-    );
-
-    // Scroll handler: capture scrollTop synchronously to avoid SyntheticEvent reuse issues
-    const onScroll = useCallback((e) => {
-        throttledSetScroll(e.currentTarget.scrollTop);
-    }, [throttledSetScroll]);
-
+    // Memoized event handlers
     const handleFileClick = useCallback((fileIndex, event) => {
         onFileSelect(fileIndex, event.shiftKey, event.ctrlKey);
     }, [onFileSelect]);
@@ -123,34 +155,93 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
         onContextMenu(event, file);
     }, [onContextMenu]);
 
-    // Warn if we somehow have files but nothing rendered (possible virtualization bug)
-    useEffect(() => {
-        if (files.length > 0 && items.length === 0) {
-            console.warn('[VirtualList] Empty render detected despite having files', {
-                scroll,
-                visibleStart,
-                visibleEnd,
-                filesLength: files.length
-            });
+    const handleEmptySpaceContextMenu = useCallback((e) => {
+        if (isInspectMode) return;
+        if (e.target === e.currentTarget || !e.target.closest('.file-item')) {
+            e.preventDefault();
+            if (onEmptySpaceContextMenu) {
+                onEmptySpaceContextMenu(e);
+            }
         }
-    }, [files.length, items.length, scroll, visibleStart, visibleEnd]);
+    }, [isInspectMode, onEmptySpaceContextMenu]);
+
+    // Render optimization: batch DOM updates
+    const fileItems = useMemo(() => {
+        return visibleItems.map((file, idx) => {
+            const actualIndex = calculations.visibleStart + idx;
+            const top = (actualIndex * calculations.itemHeight) + calculations.creatingFolderOffset;
+            
+            return (
+                <div
+                    key={file.path}
+                    style={{
+                        position: 'absolute',
+                        top: 0, 
+                        left: 0, 
+                        right: 0,
+                        height: calculations.itemHeight,
+                        transform: `translateY(${top}px)`,
+                        padding: 'var(--space-sm) 0',
+                        willChange: 'transform' // Hint to browser for optimization
+                    }}
+                >
+                    <FileItem
+                        file={file}
+                        fileIndex={actualIndex}
+                        onSelect={handleFileClick}
+                        onOpen={onFileOpen}
+                        onContextMenu={handleFileContextMenu}
+                        isLoading={false}
+                        isSelected={selectedFiles.has(actualIndex)}
+                        isCut={clipboardOperation === 'cut' && clipboardFiles.includes(file.path)}
+                        isDragOver={dragState?.dragOverFolder === file.path}
+                        onDragStart={onDragStart}
+                        onDragOver={onDragOver}
+                        onDragEnter={onDragEnter}
+                        onDragLeave={onDragLeave}
+                        onDrop={onDrop}
+                        isInspectMode={isInspectMode}
+                    />
+                </div>
+            );
+        });
+    }, [
+        visibleItems,
+        calculations,
+        selectedFiles,
+        clipboardOperation,
+        clipboardFiles,
+        dragState,
+        handleFileClick,
+        onFileOpen,
+        handleFileContextMenu,
+        onDragStart,
+        onDragOver,
+        onDragEnter,
+        onDragLeave,
+        onDrop,
+        isInspectMode
+    ]);
 
     return (
         <div
             ref={ref}
             className="file-list custom-scrollbar"
             onScroll={onScroll}
-            onContextMenu={(e) => {
-                if (isInspectMode) return;
-                if (e.target === e.currentTarget || !e.target.closest('.file-item')) {
-                    e.preventDefault();
-                    if (onEmptySpaceContextMenu) {
-                        onEmptySpaceContextMenu(e);
-                    }
-                }
+            onContextMenu={handleEmptySpaceContextMenu}
+            style={{ 
+                position: 'relative',
+                overflow: 'auto',
+                height: '100%',
+                contain: 'strict' // Enable CSS containment for better performance
             }}
         >
-            <div style={{ height: totalHeight, position: 'relative', width: '100%' }}>
+            <div style={{ 
+                height: calculations.totalHeight, 
+                position: 'relative', 
+                width: '100%',
+                pointerEvents: 'none' // Improve scrolling performance
+            }}>
                 {/* Folder creation editor */}
                 {creatingFolder && (
                     <div style={{
@@ -158,14 +249,15 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
                         top: 0,
                         left: 0,
                         right: 0,
-                        height: ITEM_HEIGHT,
+                        height: calculations.itemHeight,
                         zIndex: 10,
                         background: 'var(--brut-surface)',
                         border: 'var(--brut-border-width) solid var(--brut-border-color)',
                         borderRadius: 'var(--brut-radius)',
                         padding: 'var(--space-md)',
                         display: 'flex',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        pointerEvents: 'auto'
                     }}>
                         <span style={{ marginRight: 'var(--space-md)' }}>📁</span>
                         <input
@@ -190,43 +282,9 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
                 )}
 
                 {/* Render visible items */}
-                {items.map((file, idx) => {
-                    const actualIndex = visibleStart + idx;
-                    const top = (actualIndex * ITEM_HEIGHT) + (creatingFolder ? ITEM_HEIGHT : 0);
-                    
-                    return (
-                        <div
-                            key={file.path}
-                            style={{
-                                position: 'absolute',
-                                top: 0, 
-                                left: 0, 
-                                right: 0,
-                                height: ITEM_HEIGHT,
-                                transform: `translateY(${top}px)`,
-                                padding: 'var(--space-sm) 0'
-                            }}
-                        >
-                            <FileItem
-                                file={file}
-                                fileIndex={actualIndex}
-                                onSelect={handleFileClick}
-                                onOpen={onFileOpen}
-                                onContextMenu={handleFileContextMenu}
-                                isLoading={false}
-                                isSelected={selectedFiles.has(actualIndex)}
-                                isCut={clipboardOperation === 'cut' && clipboardFiles.includes(file.path)}
-                                isDragOver={dragState?.dragOverFolder === file.path}
-                                onDragStart={onDragStart}
-                                onDragOver={onDragOver}
-                                onDragEnter={onDragEnter}
-                                onDragLeave={onDragLeave}
-                                onDrop={onDrop}
-                                isInspectMode={isInspectMode}
-                            />
-                        </div>
-                    );
-                })}
+                <div style={{ pointerEvents: 'auto' }}>
+                    {fileItems}
+                </div>
 
                 {/* Empty state */}
                 {files.length === 0 && !creatingFolder && !loading && (
@@ -240,7 +298,8 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: 'var(--brut-text-tertiary)'
+                        color: 'var(--brut-text-tertiary)',
+                        pointerEvents: 'auto'
                     }}>
                         <div className="text-technical" style={{fontSize: 'var(--font-base)'}}>
                             Directory is empty

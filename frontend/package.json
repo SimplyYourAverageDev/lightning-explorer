@@ -22,6 +22,7 @@
     "cross-env": "^7.0.3",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "terser": "^5.43.1",
     "vite": "^3.2.11"
   }
 }

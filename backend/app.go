@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -82,12 +83,23 @@ func (a *App) monitorDrives() {
 // warmPreload loads heavyweight data (home directory and drive list) once and caches it.
 func (a *App) warmPreload() {
 	a.warmOnce.Do(func() {
-		// Preload home directory
-		a.homeDirCache = a.platform.GetHomeDirectory()
+		// Use goroutines for parallel preloading
+		var wg sync.WaitGroup
+		wg.Add(2)
 
-		// Preload drives
-		a.drivesCache = a.GetDriveInfo()
+		// Preload home directory in parallel
+		go func() {
+			defer wg.Done()
+			a.homeDirCache = a.platform.GetHomeDirectory()
+		}()
 
+		// Preload drives in parallel
+		go func() {
+			defer wg.Done()
+			a.drivesCache = a.GetDriveInfo()
+		}()
+
+		wg.Wait()
 		a.warmReady = true
 
 		// Notify frontend that warmup is done

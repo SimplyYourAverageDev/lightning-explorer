@@ -3,6 +3,7 @@ package backend
 import (
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -24,9 +25,42 @@ type EnhancedBasicEntry struct {
 	Permissions string `json:"permissions"`
 }
 
+// Global extension cache to avoid repeated string operations
+var (
+	extensionCache   = make(map[string]string)
+	extensionCacheMu sync.RWMutex
+)
+
+// getExtensionCached returns the cached extension for a filename
+func getExtensionCached(name string) string {
+	extensionCacheMu.RLock()
+	if ext, ok := extensionCache[name]; ok {
+		extensionCacheMu.RUnlock()
+		return ext
+	}
+	extensionCacheMu.RUnlock()
+
+	// Calculate extension
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(name), "."))
+
+	// Cache it
+	extensionCacheMu.Lock()
+	// Double-check to avoid race condition
+	if _, ok := extensionCache[name]; !ok {
+		// Limit cache size to prevent unbounded growth
+		if len(extensionCache) < 10000 {
+			extensionCache[name] = ext
+		}
+	}
+	extensionCacheMu.Unlock()
+
+	return ext
+}
+
 // listDirectoryBasicEnhanced uses Win32 FindFirstFileExW to get Name+Attrs+Size+ModTime in one syscall
 // This is significantly faster than os.ReadDir + per-file stat calls
 func listDirectoryBasicEnhanced(dir string) ([]EnhancedBasicEntry, error) {
+	// Use FindExInfoBasic for better performance - skips short name retrieval
 	search := filepath.Join(dir, "*")
 	searchPtr, err := syscall.UTF16PtrFromString(search)
 	if err != nil {
@@ -40,8 +74,20 @@ func listDirectoryBasicEnhanced(dir string) ([]EnhancedBasicEntry, error) {
 	}
 	defer syscall.FindClose(handle)
 
-	// Pre-allocate with reasonable capacity
-	entries := make([]EnhancedBasicEntry, 0, 64)
+	// Pre-allocate with generous capacity to minimize reallocations
+	// Most directories have < 1000 files
+	entries := make([]EnhancedBasicEntry, 0, 256)
+
+	// Pre-calculate the directory path length for faster string concatenation
+	dirLen := len(dir)
+	if dir[dirLen-1] != '\\' && dir[dirLen-1] != '/' {
+		dir = dir + "\\"
+		dirLen++
+	}
+
+	// Reusable string builder for paths
+	pathBuilder := strings.Builder{}
+	pathBuilder.Grow(dirLen + 260) // Max path length on Windows
 
 	for {
 		name := syscall.UTF16ToString(fd.FileName[:])
@@ -64,10 +110,10 @@ func listDirectoryBasicEnhanced(dir string) ([]EnhancedBasicEntry, error) {
 		isHidden := attr&syscall.FILE_ATTRIBUTE_HIDDEN != 0 ||
 			attr&syscall.FILE_ATTRIBUTE_SYSTEM != 0
 
-		// Get extension for files only
+		// Get extension for files only using cache
 		var ext string
 		if !isDir {
-			ext = strings.ToLower(strings.TrimPrefix(filepath.Ext(name), "."))
+			ext = getExtensionCached(name)
 		}
 
 		// Convert Win32 FILETIME to Unix timestamp (int64)
@@ -82,12 +128,18 @@ func listDirectoryBasicEnhanced(dir string) ([]EnhancedBasicEntry, error) {
 		}
 
 		// Generate basic permissions string from attributes
-		permissions := generatePermissionsString(attr, isDir)
+		permissions := generatePermissionsStringFast(attr, isDir)
+
+		// Build path efficiently
+		pathBuilder.Reset()
+		pathBuilder.WriteString(dir)
+		pathBuilder.WriteString(name)
+		fullPath := pathBuilder.String()
 
 		entry := EnhancedBasicEntry{
 			BasicEntry: BasicEntry{
 				Name:      name,
-				Path:      filepath.Join(dir, name),
+				Path:      fullPath,
 				IsDir:     isDir,
 				IsHidden:  isHidden,
 				Extension: ext,
@@ -111,26 +163,26 @@ func listDirectoryBasicEnhanced(dir string) ([]EnhancedBasicEntry, error) {
 	return entries, nil
 }
 
-// generatePermissionsString creates a permission string from Windows file attributes
-func generatePermissionsString(attr uint32, isDir bool) string {
-	var perms []string
+// Pre-built permission strings to avoid repeated string operations
+var (
+	permReadOnly  = "dr--r--"
+	permReadWrite = "drw-r--"
+	permFileRO    = "-r--r--"
+	permFileRW    = "-rw-r--"
+)
 
+// generatePermissionsStringFast creates a permission string from Windows file attributes
+// using pre-built strings to avoid allocations
+func generatePermissionsStringFast(attr uint32, isDir bool) string {
 	if isDir {
-		perms = append(perms, "d")
-	} else {
-		perms = append(perms, "-")
+		if attr&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+			return permReadOnly
+		}
+		return permReadWrite
 	}
 
-	// Owner permissions (simplified Windows approach)
-	perms = append(perms, "rw")
 	if attr&syscall.FILE_ATTRIBUTE_READONLY != 0 {
-		perms = append(perms, "-")
-	} else {
-		perms = append(perms, "w")
+		return permFileRO
 	}
-
-	// Group and other permissions (Windows doesn't have these concepts, so simplified)
-	perms = append(perms, "r--r--")
-
-	return strings.Join(perms, "")
+	return permFileRW
 }
