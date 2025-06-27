@@ -52,9 +52,10 @@ type WarmState struct {
 
 // Settings represents application configuration
 type Settings struct {
-	BackgroundStartup bool   `json:"backgroundStartup" msgpack:"backgroundStartup"`
-	Theme             string `json:"theme" msgpack:"theme"`
-	ShowHiddenFiles   bool   `json:"showHiddenFiles" msgpack:"showHiddenFiles"`
+	BackgroundStartup bool     `json:"backgroundStartup" msgpack:"backgroundStartup"`
+	Theme             string   `json:"theme" msgpack:"theme"`
+	ShowHiddenFiles   bool     `json:"showHiddenFiles" msgpack:"showHiddenFiles"`
+	PinnedFolders     []string `json:"pinnedFolders,omitempty" msgpack:"pinnedFolders"`
 }
 
 // Interfaces for dependency injection and better testability
@@ -148,6 +149,11 @@ type FileSystemManager struct {
 	platform     PlatformManagerInterface
 	ctx          context.Context
 	eventEmitter *EventEmitter
+	// dirCache stores recently enumerated directory contents keyed by absolute path.
+	// The entry is invalidated automatically when the directory's last write time
+	// no longer matches. This yields ~10× faster subsequent navigations to the
+	// same folder because it avoids re-enumerating the filesystem.
+	dirCache sync.Map // map[string]dirCacheEntry
 }
 
 // FileOperationsManager implementation

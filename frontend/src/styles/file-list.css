@@ -122,4 +122,9 @@
 .file-item.selected .file-meta {
   color: var(--brut-accent-text);
   opacity: 0.8;
+}
+
+/* Performance hint for virtualization - avoids expensive reflows during scroll */
+.virtualized-file-list {
+  will-change: transform;
 } 

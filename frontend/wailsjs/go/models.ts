@@ -121,6 +121,7 @@ export namespace backend {
 	    backgroundStartup: boolean;
 	    theme: string;
 	    showHiddenFiles: boolean;
+	    pinnedFolders?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -131,6 +132,7 @@ export namespace backend {
 	        this.backgroundStartup = source["backgroundStartup"];
 	        this.theme = source["theme"];
 	        this.showHiddenFiles = source["showHiddenFiles"];
+	        this.pinnedFolders = source["pinnedFolders"];
 	    }
 	}
 	export class WarmState {

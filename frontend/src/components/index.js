@@ -10,6 +10,7 @@ export const ContextMenu = lazy(() => import('./ContextMenu').then(m => ({ defau
 export const EmptySpaceContextMenu = lazy(() => import('./EmptySpaceContextMenu').then(m => ({ default: m.EmptySpaceContextMenu })));
 export const DriveContextMenu = lazy(() => import('./DriveContextMenu').then(m => ({ default: m.DriveContextMenu })));
 export const RetroDialog = lazy(() => import('./RetroDialog').then(m => ({ default: m.RetroDialog })));
+export const PinnedItemContextMenu = lazy(() => import('./PinnedItemContextMenu').then(m => ({ default: m.PinnedItemContextMenu })));
 
 
 

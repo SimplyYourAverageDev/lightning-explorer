@@ -12,26 +12,28 @@
   /* Base sizing - calculated for 2880x1920 Surface Pro (scaled up 25%) */
   --base-font-size: clamp(0.9375rem, 0.625vw, 1.25rem);
   --base-spacing: clamp(0.3125rem, 0.4375vw, 0.625rem);
-  --base-border-width: clamp(1px, 0.0875vw, 4px);
+  --base-border-width: clamp(2px, 0.125vw, 5px);
   
-  /* Color variables */
-  --brut-bg: #f8f9fa;
+  /* Neo-Brutalist Color variables */
+  --brut-bg: #fef9e7;
   --brut-surface: #ffffff;
-  --brut-text-primary: #111827;
-  --brut-text-secondary: #6b7280;
-  --brut-text-tertiary: #9ca3af;
-  --brut-border-color: #111827;
-  --brut-accent: #bef264;
-  --brut-accent-dark: #a3e635;
-  --brut-accent-text: #111827;
-  --brut-secondary-bg: #f3f4f6;
-  --brut-error: #ef4444;
+  --brut-text-primary: #000000;
+  --brut-text-secondary: #333333;
+  --brut-text-tertiary: #666666;
+  --brut-border-color: #000000;
+  --brut-accent: #ffff00;
+  --brut-accent-dark: #e6e600;
+  --brut-accent-text: #000000;
+  --brut-secondary-bg: #f0f0f0;
+  --brut-error: #ff0000;
+  --brut-success: #00ff00;
+  --brut-warning: #ff8800;
   
   /* Dynamic sizing variables */
   --brut-border-width: var(--base-border-width);
-  --brut-radius: calc(var(--base-spacing) * 2);
-  --brut-radius-sm: var(--base-spacing);
-  --brut-radius-lg: calc(var(--base-spacing) * 3);
+  --brut-radius: calc(var(--base-spacing) * 1);
+  --brut-radius-sm: calc(var(--base-spacing) * 0.5);
+  --brut-radius-lg: calc(var(--base-spacing) * 2);
   
   /* Spacing scale */
   --space-xs: calc(var(--base-spacing) * 0.5);
@@ -69,9 +71,10 @@ body {
   padding: 0;
   font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
   font-size: var(--font-base);
-  line-height: 1.5;
+  line-height: 1.4;
   background: var(--brut-bg);
   color: var(--brut-text-primary);
   overflow: hidden;
-  -webkit-font-smoothing: antialiased;
+  -webkit-font-smoothing: auto;
+  font-weight: 600;
 } 

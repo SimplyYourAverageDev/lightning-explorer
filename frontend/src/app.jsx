@@ -6,45 +6,70 @@ import { filterFiles} from "./utils/fileUtils";
 import { EventsOn } from "../wailsjs/runtime/runtime";
 
 // Sorting utility function - inline for immediate availability
-const sortFiles = (files, sortBy, sortOrder) => {
-    if (!files || files.length === 0) return files;
-    
-    const sorted = [...files].sort((a, b) => {
-        let aValue, bValue;
-        
-        switch (sortBy) {
-            case 'name':
-                aValue = a.name.toLowerCase();``
-                bValue = b.name.toLowerCase();
-                break;
-            case 'size':
-                // Directories get size 0 for sorting
-                aValue = a.isDir ? 0 : (a.size || 0);
-                bValue = b.isDir ? 0 : (b.size || 0);
-                break;
-            case 'type':
-                // Sort by file extension, directories first
-                if (a.isDir && !b.isDir) return -1;
-                if (!a.isDir && b.isDir) return 1;
-                aValue = a.isDir ? 'folder' : (a.name.split('.').pop() || '').toLowerCase();
-                bValue = b.isDir ? 'folder' : (b.name.split('.').pop() || '').toLowerCase();
-                break;
-            case 'modified':
-                aValue = new Date(a.modTime || 0);
-                bValue = new Date(b.modTime || 0);
-                break;
-            default:
-                aValue = a.name.toLowerCase();
-                bValue = b.name.toLowerCase();
-        }
-        
-        if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-        return 0;
-    });
-    
-    return sorted;
-};
+const sortFiles = (() => {
+    // Small cache for extension lookup to avoid repeated property access; keyed by array reference
+    const extCache = new WeakMap();
+
+    return (files, sortBy, sortOrder) => {
+        if (!files || files.length === 0) return files;
+
+        const getExt = (file) => {
+            if (file.isDir) return 'folder';
+            if (file.extension) return file.extension.toLowerCase();
+
+            // Fallback: compute once per file instance
+            let ext = extCache.get(file);
+            if (!ext) {
+                const idx = file.name.lastIndexOf('.');
+                ext = idx !== -1 ? file.name.slice(idx + 1).toLowerCase() : '';
+                extCache.set(file, ext);
+            }
+            return ext;
+        };
+
+        const sorted = [...files].sort((a, b) => {
+            let aValue, bValue;
+
+            switch (sortBy) {
+                case 'name':
+                    aValue = a.name.toLowerCase();
+                    bValue = b.name.toLowerCase();
+                    break;
+                case 'size':
+                    // Directories get size 0 for sorting
+                    aValue = a.isDir ? 0 : (a.size || 0);
+                    bValue = b.isDir ? 0 : (b.size || 0);
+                    break;
+                case 'type':
+                    // Preserve original behaviour: directories first
+                    if (a.isDir !== b.isDir) {
+                        return a.isDir ? -1 : 1;
+                    }
+                    aValue = getExt(a);
+                    bValue = getExt(b);
+                    break;
+                case 'modified':
+                    if (typeof a.modTime === 'number' && typeof b.modTime === 'number') {
+                        aValue = a.modTime;
+                        bValue = b.modTime;
+                    } else {
+                        aValue = new Date(a.modTime).getTime();
+                        bValue = new Date(b.modTime).getTime();
+                    }
+                    break;
+                default:
+                    aValue = a.name.toLowerCase();
+                    bValue = b.name.toLowerCase();
+            }
+
+            if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return sorted;
+    };
+})();
 
 // Import utilities
 import { log, error as logError } from "./utils/logger";
@@ -58,6 +83,7 @@ import {
     DriveContextMenu,
     RetroDialog,
     InspectMenu,
+    PinnedItemContextMenu,
     HeaderBar,
     ExplorerToolbar,
     ExplorerStatusBar,
@@ -90,6 +116,7 @@ export function App() {
     const [errorMessage, setErrorMessage] = useState('');
     const [errorDetails, setErrorDetails] = useState(null);
     const [errorDismissTimer, setErrorDismissTimer] = useState(null);
+    const [pinnedFolders, setPinnedFolders] = useState([]);
     const [drives, setDrives] = useState([]);
     const [homeDirectory, setHomeDirectory] = useState('');
     const [showHiddenFiles, setShowHiddenFiles] = useState(false);
@@ -105,7 +132,8 @@ export function App() {
     const [appSettings, setAppSettings] = useState({
         backgroundStartup: true,
         theme: "system",
-        showHiddenFiles: false
+        showHiddenFiles: false,
+        pinnedFolders: [],
     });
 
     // Ref for the file list component to enable auto-scrolling
@@ -316,6 +344,116 @@ export function App() {
         handleRefresh
     );
 
+    // --- Pinned Folders & Sidebar Drop Zone Logic ---
+    const [isQuickAccessDragOver, setIsQuickAccessDragOver] = useState(false);
+    const [pinnedItemContextMenu, setPinnedItemContextMenu] = useState({ visible: false, x: 0, y: 0, path: null });
+    const dragCounterRef = useRef(0);
+
+    const handleSidebarDragOver = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Only allow drops if we're dragging folders
+        if (dragState.isDragging && dragState.draggedFiles.some(f => f.isDir)) {
+            e.dataTransfer.dropEffect = 'copy';
+        } else {
+            e.dataTransfer.dropEffect = 'none';
+        }
+    }, [dragState.isDragging, dragState.draggedFiles]);
+
+    const handleSidebarDragEnter = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Increment counter when entering any child element
+        dragCounterRef.current++;
+        
+        // Only set drag over state if we have folders to pin
+        if (dragState.isDragging && dragState.draggedFiles.some(f => f.isDir)) {
+            setIsQuickAccessDragOver(true);
+            log('🔗 Sidebar drag enter - Quick Access highlighted');
+        }
+    }, [dragState.isDragging, dragState.draggedFiles]);
+
+    const handleSidebarDragLeave = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Decrement counter when leaving any child element
+        dragCounterRef.current--;
+        
+        // Only remove highlight when truly leaving the container (counter reaches 0)
+        if (dragCounterRef.current === 0) {
+            setIsQuickAccessDragOver(false);
+            log('🔗 Sidebar drag leave - Quick Access unhighlighted');
+        }
+    }, []);
+
+    const handleSidebarDrop = useCallback(async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Reset drag counter and state
+        dragCounterRef.current = 0;
+        setIsQuickAccessDragOver(false);
+        
+        log('🔗 Sidebar drop event triggered');
+        log('🔗 Drag state:', dragState);
+
+        // We only care about internal drags for pinning
+        if (!dragState.isDragging || dragState.draggedFiles.length === 0) {
+            log('🔗 No active drag state or no dragged files');
+            return;
+        }
+
+        const foldersToPin = dragState.draggedFiles.filter(f => f.isDir).map(f => f.path);
+        log('🔗 Folders to pin:', foldersToPin);
+        
+        if (foldersToPin.length === 0) {
+            log('🔗 No folders to pin (only files selected)');
+            showErrorNotification('Only folders can be pinned to Quick Access');
+            return;
+        }
+
+        const newPinnedFolders = [...new Set([...pinnedFolders, ...foldersToPin])];
+        log('🔗 New pinned folders list:', newPinnedFolders);
+
+        setPinnedFolders(newPinnedFolders);
+        const newSettings = { ...appSettings, pinnedFolders: newPinnedFolders };
+        setAppSettings(newSettings);
+        
+        try {
+            const { SaveSettings } = await import('../wailsjs/go/backend/App');
+            await SaveSettings(newSettings);
+            log('🔗 Settings saved successfully');
+            showErrorNotification(`Pinned ${foldersToPin.length} folder${foldersToPin.length > 1 ? 's' : ''} to Quick Access`, null, true);
+        } catch (error) {
+            log('🔗 Error saving settings:', error);
+            showErrorNotification('Failed to save pinned folders', error.message);
+        }
+    }, [dragState.isDragging, dragState.draggedFiles, pinnedFolders, appSettings, showErrorNotification]);
+
+    const handlePinnedItemContextMenu = useCallback((e, path) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setPinnedItemContextMenu({ visible: true, x: e.clientX, y: e.clientY, path: path });
+    }, []);
+
+    const closePinnedItemContextMenu = useCallback(() => {
+        setPinnedItemContextMenu({ visible: false, x: 0, y: 0, path: null });
+    }, []);
+
+    const handleUnpinFolder = useCallback(async () => {
+        const path = pinnedItemContextMenu.path;
+        const newPinnedFolders = pinnedFolders.filter(p => p !== path);
+        closePinnedItemContextMenu();
+        setPinnedFolders(newPinnedFolders);
+        const newSettings = { ...appSettings, pinnedFolders: newPinnedFolders };
+        setAppSettings(newSettings);
+        const { SaveSettings } = await import('../wailsjs/go/backend/App');
+        await SaveSettings(newSettings);
+    }, [pinnedFolders, appSettings, closePinnedItemContextMenu, pinnedItemContextMenu.path]);
+
     // Modified file selection handler - click to select, click selected to open
     const handleFileSelect = useCallback((fileIndex, isShiftKey, isCtrlKey) => {
         originalHandleFileSelect(fileIndex, isShiftKey, isCtrlKey);
@@ -511,8 +649,22 @@ export function App() {
             setDrives(list);
         });
 
+        // Debug: Add global drop listener to see all drop events
+        const globalDropListener = (e) => {
+            log('🌍 Global drop event detected at:', e.target.className || e.target.tagName);
+        };
+        
+        const globalDragEndListener = (e) => {
+            log('🌍 Global dragend event detected');
+        };
+
+        document.addEventListener('drop', globalDropListener, true);
+        document.addEventListener('dragend', globalDragEndListener, true);
+
         return () => {
             if (off) off();
+            document.removeEventListener('drop', globalDropListener, true);
+            document.removeEventListener('dragend', globalDragEndListener, true);
         };
     }, []);
 
@@ -538,8 +690,14 @@ export function App() {
             dismissErrorNotification();
 
             // Dynamically import the backend API only when required during startup
-            const { GetHomeDirectory } = await import('../wailsjs/go/backend/App');
+            const { GetHomeDirectory, GetSettings } = await import('../wailsjs/go/backend/App');
             const homeDir = await GetHomeDirectory();
+            const settings = await GetSettings();
+
+            // Apply loaded settings
+            setAppSettings(settings);
+            setPinnedFolders(settings.pinnedFolders || []);
+            setShowHiddenFiles(settings.showHiddenFiles || false);
 
             if (homeDir) {
                 await navigateToPath(homeDir, 'init');
@@ -554,12 +712,19 @@ export function App() {
         }
     };
 
-
+    // Reset drag counter when drag ends
+    useEffect(() => {
+        if (!dragState.isDragging) {
+            dragCounterRef.current = 0;
+            setIsQuickAccessDragOver(false);
+        }
+    }, [dragState.isDragging]);
 
     // Clear selection when path changes
     useEffect(() => {
         clearSelection();
         closeContextMenu();
+        closePinnedItemContextMenu();
     }, [currentPath, clearSelection, closeContextMenu]);
 
     return (
@@ -635,6 +800,13 @@ export function App() {
                     drives={drives}
                     onDriveExpand={loadDrives} // Load drives only when user expands drive section
                     onDriveContextMenu={handleDriveContextMenu}
+                    pinnedFolders={pinnedFolders}
+                    onPinnedItemContextMenu={handlePinnedItemContextMenu}
+                    onSidebarDrop={handleSidebarDrop}
+                    onSidebarDragOver={handleSidebarDragOver}
+                    onSidebarDragEnter={handleSidebarDragEnter}
+                    onSidebarDragLeave={handleSidebarDragLeave}
+                    isQuickAccessDragOver={isQuickAccessDragOver}
                 />
                 
                 <div className="content-area">
@@ -769,6 +941,16 @@ export function App() {
                     onEject={handleDriveEject}
                     onOpenInExplorer={handleDriveOpenInExplorer}
                     onProperties={handleDriveProperties}
+                />
+
+                <PinnedItemContextMenu
+                    visible={pinnedItemContextMenu.visible}
+                    x={pinnedItemContextMenu.x}
+                    y={pinnedItemContextMenu.y}
+                    item={pinnedItemContextMenu.path}
+                    onClose={closePinnedItemContextMenu}
+                    onUnpin={handleUnpinFolder}
+                    onOpen={() => navigateToPath(pinnedItemContextMenu.path, 'pinned-item-open')}
                 />
                 
                 <RetroDialog

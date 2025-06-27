@@ -37,6 +37,9 @@ func (a *App) loadSettings() {
 		if err := json.Unmarshal(data, &a.settings); err != nil {
 			logPrintln("⚠️ Failed to parse settings file, using defaults:", err)
 		}
+		if a.settings.PinnedFolders == nil {
+			a.settings.PinnedFolders = []string{}
+		}
 	}
 }
 

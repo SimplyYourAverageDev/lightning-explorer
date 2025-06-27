@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "preact/hooks";
 import { memo } from "preact/compat";
+import { log } from "../utils/logger";
 import { 
     HouseIcon, 
     FolderIcon, 
@@ -10,11 +11,26 @@ import {
     HardDriveIcon,
     CaretRightIcon,
     CaretDownIcon,
-    SpinnerIcon
+    SpinnerIcon,
+    PushPinIcon,
 } from '@phosphor-icons/react';
 
 // Memoized Sidebar component
-const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onDriveContextMenu }) => {
+const Sidebar = memo(({
+    currentPath,
+    onNavigate,
+    drives = [],
+    onDriveExpand,
+    onDriveContextMenu,
+    // Pinned folder props
+    pinnedFolders = [],
+    onPinnedItemContextMenu,
+    onSidebarDrop,
+    onSidebarDragOver,
+    onSidebarDragEnter,
+    onSidebarDragLeave,
+    isQuickAccessDragOver,
+}) => {
     // Final list of Quick Access items (after filtering out non-existent folders)
     const [quickAccessItems, setQuickAccessItems] = useState([]);
     const [drivesExpanded, setDrivesExpanded] = useState(false);
@@ -82,20 +98,59 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
     
     return (
         <div className="sidebar" onSelectStart={(e) => e.preventDefault()}>
-            <div className="sidebar-section">
+            <div
+                className={`sidebar-section ${isQuickAccessDragOver ? 'drag-over' : ''}`}
+                onDrop={(e) => {
+                    log('🔗 Sidebar onDrop triggered (before handler)');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSidebarDrop(e);
+                    log('🔗 Sidebar onDrop handler completed');
+                }}
+                onDropCapture={(e) => {
+                    log('🔗 Sidebar onDropCapture triggered');
+                }}
+                onDragOver={(e) => {
+                    log('🔗 Sidebar onDragOver triggered');
+                    onSidebarDragOver(e);
+                }}
+                onDragEnter={(e) => {
+                    log('🔗 Sidebar onDragEnter triggered');
+                    onSidebarDragEnter(e);
+                }}
+                onDragLeave={(e) => {
+                    log('🔗 Sidebar onDragLeave triggered');
+                    onSidebarDragLeave(e);
+                }}
+            >
                 <div className="sidebar-title">Quick Access</div>
-                {quickAccessItems.map((item) => {
-                    const IconComponent = item.icon;
+                {quickAccessItems.map((item) => (
+                    <div
+                        key={item.path}
+                        className={`sidebar-item ${currentPath === item.path ? 'active' : ''}`}
+                        onClick={() => handleQuickAccessClick(item.path)}
+                        title={item.path}
+                    >
+                        <item.icon size={16} weight="bold" className="sidebar-icon" />
+                        {item.name}
+                    </div>
+                ))}
+                {/* Render pinned folders */}
+                {pinnedFolders.map((path) => {
+                    // Derive name from path
+                    const name = path.split(/[\\/]/).pop() || path;
                     return (
-                        <div 
-                            key={item.path}
-                            className={`sidebar-item ${currentPath === item.path ? 'active' : ''}`}
-                            onClick={() => handleQuickAccessClick(item.path)}
+                        <div
+                            key={path}
+                            className={`sidebar-item ${currentPath === path ? 'active' : ''}`}
+                            onClick={() => handleQuickAccessClick(path)}
+                            onContextMenu={(e) => onPinnedItemContextMenu && onPinnedItemContextMenu(e, path)}
+                            title={path}
                         >
-                            <IconComponent size={16} weight="bold" className="sidebar-icon" />
-                            {item.name}
+                            <PushPinIcon size={16} weight="bold" className="sidebar-icon" />
+                            {name}
                         </div>
-                    );
+                    )
                 })}
             </div>
             
@@ -126,16 +181,15 @@ const Sidebar = memo(({ currentPath, onNavigate, drives = [], onDriveExpand, onD
                     drives.map((drive) => (
                         <div 
                             key={drive.path}
-                            className={`sidebar-item ${currentPath === drive.path ? 'active' : ''}`}
+                            className={`sidebar-item ${currentPath.toLowerCase().startsWith(drive.path.toLowerCase()) ? 'active' : ''}`}
                             onClick={() => handleDriveClick(drive.path)}
                             onContextMenu={(e) => {
-                                if (onDriveContextMenu) {
-                                    onDriveContextMenu(e, drive);
-                                }
+                                e.preventDefault();
+                                onDriveContextMenu(e, drive);
                             }}
                         >
                             <HardDriveIcon size={16} weight="bold" className="sidebar-icon" />
-                            {drive.name}
+                            <span style={{flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}} title={drive.path}>{drive.name}</span>
                         </div>
                     ))
                 )}

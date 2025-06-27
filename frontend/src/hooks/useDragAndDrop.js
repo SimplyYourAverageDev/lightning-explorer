@@ -334,9 +334,9 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
         preview.style.cssText = `
             position: absolute;
             top: -1000px;
-            background: #bef264;
-            color: #111827;
-            border: ${borderWidth} solid #111827;
+            background: #ffff00;
+            color: #000000;
+            border: ${borderWidth} solid #000000;
             border-radius: ${borderRadius};
             padding: ${baseSpacing} calc(${baseSpacing} * 2);
             font-size: ${baseFontSize};
