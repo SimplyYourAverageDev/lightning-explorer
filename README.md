@@ -128,7 +128,7 @@ flowchart LR
     subgraph Frontend [Preact/Tailwind]
         A[Virtualised File List]
         B[Context & Dialog System]
-        C[Hooks (Clipboard, DnD, ...)]
+        C["Hooks (Clipboard, DnD, ...)"]
     end
     subgraph Wails_Bridge [Wails >=2.10]
         D[MsgPack IPC]
