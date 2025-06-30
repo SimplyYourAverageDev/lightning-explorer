@@ -3,6 +3,7 @@ import { memo } from "preact/compat";
 import { getFileIcon, getFileType, getFileIconType } from "../utils/fileUtils.js";
 import { log, error } from "../utils/logger";
 import { serializationUtils } from "../utils/serialization";
+import { schedulePrefetch } from "../utils/prefetch.js";
 
 // Local utility functions (moved from formatUtils)
 const formatDate = (dateString) => {
@@ -163,6 +164,13 @@ const FileItem = memo(({
             onDrop && onDrop(e, file);
         };
 
+        const handleMouseEnter = () => {
+            // Only prefetch directories – files cannot be navigated into
+            if (file.isDir) {
+                schedulePrefetch(file.path);
+            }
+        };
+
         return {
             handleClick,
             handleDoubleClick,
@@ -171,7 +179,8 @@ const FileItem = memo(({
             handleDragOver,
             handleDragEnter,
             handleDragLeave,
-            handleDrop
+            handleDrop,
+            handleMouseEnter
         };
     }, [
         file, 
@@ -184,7 +193,8 @@ const FileItem = memo(({
         onDragOver,
         onDragEnter,
         onDragLeave,
-        onDrop
+        onDrop,
+        schedulePrefetch
     ]);
 
     // Compute CSS classes once
@@ -225,6 +235,7 @@ const FileItem = memo(({
             onDragEnter={handlers.handleDragEnter}
             onDragLeave={handlers.handleDragLeave}
             onDrop={handlers.handleDrop}
+            onMouseEnter={handlers.handleMouseEnter}
             draggable={!isInspectMode}
             data-file-index={fileIndex}
             data-file-name={file.name}

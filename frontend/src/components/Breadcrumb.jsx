@@ -1,4 +1,5 @@
 import { memo, useMemo, useCallback, useState } from "preact/compat";
+import { schedulePrefetch } from "../utils/prefetch.js";
 
 // Memoized Breadcrumb component with drag and drop support
 const Breadcrumb = memo(({ 
@@ -144,6 +145,10 @@ const Breadcrumb = memo(({
                         <span 
                             className={`nav-segment ${isCurrentPath ? 'current' : ''} ${isDragOver ? 'drag-over' : ''} ${canDrop ? 'drop-target' : ''}`}
                             onClick={() => handleSegmentClick(index)}
+                            onMouseEnter={() => {
+                                const segmentFolder = getSegmentFolder(index);
+                                schedulePrefetch(segmentFolder.path);
+                            }}
                             title={segment}
                             onDragOver={(e) => handleBreadcrumbDragOver(e, index)}
                             onDragEnter={(e) => handleBreadcrumbDragEnter(e, index)}

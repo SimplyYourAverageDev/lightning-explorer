@@ -14,6 +14,7 @@ import {
     SpinnerIcon,
     PushPinIcon,
 } from '@phosphor-icons/react';
+import { schedulePrefetch } from "../utils/prefetch.js";
 
 // Memoized Sidebar component
 const Sidebar = memo(({
@@ -129,6 +130,7 @@ const Sidebar = memo(({
                         key={item.path}
                         className={`sidebar-item ${currentPath === item.path ? 'active' : ''}`}
                         onClick={() => handleQuickAccessClick(item.path)}
+                        onMouseEnter={() => schedulePrefetch(item.path)}
                         title={item.path}
                     >
                         <item.icon size={16} weight="bold" className="sidebar-icon" />
@@ -145,6 +147,7 @@ const Sidebar = memo(({
                             className={`sidebar-item ${currentPath === path ? 'active' : ''}`}
                             onClick={() => handleQuickAccessClick(path)}
                             onContextMenu={(e) => onPinnedItemContextMenu && onPinnedItemContextMenu(e, path)}
+                            onMouseEnter={() => schedulePrefetch(path)}
                             title={path}
                         >
                             <PushPinIcon size={16} weight="bold" className="sidebar-icon" />
@@ -183,6 +186,7 @@ const Sidebar = memo(({
                             key={drive.path}
                             className={`sidebar-item ${currentPath.toLowerCase().startsWith(drive.path.toLowerCase()) ? 'active' : ''}`}
                             onClick={() => handleDriveClick(drive.path)}
+                            onMouseEnter={() => schedulePrefetch(drive.path)}
                             onContextMenu={(e) => {
                                 e.preventDefault();
                                 onDriveContextMenu(e, drive);

@@ -72,6 +72,18 @@
   color: var(--brut-accent-text);
 }
 
+/* When selected, ensure icons with custom backgrounds keep their original high-contrast color */
+.file-item.selected .file-icon.folder .phosphor-icon,
+.file-item.selected .file-icon.image .phosphor-icon,
+.file-item.selected .file-icon.code .phosphor-icon,
+.file-item.selected .file-icon.archive .phosphor-icon,
+.file-item.selected .file-icon.video .phosphor-icon,
+.file-item.selected .file-icon.audio .phosphor-icon,
+.file-item.selected .file-icon.document .phosphor-icon,
+.file-item.selected .file-icon.executable .phosphor-icon {
+  color: var(--brut-surface);
+}
+
 /* Icon background colors based on file types */
 .file-icon.folder { background-color: var(--brut-text-secondary); }
 .file-icon.folder .phosphor-icon { color: var(--brut-surface); }
