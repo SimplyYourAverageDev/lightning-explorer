@@ -128,22 +128,36 @@ flowchart LR
     subgraph Frontend [Preact/Tailwind]
         A[Virtualised File List]
         B[Context & Dialog System]
-        C["Hooks (Clipboard, DnD, ...)"]
+        C[Hooks]
     end
-    subgraph Wails_Bridge [Wails >=2.10]
-        D[MsgPack IPC]
+
+    subgraph Wails_Bridge
+        direction LR
+        D[Wails Runtime]
     end
+
     subgraph Backend [Go]
-        E[Filesystem & Win32 API]
+        E[Filesystem Streamer]
         F[Drive Monitor]
+        G[Win32 API Layer]
     end
-    A -- select/drag --> A
-    A -- emits events --> B
-    B -->|invoke| D
-    D -->|channel| E
-    E -- stream entries --> D
-    D --> A
-    F -- drive events --> D --> B
+
+    %% Frontend Interactions
+    A -- "User action (e.g. right-click)" --> C
+    C -- "Manages state for" --> A
+    C -- "Opens / Manages" --> B
+    C -- "Invokes Go func" --> D
+
+    %% Backend to Frontend Streaming
+    D -- "Calls" --> E
+    E -- "Reads full directory via" --> G
+    E -- "Emits batches (JSON)" --> D
+    D -- "Receives events" --> C
+
+    %% Drive Monitoring
+    F -- "Runs in background" --> F
+    F -- "Detects changes via" --> G
+    F -- "Emits drive change event" --> D
 ```
 
 ---
