@@ -55,21 +55,33 @@
 .sort-dropdown-content {
   display: none;
   position: absolute;
-  top: calc(100% + var(--space-sm));
+  top: calc(100% + var(--space-xs));
   left: 0;
   min-width: clamp(12rem, 6.94vw, 16rem);
   background: var(--brut-surface);
   border: var(--brut-border-width) solid var(--brut-border-color);
   border-radius: var(--brut-radius);
   z-index: 1000;
-  padding: var(--space-sm);
+  padding: var(--space-md);
+  /* Add a small pseudo-element to bridge the gap and maintain hover state */
+}
+
+.sort-dropdown-content::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--space-xs));
+  left: 0;
+  right: 0;
+  height: var(--space-xs);
+  background: transparent;
+  /* Invisible bridge to maintain hover state */
 }
 
 .sort-option {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: var(--space-md) var(--space-md);
+  padding: var(--space-md) var(--space-lg);
   background: transparent;
   color: var(--brut-text-primary);
   font-family: inherit;
@@ -79,6 +91,11 @@
   transition: background-color 100ms ease-out, color 100ms ease-out;
   text-align: left;
   gap: var(--space-md);
+  margin-bottom: var(--space-xs);
+}
+
+.sort-option:last-child {
+  margin-bottom: 0;
 }
 
 .sort-option:hover {

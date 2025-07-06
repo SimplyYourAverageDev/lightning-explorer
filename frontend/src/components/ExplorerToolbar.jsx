@@ -72,10 +72,10 @@ export function ExplorerToolbar({
                     <CaretDownIcon size={12} weight="bold" />
                 </button>
                 <div className="sort-dropdown-content">
-                    <div onClick={() => handleSortChange('name')}>Name</div>
-                    <div onClick={() => handleSortChange('size')}>Size</div>
-                    <div onClick={() => handleSortChange('type')}>Type</div>
-                    <div onClick={() => handleSortChange('modified')}>Date Modified</div>
+                    <div className={`sort-option ${sortBy === 'name' ? 'active' : ''}`} onClick={() => handleSortChange('name')}>Name</div>
+                    <div className={`sort-option ${sortBy === 'size' ? 'active' : ''}`} onClick={() => handleSortChange('size')}>Size</div>
+                    <div className={`sort-option ${sortBy === 'type' ? 'active' : ''}`} onClick={() => handleSortChange('type')}>Type</div>
+                    <div className={`sort-option ${sortBy === 'modified' ? 'active' : ''}`} onClick={() => handleSortChange('modified')}>Date Modified</div>
                 </div>
             </div>
         </div>
