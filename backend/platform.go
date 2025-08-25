@@ -1,3 +1,5 @@
+//go:build windows
+
 package backend
 
 import (
@@ -15,17 +17,17 @@ import (
 )
 
 var (
-	procSetForegroundWindow    = windows.NewLazySystemDLL("user32.dll").NewProc("SetForegroundWindow")
-	procGetForegroundWindow    = windows.NewLazySystemDLL("user32.dll").NewProc("GetForegroundWindow")
+	procSetForegroundWindow      = windows.NewLazySystemDLL("user32.dll").NewProc("SetForegroundWindow")
+	procGetForegroundWindow      = windows.NewLazySystemDLL("user32.dll").NewProc("GetForegroundWindow")
 	procAllowSetForegroundWindow = windows.NewLazySystemDLL("user32.dll").NewProc("AllowSetForegroundWindow")
-	procAttachThreadInput      = windows.NewLazySystemDLL("user32.dll").NewProc("AttachThreadInput")
+	procAttachThreadInput        = windows.NewLazySystemDLL("user32.dll").NewProc("AttachThreadInput")
 	procGetWindowThreadProcessId = windows.NewLazySystemDLL("user32.dll").NewProc("GetWindowThreadProcessId")
-	procGetCurrentThreadId     = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetCurrentThreadId")
-	procEnumWindows           = windows.NewLazySystemDLL("user32.dll").NewProc("EnumWindows")
-	procGetWindowTextW        = windows.NewLazySystemDLL("user32.dll").NewProc("GetWindowTextW")
-	procIsWindowVisible       = windows.NewLazySystemDLL("user32.dll").NewProc("IsWindowVisible")
-	procShowWindow            = windows.NewLazySystemDLL("user32.dll").NewProc("ShowWindow")
-	procBringWindowToTop      = windows.NewLazySystemDLL("user32.dll").NewProc("BringWindowToTop")
+	procGetCurrentThreadId       = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetCurrentThreadId")
+	procEnumWindows              = windows.NewLazySystemDLL("user32.dll").NewProc("EnumWindows")
+	procGetWindowTextW           = windows.NewLazySystemDLL("user32.dll").NewProc("GetWindowTextW")
+	procIsWindowVisible          = windows.NewLazySystemDLL("user32.dll").NewProc("IsWindowVisible")
+	procShowWindow               = windows.NewLazySystemDLL("user32.dll").NewProc("ShowWindow")
+	procBringWindowToTop         = windows.NewLazySystemDLL("user32.dll").NewProc("BringWindowToTop")
 )
 
 // NewPlatformManager creates a new platform manager instance
@@ -171,7 +173,7 @@ func (p *PlatformManager) shellExecute(filePath string) error {
 
 	// Get current foreground window before opening
 	currentWindow := p.getForegroundWindow()
-	
+
 	// Open the file
 	err = windows.ShellExecute(0, verbPtr, pathPtr, nil, nil, windows.SW_SHOWNORMAL)
 	if err != nil {
@@ -200,14 +202,14 @@ func (p *PlatformManager) focusLatestWindow(previousWindow windows.Handle) {
 		if i > 0 {
 			time.Sleep(time.Duration(i*300) * time.Millisecond)
 		}
-		
+
 		currentWindow := p.getForegroundWindow()
 		if currentWindow != previousWindow && currentWindow != 0 {
 			// A new window has become foreground, just ensure it stays focused
 			procSetForegroundWindow.Call(uintptr(currentWindow))
 			return
 		}
-		
+
 		// Try to find and focus any new visible window
 		if p.findAndFocusNewWindow(previousWindow) {
 			return
@@ -231,22 +233,22 @@ type WindowInfo struct {
 // findAndFocusNewWindow finds newly created visible windows and focuses them
 func (p *PlatformManager) findAndFocusNewWindow(previousWindow windows.Handle) bool {
 	var foundWindow windows.Handle
-	
+
 	// Enumerate all top-level windows
 	enumCallback := syscall.NewCallback(func(hwnd, lparam uintptr) uintptr {
 		windowHandle := windows.Handle(hwnd)
-		
+
 		// Skip if this is the previous window
 		if windowHandle == previousWindow || windowHandle == 0 {
 			return 1 // Continue enumeration
 		}
-		
+
 		// Check if window is visible
 		ret, _, _ := procIsWindowVisible.Call(hwnd)
 		if ret == 0 {
 			return 1 // Continue if not visible
 		}
-		
+
 		// Get window title - if it has a title, it's likely a main application window
 		title := p.getWindowTitle(windowHandle)
 		if title != "" && len(title) > 0 {
@@ -257,17 +259,17 @@ func (p *PlatformManager) findAndFocusNewWindow(previousWindow windows.Handle) b
 				return 0 // Stop enumeration - found the active window
 			}
 		}
-		
+
 		return 1 // Continue enumeration
 	})
-	
+
 	procEnumWindows.Call(enumCallback, 0)
-	
+
 	if foundWindow != 0 {
 		p.enhanceFocus(foundWindow)
 		return true
 	}
-	
+
 	return false
 }
 
