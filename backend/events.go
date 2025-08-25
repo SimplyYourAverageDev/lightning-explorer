@@ -2,7 +2,6 @@ package backend
 
 import (
 	"context"
-	"log"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -29,7 +28,7 @@ func (e *EventEmitter) EmitDirectoryHydrate(fileInfo FileInfo) {
 func (e *EventEmitter) EmitDirectoryStart(path string) {
 	if e.ctx != nil {
 		runtime.EventsEmit(e.ctx, "DirectoryStart", path)
-		log.Printf("📡 Emitted directory start for: %s", path)
+		logPrintf("📡 Emitted directory start for: %s", path)
 	}
 }
 
@@ -44,7 +43,7 @@ func (e *EventEmitter) EmitDirectoryEntry(fileInfo FileInfo) {
 func (e *EventEmitter) EmitDirectoryError(message string) {
 	if e.ctx != nil {
 		runtime.EventsEmit(e.ctx, "DirectoryError", message)
-		log.Printf("📡 Emitted directory error: %s", message)
+		logPrintf("📡 Emitted directory error: %s", message)
 	}
 }
 
@@ -52,7 +51,7 @@ func (e *EventEmitter) EmitDirectoryError(message string) {
 func (e *EventEmitter) EmitDirectoryBatch(entries []FileInfo) {
 	if e.ctx != nil {
 		runtime.EventsEmit(e.ctx, "DirectoryBatch", entries)
-		log.Printf("📡 Emitted batch of %d entries", len(entries))
+		logPrintf("📡 Emitted batch of %d entries", len(entries))
 	}
 }
 
@@ -64,6 +63,6 @@ func (e *EventEmitter) EmitDirectoryComplete(path string, totalFiles, totalDirs 
 			"totalFiles": totalFiles,
 			"totalDirs":  totalDirs,
 		})
-		log.Printf("📡 Emitted directory complete for: %s (%d files, %d dirs)", path, totalFiles, totalDirs)
+		logPrintf("📡 Emitted directory complete for: %s (%d files, %d dirs)", path, totalFiles, totalDirs)
 	}
 }

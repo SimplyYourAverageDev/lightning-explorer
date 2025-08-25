@@ -4,7 +4,6 @@ package backend
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -142,7 +141,7 @@ type dropfiles struct {
 
 // EjectDriveWindows safely ejects a drive using Windows API
 func (p *PlatformManager) EjectDriveWindows(drivePath string) bool {
-	log.Printf("🔄 Attempting to eject drive: %s", drivePath)
+	logPrintf("🔄 Attempting to eject drive: %s", drivePath)
 
 	// Normalize the drive path - ensure it ends with backslash for volume access
 	if !strings.HasSuffix(drivePath, "\\") {
@@ -152,40 +151,40 @@ func (p *PlatformManager) EjectDriveWindows(drivePath string) bool {
 	// Get device number for the drive
 	deviceNumber, err := p.getVolumeDeviceNumber(drivePath)
 	if err != nil {
-		log.Printf("❌ Failed to get device number for %s: %v", drivePath, err)
+		logPrintf("❌ Failed to get device number for %s: %v", drivePath, err)
 		return false
 	}
 
-	log.Printf("📊 Device number for %s: %d", drivePath, deviceNumber)
+	logPrintf("📊 Device number for %s: %d", drivePath, deviceNumber)
 
 	// Get drive type to determine the correct device interface
 	driveType := p.getDriveType(drivePath)
-	log.Printf("💽 Drive type for %s: %d", drivePath, driveType)
+	logPrintf("💽 Drive type for %s: %d", drivePath, driveType)
 
 	// Get device instance for the drive
 	devInst, err := p.getDriveDeviceInstance(deviceNumber, driveType, drivePath)
 	if err != nil {
-		log.Printf("❌ Failed to get device instance for %s: %v", drivePath, err)
+		logPrintf("❌ Failed to get device instance for %s: %v", drivePath, err)
 		return false
 	}
 
-	log.Printf("🔧 Device instance for %s: %d", drivePath, devInst)
+	logPrintf("🔧 Device instance for %s: %d", drivePath, devInst)
 
 	// Get parent device instance (the USB controller or hub)
 	parentDevInst, err := p.getParentDeviceInstance(devInst)
 	if err != nil {
-		log.Printf("❌ Failed to get parent device instance for %s: %v", drivePath, err)
+		logPrintf("❌ Failed to get parent device instance for %s: %v", drivePath, err)
 		return false
 	}
 
-	log.Printf("🔗 Parent device instance for %s: %d", drivePath, parentDevInst)
+	logPrintf("🔗 Parent device instance for %s: %d", drivePath, parentDevInst)
 
 	// Attempt to eject the parent device
 	success := p.requestDeviceEject(parentDevInst)
 	if success {
-		log.Printf("✅ Successfully ejected drive: %s", drivePath)
+		logPrintf("✅ Successfully ejected drive: %s", drivePath)
 	} else {
-		log.Printf("❌ Failed to eject drive: %s", drivePath)
+		logPrintf("❌ Failed to eject drive: %s", drivePath)
 	}
 
 	return success
@@ -420,7 +419,7 @@ func (p *PlatformManager) requestDeviceEject(devInst uint32) bool {
 
 	// Try up to 3 times (as recommended in the Microsoft documentation)
 	for tries := 1; tries <= 3; tries++ {
-		log.Printf("🔄 Eject attempt %d/3 for device instance %d", tries, devInst)
+		logPrintf("🔄 Eject attempt %d/3 for device instance %d", tries, devInst)
 
 		ret, _, _ := cmRequestDeviceEjectW.Call(
 			uintptr(devInst),
@@ -431,15 +430,15 @@ func (p *PlatformManager) requestDeviceEject(devInst uint32) bool {
 		)
 
 		if ret == CR_SUCCESS && vetoType == PNP_VetoTypeUnknown {
-			log.Printf("✅ Successfully ejected device on attempt %d", tries)
+			logPrintf("✅ Successfully ejected device on attempt %d", tries)
 			return true
 		}
 
 		if ret != CR_SUCCESS {
-			log.Printf("⚠️ CM_Request_Device_EjectW failed on attempt %d: %d", tries, ret)
+			logPrintf("⚠️ CM_Request_Device_EjectW failed on attempt %d: %d", tries, ret)
 		} else {
 			vetoName := syscall.UTF16ToString(vetoNameBuffer[:])
-			log.Printf("⚠️ Eject vetoed on attempt %d by: %s (type: %d)", tries, vetoName, vetoType)
+			logPrintf("⚠️ Eject vetoed on attempt %d by: %s (type: %d)", tries, vetoName, vetoType)
 		}
 
 		if tries < 3 {
@@ -458,7 +457,7 @@ func (p *PlatformManager) GetSystemRootsWindows() []string {
 
 	ret, _, err := getLogicalDriveStringsW.Call(uintptr(buflen), uintptr(unsafe.Pointer(&buffer[0])))
 	if ret == 0 {
-		log.Printf("Failed to get logical drive strings: %v", err)
+		logPrintf("Failed to get logical drive strings: %v", err)
 		// Fallback to slower method if API call fails
 		return p.getSystemRootsFallback()
 	}
@@ -584,18 +583,18 @@ func (p *PlatformManager) IsHiddenWindowsNative(filePath string) bool {
 
 // HideFileWindowsNative sets the hidden attribute on Windows using native API
 func (p *PlatformManager) HideFileWindowsNative(filePath string) bool {
-	log.Printf("Setting hidden attribute on Windows using native API: %s", filePath)
+	logPrintf("Setting hidden attribute on Windows using native API: %s", filePath)
 
 	filePathPtr, err := syscall.UTF16PtrFromString(filePath)
 	if err != nil {
-		log.Printf("Failed to convert file path to UTF16: %v", err)
+		logPrintf("Failed to convert file path to UTF16: %v", err)
 		return false
 	}
 
 	// Get current attributes first
 	ret, _, _ := getFileAttributesW.Call(uintptr(unsafe.Pointer(filePathPtr)))
 	if ret == INVALID_FILE_ATTRIBUTES {
-		log.Printf("Failed to get current file attributes")
+		logPrintf("Failed to get current file attributes")
 		return false
 	}
 
@@ -609,11 +608,11 @@ func (p *PlatformManager) HideFileWindowsNative(filePath string) bool {
 	)
 
 	if ret == 0 {
-		log.Printf("Failed to set hidden attribute: %v", err)
+		logPrintf("Failed to set hidden attribute: %v", err)
 		return false
 	}
 
-	log.Printf("Successfully set hidden attribute using native API: %s", filePath)
+	logPrintf("Successfully set hidden attribute using native API: %s", filePath)
 	return true
 }
 
@@ -741,15 +740,15 @@ func (p *PlatformManager) GetCurrentUserSIDNative() (string, error) {
 // SetClipboardFilePaths places the given absolute paths on the Windows clipboard as CF_HDROP.
 func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
 	if len(paths) == 0 {
-		log.Printf("SetClipboard: No paths provided")
+		logPrintf("SetClipboard: No paths provided")
 		return false
 	}
 
-	log.Printf("SetClipboard: Setting %d file paths to clipboard: %v", len(paths), paths)
+	logPrintf("SetClipboard: Setting %d file paths to clipboard: %v", len(paths), paths)
 
 	// 1) Open & empty clipboard
 	if r, _, err := openClipboard.Call(0); r == 0 {
-		log.Printf("SetClipboard: OpenClipboard failed: %v", err)
+		logPrintf("SetClipboard: OpenClipboard failed: %v", err)
 		return false
 	}
 	defer closeClipboard.Call()
@@ -771,7 +770,7 @@ func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
 
 		utf, err := syscall.UTF16FromString(absPath)
 		if err != nil {
-			log.Printf("SetClipboard: Failed to convert path to UTF16: %s, error: %v", absPath, err)
+			logPrintf("SetClipboard: Failed to convert path to UTF16: %s, error: %v", absPath, err)
 			continue
 		}
 		// syscall.UTF16FromString already includes null terminator, so append as-is
@@ -788,13 +787,13 @@ func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
 	// 4) Allocate movable global memory block
 	hMem, _, err := globalAlloc.Call(GMEM_MOVEABLE, totalSize)
 	if hMem == 0 {
-		log.Printf("SetClipboard: GlobalAlloc failed: %v", err)
+		logPrintf("SetClipboard: GlobalAlloc failed: %v", err)
 		return false
 	}
 	// Lock to get pointer
 	pMem, _, err := globalLock.Call(hMem)
 	if pMem == 0 {
-		log.Printf("SetClipboard: GlobalLock failed: %v", err)
+		logPrintf("SetClipboard: GlobalLock failed: %v", err)
 		return false
 	}
 	defer globalUnlock.Call(hMem)
@@ -816,7 +815,7 @@ func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
 
 	// 7) Place onto clipboard
 	if r, _, err := setClipboardData.Call(CF_HDROP, hMem); r == 0 {
-		log.Printf("SetClipboard: SetClipboardData failed: %v", err)
+		logPrintf("SetClipboard: SetClipboardData failed: %v", err)
 		return false
 	}
 
@@ -852,12 +851,12 @@ func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
 
 						_, _, err := setClipboardData.Call(cfId, hMemName)
 						if err != nil && err.Error() != "The operation completed successfully." {
-							log.Printf("SetClipboard: failed to set FileNameW: %v", err)
+							logPrintf("SetClipboard: failed to set FileNameW: %v", err)
 						}
 						// ownership transferred on success; if failure, we can Ignore (OS frees)
 					}
 				} else {
-					log.Printf("SetClipboard: GlobalAlloc for FileNameW failed: %v", err)
+					logPrintf("SetClipboard: GlobalAlloc for FileNameW failed: %v", err)
 				}
 			}
 		}
@@ -879,15 +878,15 @@ func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
 					globalUnlock.Call(hMemNameA)
 					_, _, err := setClipboardData.Call(cfIdA, hMemNameA)
 					if err != nil && err.Error() != "The operation completed successfully." {
-						log.Printf("SetClipboard: failed to set FileName: %v", err)
+						logPrintf("SetClipboard: failed to set FileName: %v", err)
 					}
 				}
 			} else {
-				log.Printf("SetClipboard: GlobalAlloc for FileName failed: %v", err)
+				logPrintf("SetClipboard: GlobalAlloc for FileName failed: %v", err)
 			}
 		}
 	}
 
-	log.Printf("SetClipboard: Successfully set %d file paths to Windows clipboard", len(paths))
+	logPrintf("SetClipboard: Successfully set %d file paths to Windows clipboard", len(paths))
 	return true
 }

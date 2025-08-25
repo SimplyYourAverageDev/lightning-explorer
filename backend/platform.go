@@ -4,7 +4,6 @@ package backend
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,7 +38,7 @@ func NewPlatformManager() *PlatformManager {
 func (p *PlatformManager) GetHomeDirectory() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Printf("Error getting home directory: %v", err)
+		logPrintf("Error getting home directory: %v", err)
 		return ""
 	}
 	return homeDir
@@ -49,7 +48,7 @@ func (p *PlatformManager) GetHomeDirectory() string {
 func (p *PlatformManager) GetCurrentWorkingDirectory() string {
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Printf("Error getting current working directory: %v", err)
+		logPrintf("Error getting current working directory: %v", err)
 		return ""
 	}
 	return cwd
@@ -68,7 +67,7 @@ func (p *PlatformManager) OpenInSystemExplorer(path string) bool {
 
 	err := exec.Command(cmd, args...).Start()
 	if err != nil {
-		log.Printf("Error opening in Windows Explorer: %v", err)
+		logPrintf("Error opening in Windows Explorer: %v", err)
 		return false
 	}
 	return true
@@ -76,18 +75,18 @@ func (p *PlatformManager) OpenInSystemExplorer(path string) bool {
 
 // OpenFile opens a file with its default Windows application and focuses the opened window
 func (p *PlatformManager) OpenFile(filePath string) bool {
-	log.Printf("Opening file with default Windows application: %s", filePath)
+	logPrintf("Opening file with default Windows application: %s", filePath)
 
 	go func() {
 		err := p.shellExecute(filePath)
 		if err != nil {
-			log.Printf("Error opening file with ShellExecute: %v", err)
+			logPrintf("Error opening file with ShellExecute: %v", err)
 			// Fallback to original method if ShellExecute fails
 			currentWindow := p.getForegroundWindow()
 			cmd := exec.Command("rundll32.exe", "shell32.dll,ShellExec_RunDLL", filePath)
 			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 			if err := cmd.Start(); err != nil {
-				log.Printf("Fallback OpenFile method also failed: %v", err)
+				logPrintf("Fallback OpenFile method also failed: %v", err)
 			} else {
 				// Also attempt to focus for fallback method
 				go func() {
@@ -98,7 +97,7 @@ func (p *PlatformManager) OpenFile(filePath string) bool {
 		}
 	}()
 
-	log.Printf("Successfully opened file with Windows default application: %s", filePath)
+	logPrintf("Successfully opened file with Windows default application: %s", filePath)
 	return true
 }
 

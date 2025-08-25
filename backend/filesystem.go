@@ -3,7 +3,6 @@ package backend
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,7 +32,7 @@ type dirCacheEntry struct {
 // ListDirectory lists the contents of a directory with Windows-optimized streaming and concurrency
 func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	startTime := time.Now()
-	log.Printf("📂 Listing directory with concurrent processing: %s", path)
+	logPrintf("📂 Listing directory with concurrent processing: %s", path)
 
 	if path == "" {
 		path = fs.platform.GetHomeDirectory()
@@ -114,32 +113,7 @@ func (fs *FileSystemManager) GetExtension(name string) string {
 	return fs.platform.GetExtension(name)
 }
 
-// CreateFileInfo creates FileInfo from file path and name (backward compatibility)
-func (fs *FileSystemManager) CreateFileInfo(basePath string, name string) FileInfo {
-	fullPath := filepath.Join(basePath, name)
-	info, err := os.Stat(fullPath)
-	if err != nil {
-		log.Printf("Warning: Error getting file info for %s: %v", fullPath, err)
-		// Return basic info even on error
-		return FileInfo{
-			Name:     name,
-			Path:     fullPath,
-			IsDir:    false, // Assume not a directory on error
-			IsHidden: fs.platform.IsHidden(fullPath),
-		}
-	}
-
-	return FileInfo{
-		Name:        name,
-		Path:        fullPath,
-		IsDir:       info.IsDir(),
-		Size:        info.Size(),
-		ModTime:     info.ModTime(),
-		Permissions: info.Mode().String(),
-		Extension:   fs.platform.GetExtension(name),
-		IsHidden:    fs.platform.IsHidden(fullPath),
-	}
-}
+// (removed) CreateFileInfo helper was unused and has been deleted for concision.
 
 // shouldSkipFile determines if a file should be skipped for performance
 func (fs *FileSystemManager) shouldSkipFile(name string) bool {
@@ -166,11 +140,11 @@ func (fs *FileSystemManager) shouldSkipFile(name string) bool {
 
 // GetFileInfo returns detailed information about a specific file
 func (fs *FileSystemManager) GetFileInfo(filePath string) (FileInfo, error) {
-	log.Printf("Getting file details for: %s", filePath)
+	logPrintf("Getting file details for: %s", filePath)
 
 	info, err := os.Stat(filePath)
 	if err != nil {
-		log.Printf("Error getting file details: %v", err)
+		logPrintf("Error getting file details: %v", err)
 		return FileInfo{}, err
 	}
 
@@ -188,31 +162,11 @@ func (fs *FileSystemManager) GetFileInfo(filePath string) (FileInfo, error) {
 
 // NavigateToPath navigates to a specific path with enhanced logging
 func (fs *FileSystemManager) NavigateToPath(path string) NavigationResponse {
-	log.Printf("🧭 Navigation request: %s", path)
+	logPrintf("🧭 Navigation request: %s", path)
 	return fs.ListDirectory(path)
 }
 
-// NavigateUp navigates to the parent directory with path validation
-func (fs *FileSystemManager) NavigateUp(currentPath string) NavigationResponse {
-	if currentPath == "" {
-		return NavigationResponse{
-			Success: false,
-			Message: "No current path provided",
-		}
-	}
-
-	parentPath := filepath.Dir(currentPath)
-	if parentPath == currentPath {
-		// Already at root
-		return NavigationResponse{
-			Success: false,
-			Message: "Already at root directory",
-		}
-	}
-
-	log.Printf("⬆️ Navigate up: %s -> %s", currentPath, parentPath)
-	return fs.ListDirectory(parentPath)
-}
+// (removed) NavigateUp helper is handled by the frontend computing parent paths.
 
 // FileExists checks if a file exists
 func (fs *FileSystemManager) FileExists(path string) bool {
@@ -290,7 +244,7 @@ func (fs *FileSystemManager) CreateDirectory(path, name string) NavigationRespon
 		}
 	}
 
-	log.Printf("📁 Directory created securely: %s", fullPath)
+	logPrintf("📁 Directory created securely: %s", fullPath)
 	return NavigationResponse{
 		Success: true,
 		Message: "Directory created successfully",
@@ -517,7 +471,7 @@ func (fs *FileSystemManager) buildDirectoryResponse(path string, allEntries []Fi
 	}
 
 	processingTime := time.Since(start)
-	log.Printf("✅ Directory listed in %v: %s (%d dirs, %d files)",
+	logPrintf("✅ Directory listed in %v: %s (%d dirs, %d files)",
 		processingTime, path, len(directories), len(files))
 
 	return NavigationResponse{

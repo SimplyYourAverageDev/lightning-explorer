@@ -4,7 +4,6 @@ package backend
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,7 +20,7 @@ func NewPlatformManager() *PlatformManager {
 func (p *PlatformManager) GetHomeDirectory() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Printf("Error getting home directory: %v", err)
+		logPrintf("Error getting home directory: %v", err)
 		return ""
 	}
 	return homeDir
@@ -31,7 +30,7 @@ func (p *PlatformManager) GetHomeDirectory() string {
 func (p *PlatformManager) GetCurrentWorkingDirectory() string {
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Printf("Error getting current working directory: %v", err)
+		logPrintf("Error getting current working directory: %v", err)
 		return ""
 	}
 	return cwd
@@ -53,7 +52,7 @@ func (p *PlatformManager) OpenInSystemExplorer(path string) bool {
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("Error opening path in system explorer: %v", err)
+		logPrintf("Error opening path in system explorer: %v", err)
 		return false
 	}
 	return true
@@ -90,7 +89,7 @@ func (p *PlatformManager) HideFile(filePath string) bool {
 	base := filepath.Base(filePath)
 	newPath := filepath.Join(dir, "."+base)
 	if err := os.Rename(filePath, newPath); err != nil {
-		log.Printf("Error hiding file %s: %v", filePath, err)
+		logPrintf("Error hiding file %s: %v", filePath, err)
 		return false
 	}
 	return true

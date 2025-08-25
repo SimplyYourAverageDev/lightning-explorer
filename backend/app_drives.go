@@ -7,18 +7,12 @@ import (
 
 // GetDriveInfo returns information about system drives
 func (a *App) GetDriveInfo() []DriveInfo {
-	a.drivesOnce.Do(func() {
-		a.drives = NewDriveManager()
-	})
-	return a.drives.GetDriveInfo()
+	return a.driveMgr().GetDriveInfo()
 }
 
 // GetQuickAccessPaths returns commonly accessed directories
 func (a *App) GetQuickAccessPaths() []DriveInfo {
-	a.drivesOnce.Do(func() {
-		a.drives = NewDriveManager()
-	})
-	return a.drives.GetQuickAccessPaths()
+	return a.driveMgr().GetQuickAccessPaths()
 }
 
 // EjectDrive safely ejects a drive using OS-specific methods

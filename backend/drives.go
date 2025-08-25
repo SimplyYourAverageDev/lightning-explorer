@@ -2,7 +2,6 @@ package backend
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"runtime"
 )
@@ -24,7 +23,7 @@ func (d *DriveManager) GetDriveInfo() []DriveInfo {
 	case "linux":
 		drives = d.getLinuxMountPoints()
 	default:
-		log.Printf("Drive enumeration not supported on %s", runtime.GOOS)
+		logPrintf("Drive enumeration not supported on %s", runtime.GOOS)
 	}
 
 	return drives

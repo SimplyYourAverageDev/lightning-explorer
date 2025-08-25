@@ -42,8 +42,7 @@ type DriveInfo struct {
 	Name   string `json:"name" msgpack:"name"`
 }
 
-// WarmState represents cached warm-start data sent to frontend
-// I am adding this new struct to expose warm preloaded data.
+// WarmState represents cached warm-start data sent to the frontend.
 type WarmState struct {
 	HomeDir string      `json:"homeDir" msgpack:"homeDir"`
 	Drives  []DriveInfo `json:"drives" msgpack:"drives"`
@@ -64,11 +63,9 @@ type Settings struct {
 type FileSystemManagerInterface interface {
 	ListDirectory(path string) NavigationResponse
 	GetFileInfo(path string) (FileInfo, error)
-	CreateFileInfo(basePath string, name string) FileInfo
 	IsHidden(path string) bool
 	GetExtension(name string) string
 	NavigateToPath(path string) NavigationResponse
-	NavigateUp(currentPath string) NavigationResponse
 	CreateDirectory(path, name string) NavigationResponse
 	ValidatePath(path string) error
 	FileExists(path string) bool
@@ -91,16 +88,11 @@ type PlatformManagerInterface interface {
 	GetCurrentWorkingDirectory() string
 	GetSystemRoots() []string
 	OpenInSystemExplorer(path string) bool
-	IsHiddenWindows(filePath string) bool
 	IsHidden(filePath string) bool
 	GetExtension(name string) string
 	HideFile(filePath string) bool
 	OpenFile(filePath string) bool
 	FormatFileSize(size int64) string
-	// Native Windows API methods
-	IsHiddenWindowsNative(filePath string) bool
-	HideFileWindowsNative(filePath string) bool
-	GetCurrentUserSIDNative() (string, error)
 	// Copies absolute file paths into the OS clipboard (CF_HDROP)
 	SetClipboardFilePaths(paths []string) bool
 	// Drive ejection methods

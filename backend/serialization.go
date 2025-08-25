@@ -2,7 +2,6 @@ package backend
 
 import (
 	"encoding/json"
-	"log"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -79,19 +78,19 @@ func BenchmarkSerializationSizes(data interface{}) map[string]int {
 // LogSerializationComparison logs the size comparison for debugging
 func LogSerializationComparison(data interface{}, label string) {
 	sizes := BenchmarkSerializationSizes(data)
-	log.Printf("🔍 MessagePack binary serialization stats for %s:", label)
+	logPrintf("🔍 MessagePack binary serialization stats for %s:", label)
 	for format, size := range sizes {
 		if format == "msgpack_binary" {
-			log.Printf("   %s: %d bytes (ACTIVE - direct binary)", format, size)
+			logPrintf("   %s: %d bytes (ACTIVE - direct binary)", format, size)
 		} else {
-			log.Printf("   %s: %d bytes (comparison only)", format, size)
+			logPrintf("   %s: %d bytes (comparison only)", format, size)
 		}
 	}
 
 	if jsonSize, exists := sizes["json"]; exists {
 		if msgPackSize, exists := sizes["msgpack"]; exists {
 			reduction := float64(jsonSize-msgPackSize) / float64(jsonSize) * 100
-			log.Printf("   MessagePack is %.1f%% smaller than JSON", reduction)
+			logPrintf("   MessagePack is %.1f%% smaller than JSON", reduction)
 		}
 	}
 }
@@ -107,5 +106,5 @@ func GetSerializationUtils() *SerializationUtils {
 // SetSerializationMode is deprecated - only MessagePack binary supported
 func SetSerializationMode(mode SerializationMode) {
 	// Only log - mode switching is no longer supported
-	log.Printf("🔄 MessagePack binary mode enforced (mode switching disabled)")
+	logPrintf("🔄 MessagePack binary mode enforced (mode switching disabled)")
 }

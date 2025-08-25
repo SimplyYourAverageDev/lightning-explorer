@@ -11,7 +11,7 @@ import (
 	"lightning_explorer/backend"
 )
 
-//go:embed all:frontend/dist
+//go:embed frontend/dist/*
 var assets embed.FS
 
 func main() {

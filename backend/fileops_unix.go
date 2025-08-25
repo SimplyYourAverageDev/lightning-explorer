@@ -3,7 +3,6 @@
 package backend
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -15,31 +14,31 @@ func NewFileOperationsManager(platform PlatformManagerInterface) *FileOperations
 
 // CopyFiles copies files from source paths to destination directory with rollback support
 func (fo *FileOperationsManager) CopyFiles(sourcePaths []string, destDir string) bool {
-	log.Printf("Copying %d files to: %s", len(sourcePaths), destDir)
+	logPrintf("Copying %d files to: %s", len(sourcePaths), destDir)
 
 	if len(sourcePaths) == 0 {
-		log.Printf("Error: No source paths provided")
+		logPrintf("Error: No source paths provided")
 		return false
 	}
 	if destDir == "" {
-		log.Printf("Error: Destination directory cannot be empty")
+		logPrintf("Error: Destination directory cannot be empty")
 		return false
 	}
 
 	destInfo, err := os.Stat(destDir)
 	if err != nil {
-		log.Printf("Error: Cannot access destination directory: %v", err)
+		logPrintf("Error: Cannot access destination directory: %v", err)
 		return false
 	}
 	if !destInfo.IsDir() {
-		log.Printf("Error: Destination is not a directory: %s", destDir)
+		logPrintf("Error: Destination is not a directory: %s", destDir)
 		return false
 	}
 
 	var copiedFiles []string
 	defer func() {
 		if len(copiedFiles) > 0 && len(copiedFiles) < len(sourcePaths) {
-			log.Printf("Cleaning up %d partially copied files", len(copiedFiles))
+			logPrintf("Cleaning up %d partially copied files", len(copiedFiles))
 			for _, f := range copiedFiles {
 				os.RemoveAll(f)
 			}
@@ -48,16 +47,16 @@ func (fo *FileOperationsManager) CopyFiles(sourcePaths []string, destDir string)
 
 	for _, srcPath := range sourcePaths {
 		if srcPath == "" {
-			log.Printf("Error: Empty source path found")
+			logPrintf("Error: Empty source path found")
 			return false
 		}
 		if _, err := os.Stat(srcPath); err != nil {
-			log.Printf("Error: Cannot access source file %s: %v", srcPath, err)
+			logPrintf("Error: Cannot access source file %s: %v", srcPath, err)
 			return false
 		}
 		destPath := filepath.Join(destDir, filepath.Base(srcPath))
 		if _, err := os.Stat(destPath); err == nil {
-			log.Printf("Error: Destination file already exists: %s", destPath)
+			logPrintf("Error: Destination file already exists: %s", destPath)
 			return false
 		}
 	}
@@ -67,24 +66,24 @@ func (fo *FileOperationsManager) CopyFiles(sourcePaths []string, destDir string)
 
 // MoveFiles moves files from source paths to destination directory with rollback
 func (fo *FileOperationsManager) MoveFiles(sourcePaths []string, destDir string) bool {
-	log.Printf("Moving %d files to: %s", len(sourcePaths), destDir)
+	logPrintf("Moving %d files to: %s", len(sourcePaths), destDir)
 
 	if len(sourcePaths) == 0 {
-		log.Printf("Error: No source paths provided")
+		logPrintf("Error: No source paths provided")
 		return false
 	}
 	if destDir == "" {
-		log.Printf("Error: Destination directory cannot be empty")
+		logPrintf("Error: Destination directory cannot be empty")
 		return false
 	}
 
 	destInfo, err := os.Stat(destDir)
 	if err != nil {
-		log.Printf("Error: Cannot access destination directory: %v", err)
+		logPrintf("Error: Cannot access destination directory: %v", err)
 		return false
 	}
 	if !destInfo.IsDir() {
-		log.Printf("Error: Destination is not a directory: %s", destDir)
+		logPrintf("Error: Destination is not a directory: %s", destDir)
 		return false
 	}
 
@@ -100,7 +99,7 @@ func (fo *FileOperationsManager) MoveFiles(sourcePaths []string, destDir string)
 			if m.wasCopy {
 				// We cannot restore the original after copy+delete; remove the copied item
 				os.RemoveAll(m.dstPath)
-				log.Printf("Warning: Cannot fully restore %s (move was copy+delete)", m.srcPath)
+				logPrintf("Warning: Cannot fully restore %s (move was copy+delete)", m.srcPath)
 				continue
 			}
 			os.Rename(m.dstPath, m.srcPath)
@@ -112,12 +111,12 @@ func (fo *FileOperationsManager) MoveFiles(sourcePaths []string, destDir string)
 		wasCopy := false
 		if err := os.Rename(srcPath, destPath); err != nil {
 			if err := fo.copyDirOrFile(srcPath, destPath); err != nil {
-				log.Printf("Error moving %s: %v", srcPath, err)
+				logPrintf("Error moving %s: %v", srcPath, err)
 				rollback()
 				return false
 			}
 			if err := os.RemoveAll(srcPath); err != nil {
-				log.Printf("Error removing original %s: %v", srcPath, err)
+				logPrintf("Error removing original %s: %v", srcPath, err)
 				rollback()
 				return false
 			}
@@ -143,10 +142,10 @@ func (fo *FileOperationsManager) copyDirOrFile(src, dst string) error {
 
 // DeleteFiles permanently deletes the specified files and directories
 func (fo *FileOperationsManager) DeleteFiles(filePaths []string) bool {
-	log.Printf("Permanently deleting %d files", len(filePaths))
+	logPrintf("Permanently deleting %d files", len(filePaths))
 	for _, filePath := range filePaths {
 		if err := os.RemoveAll(filePath); err != nil {
-			log.Printf("Error permanently deleting %s: %v", filePath, err)
+			logPrintf("Error permanently deleting %s: %v", filePath, err)
 			return false
 		}
 	}
@@ -155,10 +154,10 @@ func (fo *FileOperationsManager) DeleteFiles(filePaths []string) bool {
 
 // MoveFilesToRecycleBin moves files to the system recycle bin/trash using platform tools
 func (fo *FileOperationsManager) MoveFilesToRecycleBin(filePaths []string) bool {
-	log.Printf("Moving %d files to recycle bin", len(filePaths))
+	logPrintf("Moving %d files to recycle bin", len(filePaths))
 	for _, filePath := range filePaths {
 		if !fo.moveToRecycleBin(filePath) {
-			log.Printf("Error moving %s to recycle bin", filePath)
+			logPrintf("Error moving %s to recycle bin", filePath)
 			return false
 		}
 	}
@@ -167,23 +166,23 @@ func (fo *FileOperationsManager) MoveFilesToRecycleBin(filePaths []string) bool 
 
 // RenameFile renames a file or directory with validation
 func (fo *FileOperationsManager) RenameFile(oldPath, newName string) bool {
-	log.Printf("Renaming %s to %s", oldPath, newName)
+	logPrintf("Renaming %s to %s", oldPath, newName)
 
 	if oldPath == "" || newName == "" {
-		log.Printf("Error: paths cannot be empty")
+		logPrintf("Error: paths cannot be empty")
 		return false
 	}
 
 	cleanOldPath := filepath.Clean(oldPath)
 	if !filepath.IsAbs(cleanOldPath) {
-		log.Printf("Error: Old path must be absolute: %s", oldPath)
+		logPrintf("Error: Old path must be absolute: %s", oldPath)
 		return false
 	}
 
 	tempFS := &FileSystemManager{}
 	sanitizedNewName, err := tempFS.validateAndSanitizeFileName(newName)
 	if err != nil {
-		log.Printf("Error: Invalid new name: %v", err)
+		logPrintf("Error: Invalid new name: %v", err)
 		return false
 	}
 
@@ -191,16 +190,16 @@ func (fo *FileOperationsManager) RenameFile(oldPath, newName string) bool {
 	newPath := filepath.Join(dir, sanitizedNewName)
 
 	if _, err := os.Stat(cleanOldPath); os.IsNotExist(err) {
-		log.Printf("Error: Source file does not exist: %s", cleanOldPath)
+		logPrintf("Error: Source file does not exist: %s", cleanOldPath)
 		return false
 	}
 	if _, err := os.Stat(newPath); err == nil {
-		log.Printf("Error: Destination already exists: %s", newPath)
+		logPrintf("Error: Destination already exists: %s", newPath)
 		return false
 	}
 
 	if err := os.Rename(cleanOldPath, newPath); err != nil {
-		log.Printf("Error renaming file: %v", err)
+		logPrintf("Error renaming file: %v", err)
 		return false
 	}
 	return true
@@ -208,10 +207,10 @@ func (fo *FileOperationsManager) RenameFile(oldPath, newName string) bool {
 
 // HideFiles sets the hidden attribute on the specified files
 func (fo *FileOperationsManager) HideFiles(filePaths []string) bool {
-	log.Printf("Hiding %d files", len(filePaths))
+	logPrintf("Hiding %d files", len(filePaths))
 	for _, filePath := range filePaths {
 		if !fo.platform.HideFile(filePath) {
-			log.Printf("Error hiding file: %s", filePath)
+			logPrintf("Error hiding file: %s", filePath)
 			return false
 		}
 	}
@@ -228,7 +227,7 @@ func (fo *FileOperationsManager) copyFilesStandardWithRollback(sourcePaths []str
 	for _, srcPath := range sourcePaths {
 		srcInfo, err := os.Stat(srcPath)
 		if err != nil {
-			log.Printf("Error getting source file info: %v", err)
+			logPrintf("Error getting source file info: %v", err)
 			return false
 		}
 
@@ -241,12 +240,12 @@ func (fo *FileOperationsManager) copyFilesStandardWithRollback(sourcePaths []str
 			copyErr = fo.copyFile(srcPath, destPath)
 		}
 		if copyErr != nil {
-			log.Printf("Error copying %s: %v", srcPath, copyErr)
+			logPrintf("Error copying %s: %v", srcPath, copyErr)
 			return false
 		}
 		*copiedFiles = append(*copiedFiles, destPath)
 		if _, err := os.Stat(destPath); err != nil {
-			log.Printf("Copy verification failed for %s: %v", destPath, err)
+			logPrintf("Copy verification failed for %s: %v", destPath, err)
 			return false
 		}
 	}
