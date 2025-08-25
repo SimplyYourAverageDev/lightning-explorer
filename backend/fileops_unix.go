@@ -91,16 +91,25 @@ func (fo *FileOperationsManager) MoveFiles(sourcePaths []string, destDir string)
 	type moveRecord struct {
 		srcPath string
 		dstPath string
+		wasCopy bool // true if fallback copy+delete was used instead of rename
 	}
 	var moves []moveRecord
 	rollback := func() {
 		for i := len(moves) - 1; i >= 0; i-- {
-			os.Rename(moves[i].dstPath, moves[i].srcPath)
+			m := moves[i]
+			if m.wasCopy {
+				// We cannot restore the original after copy+delete; remove the copied item
+				os.RemoveAll(m.dstPath)
+				log.Printf("Warning: Cannot fully restore %s (move was copy+delete)", m.srcPath)
+				continue
+			}
+			os.Rename(m.dstPath, m.srcPath)
 		}
 	}
 
 	for _, srcPath := range sourcePaths {
 		destPath := filepath.Join(destDir, filepath.Base(srcPath))
+		wasCopy := false
 		if err := os.Rename(srcPath, destPath); err != nil {
 			if err := fo.copyDirOrFile(srcPath, destPath); err != nil {
 				log.Printf("Error moving %s: %v", srcPath, err)
@@ -112,8 +121,9 @@ func (fo *FileOperationsManager) MoveFiles(sourcePaths []string, destDir string)
 				rollback()
 				return false
 			}
+			wasCopy = true
 		}
-		moves = append(moves, moveRecord{srcPath: srcPath, dstPath: destPath})
+		moves = append(moves, moveRecord{srcPath: srcPath, dstPath: destPath, wasCopy: wasCopy})
 	}
 
 	return true
