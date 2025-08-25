@@ -1,3 +1,5 @@
+//go:build windows
+
 package backend
 
 import (
@@ -13,8 +15,8 @@ import (
 )
 
 var (
-	shell32Terminal  = syscall.NewLazyDLL("shell32.dll")
-		ernel32Terminal = syscall.NewLazyDLL("kernel32.dll")
+	shell32Terminal = syscall.NewLazyDLL("shell32.dll")
+	ernel32Terminal = syscall.NewLazyDLL("kernel32.dll")
 
 	// Shell32 procedures for terminal operations
 	shellExecuteW = shell32Terminal.NewProc("ShellExecuteW")
