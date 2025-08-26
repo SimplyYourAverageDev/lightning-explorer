@@ -14,12 +14,20 @@ export function CreateDirectory(arg1, arg2) {
   return window['go']['backend']['App']['CreateDirectory'](arg1, arg2);
 }
 
+export function CreateDirectoryOptimized(arg1, arg2) {
+  return window['go']['backend']['App']['CreateDirectoryOptimized'](arg1, arg2);
+}
+
 export function DeleteFiles(arg1) {
   return window['go']['backend']['App']['DeleteFiles'](arg1);
 }
 
 export function DeletePath(arg1) {
   return window['go']['backend']['App']['DeletePath'](arg1);
+}
+
+export function DeletePathOptimized(arg1) {
+  return window['go']['backend']['App']['DeletePathOptimized'](arg1);
 }
 
 export function EjectDrive(arg1) {
@@ -54,16 +62,32 @@ export function GetDriveInfo() {
   return window['go']['backend']['App']['GetDriveInfo']();
 }
 
+export function GetDriveInfoOptimized() {
+  return window['go']['backend']['App']['GetDriveInfoOptimized']();
+}
+
 export function GetFileDetails(arg1) {
   return window['go']['backend']['App']['GetFileDetails'](arg1);
+}
+
+export function GetFileDetailsOptimized(arg1) {
+  return window['go']['backend']['App']['GetFileDetailsOptimized'](arg1);
 }
 
 export function GetHomeDirectory() {
   return window['go']['backend']['App']['GetHomeDirectory']();
 }
 
+export function GetHomeDirectoryOptimized() {
+  return window['go']['backend']['App']['GetHomeDirectoryOptimized']();
+}
+
 export function GetQuickAccessPaths() {
   return window['go']['backend']['App']['GetQuickAccessPaths']();
+}
+
+export function GetQuickAccessPathsOptimized() {
+  return window['go']['backend']['App']['GetQuickAccessPathsOptimized']();
 }
 
 export function GetSettings() {
@@ -72,6 +96,10 @@ export function GetSettings() {
 
 export function GetSystemRoots() {
   return window['go']['backend']['App']['GetSystemRoots']();
+}
+
+export function GetSystemRootsOptimized() {
+  return window['go']['backend']['App']['GetSystemRootsOptimized']();
 }
 
 export function GetWarmState() {
@@ -94,6 +122,10 @@ export function ListDirectory(arg1) {
   return window['go']['backend']['App']['ListDirectory'](arg1);
 }
 
+export function ListDirectoryOptimized(arg1) {
+  return window['go']['backend']['App']['ListDirectoryOptimized'](arg1);
+}
+
 export function MoveFiles(arg1, arg2) {
   return window['go']['backend']['App']['MoveFiles'](arg1, arg2);
 }
@@ -104,6 +136,10 @@ export function MoveFilesToRecycleBin(arg1) {
 
 export function NavigateToPath(arg1) {
   return window['go']['backend']['App']['NavigateToPath'](arg1);
+}
+
+export function NavigateToPathOptimized(arg1) {
+  return window['go']['backend']['App']['NavigateToPathOptimized'](arg1);
 }
 
 export function OpenFile(arg1) {

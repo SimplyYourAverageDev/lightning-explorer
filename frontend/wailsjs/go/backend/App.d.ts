@@ -9,9 +9,13 @@ export function CopyFiles(arg1:Array<string>,arg2:string):Promise<boolean>;
 
 export function CreateDirectory(arg1:string,arg2:string):Promise<backend.NavigationResponse>;
 
+export function CreateDirectoryOptimized(arg1:string,arg2:string):Promise<Array<number>>;
+
 export function DeleteFiles(arg1:Array<string>):Promise<boolean>;
 
 export function DeletePath(arg1:string):Promise<backend.NavigationResponse>;
+
+export function DeletePathOptimized(arg1:string):Promise<Array<number>>;
 
 export function EjectDrive(arg1:string):Promise<boolean>;
 
@@ -29,15 +33,25 @@ export function GetCurrentWorkingDirectory():Promise<string>;
 
 export function GetDriveInfo():Promise<Array<backend.DriveInfo>>;
 
+export function GetDriveInfoOptimized():Promise<Array<number>>;
+
 export function GetFileDetails(arg1:string):Promise<backend.FileInfo>;
+
+export function GetFileDetailsOptimized(arg1:string):Promise<Array<number>>;
 
 export function GetHomeDirectory():Promise<string>;
 
+export function GetHomeDirectoryOptimized():Promise<Array<number>>;
+
 export function GetQuickAccessPaths():Promise<Array<backend.DriveInfo>>;
+
+export function GetQuickAccessPathsOptimized():Promise<Array<number>>;
 
 export function GetSettings():Promise<backend.Settings>;
 
 export function GetSystemRoots():Promise<Array<string>>;
+
+export function GetSystemRootsOptimized():Promise<Array<number>>;
 
 export function GetWarmState():Promise<backend.WarmState>;
 
@@ -49,11 +63,15 @@ export function IsHidden(arg1:string):Promise<boolean>;
 
 export function ListDirectory(arg1:string):Promise<backend.NavigationResponse>;
 
+export function ListDirectoryOptimized(arg1:string):Promise<Array<number>>;
+
 export function MoveFiles(arg1:Array<string>,arg2:string):Promise<boolean>;
 
 export function MoveFilesToRecycleBin(arg1:Array<string>):Promise<boolean>;
 
 export function NavigateToPath(arg1:string):Promise<backend.NavigationResponse>;
+
+export function NavigateToPathOptimized(arg1:string):Promise<Array<number>>;
 
 export function OpenFile(arg1:string):Promise<boolean>;
 
