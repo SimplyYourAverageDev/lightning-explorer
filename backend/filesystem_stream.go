@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"unsafe"
 )
 
 // BasicEntry holds minimal info for instant UI rendering
@@ -62,7 +63,8 @@ func getExtensionCached(name string) string {
 // listDirectoryBasicEnhanced uses Win32 FindFirstFileExW to get Name+Attrs+Size+ModTime in one syscall
 // This is significantly faster than os.ReadDir + per-file stat calls
 func listDirectoryBasicEnhanced(dir string) ([]EnhancedBasicEntry, error) {
-	// Use FindExInfoBasic for better performance - skips short name retrieval
+	// Use FindFirstFileExW with FindExInfoBasic and FIND_FIRST_EX_LARGE_FETCH when available.
+	// Fallback to FindFirstFileW if the call fails.
 	search := filepath.Join(dir, "*")
 	searchPtr, err := syscall.UTF16PtrFromString(search)
 	if err != nil {
@@ -70,9 +72,41 @@ func listDirectoryBasicEnhanced(dir string) ([]EnhancedBasicEntry, error) {
 	}
 
 	var fd syscall.Win32finddata
-	handle, err := syscall.FindFirstFile(searchPtr, &fd)
-	if err != nil {
-		return nil, err
+
+	// Attempt FindFirstFileExW
+	var handle syscall.Handle
+	if proc := syscall.NewLazyDLL("kernel32.dll").NewProc("FindFirstFileExW"); proc.Find() == nil {
+		const FindExInfoBasic = 1
+		const FindExSearchNameMatch = 0
+		const FIND_FIRST_EX_LARGE_FETCH = 2
+		r1, _, e1 := proc.Call(
+			uintptr(unsafe.Pointer(searchPtr)),
+			uintptr(FindExInfoBasic),
+			uintptr(unsafe.Pointer(&fd)),
+			uintptr(FindExSearchNameMatch),
+			0,
+			uintptr(FIND_FIRST_EX_LARGE_FETCH),
+		)
+		if r1 != uintptr(INVALID_HANDLE_VALUE) && r1 != 0 {
+			handle = syscall.Handle(r1)
+		} else {
+			// Fallback to FindFirstFileW
+			h, err2 := syscall.FindFirstFile(searchPtr, &fd)
+			if err2 != nil {
+				if e1 != nil {
+					return nil, e1
+				}
+				return nil, err2
+			}
+			handle = h
+		}
+	} else {
+		// Ex function not found – use FindFirstFileW
+		h, err2 := syscall.FindFirstFile(searchPtr, &fd)
+		if err2 != nil {
+			return nil, err2
+		}
+		handle = h
 	}
 	defer syscall.FindClose(handle)
 

@@ -18,10 +18,19 @@ export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, 
             ? selectedFileObjects 
             : [file];
         
+        // Initial conservative clamp to avoid off-screen flicker before measurement
+        const pad = 8;
+        const approxWidth = 320;  // typical
+        const approxHeight = 320; // typical menu height
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        let nx = Math.max(pad, Math.min(event.clientX, vw - pad - approxWidth));
+        let ny = Math.max(pad, Math.min(event.clientY, vh - pad - approxHeight));
+
         setContextMenu({
             visible: true,
-            x: event.clientX,
-            y: event.clientY,
+            x: nx,
+            y: ny,
             files: contextFiles
         });
         
@@ -39,10 +48,18 @@ export function useContextMenus(selectedFiles, allFiles, handleCopy, handleCut, 
         }
         
         event.preventDefault();
+        const pad = 8;
+        const approxWidth = 260;
+        const approxHeight = 140;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        let nx = Math.max(pad, Math.min(event.clientX, vw - pad - approxWidth));
+        let ny = Math.max(pad, Math.min(event.clientY, vh - pad - approxHeight));
+
         setEmptySpaceContextMenu({
             visible: true,
-            x: event.clientX,
-            y: event.clientY
+            x: nx,
+            y: ny
         });
         
         return true;

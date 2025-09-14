@@ -10,6 +10,10 @@ export function CopyFiles(arg1, arg2) {
   return window['go']['backend']['App']['CopyFiles'](arg1, arg2);
 }
 
+export function CopyTextToClipboard(arg1) {
+  return window['go']['backend']['App']['CopyTextToClipboard'](arg1);
+}
+
 export function CreateDirectory(arg1, arg2) {
   return window['go']['backend']['App']['CreateDirectory'](arg1, arg2);
 }

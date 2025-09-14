@@ -249,18 +249,54 @@ export function App() {
     } = useFolderCreation(currentPath, handleRefresh, showErrorNotification);
 
     // This is the combined, filtered, and potentially sorted list of files.
-    const allFiles = useMemo(() => {
-        if (!files) return [];
-        
-        const filtered = filterFiles(files, showHiddenFiles);
+    // Worker-driven sorting to offload CPU from main thread
+    const sortWorkerRef = useRef(null);
+    const [workerSortedFiles, setWorkerSortedFiles] = useState(null);
 
-        // THE FIX: Only sort when streaming is complete.
-        if (loading) {
-            return filtered; // Return unsorted (but filtered) list while streaming
+    // Start/stop the worker lifecycle
+    useEffect(() => {
+        if (!sortWorkerRef.current) {
+            try {
+                sortWorkerRef.current = new Worker(new URL('./workers/sortWorker.js', import.meta.url), { type: 'module' });
+                sortWorkerRef.current.onmessage = (e) => {
+                    const { ok, files: sorted, error } = e.data || {};
+                    if (ok) setWorkerSortedFiles(sorted || []);
+                    else console.error('Sort worker error:', error);
+                };
+            } catch (e) {
+                // Worker not available; fall back to main-thread sorting
+                sortWorkerRef.current = null;
+            }
         }
-        
-        return sortFiles(filtered, sortBy, sortOrder); // Return sorted list when complete
+        return () => {
+            if (sortWorkerRef.current) {
+                sortWorkerRef.current.terminate();
+                sortWorkerRef.current = null;
+            }
+        };
+    }, []);
+
+    // Submit sorting to worker when streaming completes
+    useEffect(() => {
+        if (!files) {
+            setWorkerSortedFiles([]);
+            return;
+        }
+        const filtered = filterFiles(files, showHiddenFiles);
+        if (loading) {
+            // During streaming, show filtered-unsorted for responsiveness
+            setWorkerSortedFiles(filtered);
+            return;
+        }
+        if (sortWorkerRef.current) {
+            sortWorkerRef.current.postMessage({ files: filtered, sortBy, sortOrder });
+        } else {
+            // Fallback local sort if worker unavailable
+            setWorkerSortedFiles(sortFiles(filtered, sortBy, sortOrder));
+        }
     }, [files, showHiddenFiles, sortBy, sortOrder, loading]);
+
+    const allFiles = workerSortedFiles || [];
     
     // Split into directories/files in a single pass to avoid two extra iterations on large lists
     const { filteredDirectories, filteredFiles } = useMemo(() => {

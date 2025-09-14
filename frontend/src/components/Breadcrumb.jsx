@@ -1,4 +1,5 @@
 import { memo, useMemo, useCallback, useState } from "preact/compat";
+import { BreadcrumbContextMenu } from "./BreadcrumbContextMenu";
 import { schedulePrefetch } from "../utils/prefetch.js";
 
 // Memoized Breadcrumb component with drag and drop support
@@ -13,6 +14,7 @@ const Breadcrumb = memo(({
     onDrop
 }) => {
     const [dragOverSegment, setDragOverSegment] = useState(null);
+    const [menu, setMenu] = useState({ visible: false, x: 0, y: 0, path: '' });
     
     const segments = useMemo(() => {
         if (!currentPath) return [];
@@ -37,6 +39,38 @@ const Breadcrumb = memo(({
         
         onNavigate(newPath);
     }, [segments, onNavigate, dragState?.isDragging]);
+
+    const getSegmentPath = useCallback((index) => {
+        const pathSegments = segments.slice(0, index + 1);
+        let p = pathSegments.join('\\');
+        if (index === 0 && pathSegments[0].includes(':')) p += '\\';
+        return p;
+    }, [segments]);
+
+    const handleSegmentContextMenu = useCallback((e, index) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const path = getSegmentPath(index);
+        // Pre-clamp roughly
+        const pad = 8; const vw = window.innerWidth; const vh = window.innerHeight;
+        const approxW = 220; const approxH = 60;
+        const nx = Math.max(pad, Math.min(e.clientX, vw - pad - approxW));
+        const ny = Math.max(pad, Math.min(e.clientY, vh - pad - approxH));
+        setMenu({ visible: true, x: nx, y: ny, path });
+    }, [getSegmentPath]);
+
+    const closeMenu = useCallback(() => setMenu({ visible: false, x: 0, y: 0, path: '' }), []);
+
+    const handleCopyPath = useCallback(async (path) => {
+        const text = `"${path}"`;
+        try {
+            const { CopyTextToClipboard } = await import('../../wailsjs/go/backend/App');
+            await CopyTextToClipboard(text);
+        } catch (_) {
+            try { await navigator.clipboard.writeText(text); } catch (_) {}
+        }
+        closeMenu();
+    }, [closeMenu]);
     
     // Create virtual folder objects for each breadcrumb segment
     const getSegmentFolder = useCallback((index) => {
@@ -145,6 +179,7 @@ const Breadcrumb = memo(({
                         <span 
                             className={`nav-segment ${isCurrentPath ? 'current' : ''} ${isDragOver ? 'drag-over' : ''} ${canDrop ? 'drop-target' : ''}`}
                             onClick={() => handleSegmentClick(index)}
+                            onContextMenu={(e) => handleSegmentContextMenu(e, index)}
                             onMouseEnter={() => {
                                 const segmentFolder = getSegmentFolder(index);
                                 schedulePrefetch(segmentFolder.path);
@@ -163,6 +198,15 @@ const Breadcrumb = memo(({
                     </div>
                 );
             })}
+            {/* Breadcrumb context menu */}
+            <BreadcrumbContextMenu
+                visible={menu.visible}
+                x={menu.x}
+                y={menu.y}
+                path={menu.path}
+                onClose={closeMenu}
+                onCopy={handleCopyPath}
+            />
         </div>
     );
 });

@@ -182,7 +182,8 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
                         height: calculations.itemHeight,
                         transform: `translateY(${top}px)`,
                         padding: 'var(--space-sm) 0',
-                        willChange: 'transform' // Hint to browser for optimization
+                        willChange: 'transform', // Hint to browser for optimization
+                        contentVisibility: 'auto' // Skip painting offscreen rows
                     }}
                 >
                     <FileItem
@@ -223,6 +224,9 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
         isInspectMode
     ]);
 
+    // Ensure the inner canvas has at least the viewport height so the empty state can center correctly
+    const canvasHeight = Math.max(calculations.totalHeight || 0, containerHeight || 0);
+
     return (
         <div
             ref={ref}
@@ -237,7 +241,7 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
             }}
         >
             <div style={{ 
-                height: calculations.totalHeight, 
+                height: canvasHeight, 
                 position: 'relative', 
                 width: '100%',
                 pointerEvents: 'none' // Improve scrolling performance
@@ -299,7 +303,7 @@ export const StreamingVirtualizedFileList = memo(forwardRef(function StreamingVi
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: 'var(--brut-text-tertiary)',
-                        pointerEvents: 'auto'
+                        pointerEvents: 'none'
                     }}>
                         <div className="text-technical" style={{fontSize: 'var(--font-base)'}}>
                             Directory is empty

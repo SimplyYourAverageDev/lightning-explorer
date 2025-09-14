@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "preact/hooks";
 import { log, error } from "../utils/logger";
 import { EventsOn, EventsOff } from "../../wailsjs/runtime/runtime";
 import { StreamDirectory } from "../../wailsjs/go/backend/App";  // static import
+import { serializationUtils } from "../utils/serialization";
 
 export function useStreamingNavigation(setError, setNavigationStats) {
     const [currentPath, setCurrentPath] = useState('');
@@ -12,12 +13,14 @@ export function useStreamingNavigation(setError, setNavigationStats) {
     // --- Internal refs ------------------------------------------------------
     // Performance tracking
     const navigationStartTime = useRef(null);
+    const basePathRef = useRef('');
     const loadingTimeout = useRef(null);
     const activeNavigationRef = useRef(null);
 
     // Batching to minimise re-renders when many DirectoryBatch events arrive
     const pendingFilesRef = useRef([]);
     const flushTimerRef  = useRef(null);
+    const mpActiveRef = useRef(false);
 
     // Track if event listeners are registered
     const listenersRegistered = useRef(false);
@@ -86,9 +89,15 @@ export function useStreamingNavigation(setError, setNavigationStats) {
 
         setFiles([]);
         setCurrentPath(path);
+        basePathRef.current = path || '';
+        mpActiveRef.current = false; // reset protocol preference for new navigation
     }, []);
 
     const onBatch = useCallback((batchFiles) => {
+        if (mpActiveRef.current) {
+            // Ignore JSON batches when MP streaming is active
+            return;
+        }
         log('📡 Frontend received DirectoryBatch:', batchFiles?.length, 'files');
         const navigationContext = activeNavigationRef.current;
         if (!navigationContext || navigationContext.cancelled) {
@@ -101,6 +110,39 @@ export function useStreamingNavigation(setError, setNavigationStats) {
         // Add to pending buffer and schedule a flush
         pendingFilesRef.current.push(...batchFiles);
         scheduleFlush();
+    }, [scheduleFlush]);
+
+    // MessagePack batch handler (compact wire entries)
+    const onBatchMP = useCallback((payload) => {
+        const navigationContext = activeNavigationRef.current;
+        if (!navigationContext || navigationContext.cancelled) return;
+
+        try {
+            const wire = serializationUtils.deserialize(payload);
+            if (!Array.isArray(wire) || wire.length === 0) return;
+            mpActiveRef.current = true; // prefer MP for this navigation
+
+            // Build absolute paths using basePath captured at DirectoryStart
+            const base = basePathRef.current || '';
+            const ensureSep = base && (base.endsWith('\\') || base.endsWith('/')) ? '' : (base ? '\\' : '');
+
+            const mapped = wire.map(w => ({
+                name: w.n ?? w.N,
+                path: (base ? (base + ensureSep) : '') + (w.n ?? w.N),
+                isDir: (w.d ?? w.D) === true,
+                size: Number(w.s ?? w.S ?? 0),
+                modTime: Number(w.m ?? w.M ?? 0),
+                permissions: '',
+                extension: '',
+                isHidden: (w.h ?? w.H) === true,
+            }));
+
+            pendingFilesRef.current.push(...mapped);
+            scheduleFlush();
+        } catch (e) {
+            // Fall back silently; JSON batches continue
+            log('⚠️ Failed to decode MP batch:', e);
+        }
     }, [scheduleFlush]);
 
     const onComplete = useCallback((data) => {
@@ -179,6 +221,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
 
             const unsubDirectoryStart = EventsOn('DirectoryStart', onStart);
             const unsubDirectoryBatch = EventsOn('DirectoryBatch', onBatch);
+            const unsubDirectoryBatchMP = EventsOn('DirectoryBatchMP', onBatchMP);
             const unsubDirectoryComplete = EventsOn('DirectoryComplete', onComplete);
             const unsubDirectoryError = EventsOn('DirectoryError', onError);
 
@@ -186,6 +229,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
             eventUnsubscribers.current = [
                 unsubDirectoryStart,
                 unsubDirectoryBatch,
+                unsubDirectoryBatchMP,
                 unsubDirectoryComplete,
                 unsubDirectoryError
             ];
@@ -218,6 +262,7 @@ export function useStreamingNavigation(setError, setNavigationStats) {
             // Global fallback to ensure we always detach listeners
             EventsOff('DirectoryStart');
             EventsOff('DirectoryBatch');
+            EventsOff('DirectoryBatchMP');
             EventsOff('DirectoryComplete');
             EventsOff('DirectoryError');
             

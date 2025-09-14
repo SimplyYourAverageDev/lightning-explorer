@@ -142,10 +142,9 @@ type FileSystemManager struct {
 	ctx          context.Context
 	eventEmitter *EventEmitter
 	// dirCache stores recently enumerated directory contents keyed by absolute path.
-	// The entry is invalidated automatically when the directory's last write time
-	// no longer matches. This yields ~10× faster subsequent navigations to the
-	// same folder because it avoids re-enumerating the filesystem.
-	dirCache sync.Map // map[string]dirCacheEntry
+	// Bounded LRU with TTL and last write time validation for fast repeat navigations
+	// without unbounded memory growth.
+	dirCache *lruDirCache
 }
 
 // FileOperationsManager implementation

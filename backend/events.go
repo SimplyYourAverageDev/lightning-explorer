@@ -55,6 +55,15 @@ func (e *EventEmitter) EmitDirectoryBatch(entries []FileInfo) {
 	}
 }
 
+// EmitDirectoryBatchMP emits a msgpack-encoded batch of compact entries
+func (e *EventEmitter) EmitDirectoryBatchMP(mp []byte, count int) {
+	if e.ctx != nil {
+		// Wails will transmit []byte to frontend (arrives as base64 string in v2)
+		runtime.EventsEmit(e.ctx, "DirectoryBatchMP", mp)
+		logPrintf("📡 Emitted MP batch of %d entries (%d bytes)", count, len(mp))
+	}
+}
+
 // EmitDirectoryComplete signals that directory loading is complete
 func (e *EventEmitter) EmitDirectoryComplete(path string, totalFiles, totalDirs int) {
 	if e.ctx != nil {

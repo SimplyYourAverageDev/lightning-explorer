@@ -7,6 +7,8 @@ export function CopyFilePathsToClipboard(arg1:Array<string>):Promise<boolean>;
 
 export function CopyFiles(arg1:Array<string>,arg2:string):Promise<boolean>;
 
+export function CopyTextToClipboard(arg1:string):Promise<boolean>;
+
 export function CreateDirectory(arg1:string,arg2:string):Promise<backend.NavigationResponse>;
 
 export function CreateDirectoryOptimized(arg1:string,arg2:string):Promise<Array<number>>;

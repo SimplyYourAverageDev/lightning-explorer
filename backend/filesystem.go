@@ -13,6 +13,8 @@ import (
 func NewFileSystemManager(platform PlatformManagerInterface) *FileSystemManager {
 	return &FileSystemManager{
 		platform: platform,
+		// default cap 256 entries, 60s TTL; tuned for responsiveness + memory
+		dirCache: newLRUDirCache(256, 60*time.Second),
 	}
 }
 
@@ -22,12 +24,7 @@ func (fs *FileSystemManager) SetContext(ctx context.Context) {
 	fs.eventEmitter = NewEventEmitter(ctx)
 }
 
-// dirCacheEntry represents a cached directory listing along with the directory
-// modification timestamp. We keep it small and copy-friendly.
-type dirCacheEntry struct {
-	files   []FileInfo
-	modTime int64 // seconds since epoch
-}
+// dirCacheEntry moved to cache_dir.go
 
 // ListDirectory lists the contents of a directory with Windows-optimized streaming and concurrency
 func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
@@ -49,12 +46,9 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	}
 
 	// ─── Fast path: return cached listing if directory hasn't changed ────────
-	if v, ok := fs.dirCache.Load(path); ok {
-		if entry, ok2 := v.(dirCacheEntry); ok2 {
-			if entry.modTime == info.ModTime().Unix() {
-				// Cache hit – build response directly.
-				return fs.buildDirectoryResponse(path, entry.files, startTime)
-			}
+	if fs.dirCache != nil {
+		if entry, ok := fs.dirCache.Get(path, info.ModTime().Unix()); ok {
+			return fs.buildDirectoryResponse(path, entry.files, startTime)
 		}
 	}
 
@@ -65,7 +59,9 @@ func (fs *FileSystemManager) ListDirectory(path string) NavigationResponse {
 	}
 
 	// Store in cache for future quick access
-	fs.dirCache.Store(path, dirCacheEntry{files: allEntries, modTime: info.ModTime().Unix()})
+	if fs.dirCache != nil {
+		fs.dirCache.Put(path, allEntries, info.ModTime().Unix())
+	}
 
 	return fs.buildDirectoryResponse(path, allEntries, startTime)
 }
@@ -392,13 +388,9 @@ func (fs *FileSystemManager) StreamDirectory(dir string) {
 
 	// ─── Check cache first ───────────────────────────────────────────────────
 	var allFiles []FileInfo
-	if info != nil {
-		if v, ok := fs.dirCache.Load(dir); ok {
-			if entry, ok2 := v.(dirCacheEntry); ok2 {
-				if entry.modTime == info.ModTime().Unix() {
-					allFiles = entry.files
-				}
-			}
+	if info != nil && fs.dirCache != nil {
+		if entry, ok := fs.dirCache.Get(dir, info.ModTime().Unix()); ok {
+			allFiles = entry.files
 		}
 	}
 
@@ -411,7 +403,9 @@ func (fs *FileSystemManager) StreamDirectory(dir string) {
 			}
 			return
 		}
-		fs.dirCache.Store(dir, dirCacheEntry{files: allFiles, modTime: info.ModTime().Unix()})
+		if fs.dirCache != nil {
+			fs.dirCache.Put(dir, allFiles, info.ModTime().Unix())
+		}
 	}
 
 	// Batch parameters
@@ -435,7 +429,13 @@ func (fs *FileSystemManager) StreamDirectory(dir string) {
 			}
 		}
 
-		fs.eventEmitter.EmitDirectoryBatch(batch)
+		// Emit MessagePack compact batch for optimized clients
+		if fs.eventEmitter != nil {
+			wire := toWireEntries(batch)
+			if mp, err := GetSerializationUtils().encodeMsgPackBinary(wire); err == nil {
+				fs.eventEmitter.EmitDirectoryBatchMP(mp, len(wire))
+			}
+		}
 	}
 
 	// Emit completion event

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "preact/hooks";
+import { useRef, useEffect, useState } from "preact/hooks";
 import { memo } from "preact/compat";
 import { 
     CopyIcon, 
@@ -12,6 +12,7 @@ import {
 // Memoized Context Menu Component
 const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, onMoveToTrash, onCopy, onCut, onRename, onHide }) => {
     const menuRef = useRef(null);
+    const [pos, setPos] = useState({ left: x, top: y });
     
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -82,7 +83,58 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
             menuRef.current.focus();
         }
     }, [visible]);
+
+    // Re-clamp if the menu size changes after icons/fonts render
+    useEffect(() => {
+        if (!visible || !menuRef.current) return;
+        const pad = 8;
+        const el = menuRef.current;
+        const observer = new ResizeObserver(() => {
+            const rect = el.getBoundingClientRect();
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            let nx = pos.left;
+            let ny = pos.top;
+            if (rect.right > vw - pad) nx = Math.max(pad, vw - pad - rect.width);
+            if (rect.bottom > vh - pad) ny = Math.max(pad, vh - pad - rect.height);
+            if (nx !== pos.left || ny !== pos.top) setPos({ left: nx, top: ny });
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [visible, pos.left, pos.top]);
     
+    // Clamp to viewport when becoming visible or when x/y change
+    useEffect(() => {
+        if (!visible) return;
+        const pad = 8; // viewport padding
+        const clamp = () => {
+            const el = menuRef.current;
+            if (!el) return;
+            // temporarily place at raw coords to measure
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            const rect = el.getBoundingClientRect();
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            let nx = x;
+            let ny = y;
+            if (rect.right > vw - pad) nx = Math.max(pad, vw - pad - rect.width);
+            if (rect.bottom > vh - pad) ny = Math.max(pad, vh - pad - rect.height);
+            if (nx < pad) nx = pad;
+            if (ny < pad) ny = pad;
+            setPos({ left: nx, top: ny });
+        };
+        clamp();
+        // also clamp on resize/scroll to keep it visible
+        const onWin = () => clamp();
+        window.addEventListener('resize', onWin);
+        window.addEventListener('scroll', onWin, true);
+        return () => {
+            window.removeEventListener('resize', onWin);
+            window.removeEventListener('scroll', onWin, true);
+        };
+    }, [visible, x, y]);
+
     if (!visible) return null;
     
     return (
@@ -92,8 +144,8 @@ const ContextMenu = memo(({ visible, x, y, files, onClose, onPermanentDelete, on
             onSelectStart={(e) => e.preventDefault()}
             style={{ 
                 position: 'fixed', 
-                left: x, 
-                top: y, 
+                left: pos.left, 
+                top: pos.top, 
                 zIndex: 1000 
             }}
             tabIndex={-1}
