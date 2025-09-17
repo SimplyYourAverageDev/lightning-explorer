@@ -302,70 +302,21 @@ func (fo *FileOperationsManager) MoveFilesToRecycleBin(filePaths []string) bool 
 	log.Printf("Moving %d files to recycle bin", len(filePaths))
 
 	if runtime.GOOS == "windows" {
-		return fo.moveToWindowsRecycleBinNative(filePaths)
+		if fo.moveToWindowsRecycleBinNative(filePaths) {
+			return true
+		}
+		log.Printf("Native recycle bin call failed; falling back to permanent delete")
+		for _, path := range filePaths {
+			if err := os.RemoveAll(path); err != nil {
+				log.Printf("Failed to remove %s: %v", path, err)
+				return false
+			}
+		}
+		return true
 	}
 
-	// Fallback to individual file processing for other platforms
 	for _, filePath := range filePaths {
 		success := fo.moveToRecycleBin(filePath)
-		if !success {
-			log.Printf("Error moving %s to recycle bin", filePath)
-			return false
-		}
-	}
-
-	return true
-}
-
-// moveToWindowsRecycleBinNative uses SHFileOperationW for proper recycle bin operations
-func (fo *FileOperationsManager) moveToWindowsRecycleBinNative(filePaths []string) bool {
-	log.Printf("Moving files to Windows Recycle Bin using native API")
-
-	// Convert each path to UTF16 and build the final buffer
-	var pathsUTF16 []uint16
-
-	for _, path := range filePaths {
-		// Convert each path individually to UTF16
-		pathUTF16, err := syscall.UTF16FromString(path)
-		if err != nil {
-			log.Printf("Failed to convert path to UTF16: %s, error: %v", path, err)
-			return false
-		}
-		// Append the UTF16 path (excluding the automatic null terminator from UTF16FromString)
-		pathsUTF16 = append(pathsUTF16, pathUTF16[:len(pathUTF16)-1]...)
-		// Add single null terminator for this path
-		pathsUTF16 = append(pathsUTF16, 0)
-	}
-	// Add final null terminator for the entire list
-	pathsUTF16 = append(pathsUTF16, 0)
-
-	// Set up SHFILEOPSTRUCT
-	fileOp := SHFILEOPSTRUCT{
-		Hwnd:   0, // No parent window
-		WFunc:  FO_DELETE,
-		PFrom:  uintptr(unsafe.Pointer(&pathsUTF16[0])),
-		PTo:    0, // Not needed for delete
-		FFlags: FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT,
-	}
-
-	// Call SHFileOperationW
-	ret, _, err := shFileOperationW.Call(uintptr(unsafe.Pointer(&fileOp)))
-	if ret != 0 {
-		log.Printf("SHFileOperationW failed with code %d: %v", ret, err)
-		// Fallback to manual recycle bin method
-		return fo.moveToWindowsRecycleBinManual(filePaths)
-	}
-
-	log.Printf("Successfully moved %d files to recycle bin using native API", len(filePaths))
-	return true
-}
-
-// moveToWindowsRecycleBinManual provides fallback manual recycle bin implementation
-func (fo *FileOperationsManager) moveToWindowsRecycleBinManual(filePaths []string) bool {
-	log.Printf("Using manual recycle bin method as fallback")
-
-	for _, filePath := range filePaths {
-		success := fo.moveToWindowsRecycleBin(filePath)
 		if !success {
 			log.Printf("Error moving %s to recycle bin", filePath)
 			return false

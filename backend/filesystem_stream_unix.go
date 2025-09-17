@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 // BasicEntry holds minimal info for instant UI rendering
@@ -26,66 +25,62 @@ type EnhancedBasicEntry struct {
 	Permissions string `json:"permissions"`
 }
 
-var (
-	extensionCache   = make(map[string]string)
-	extensionCacheMu sync.RWMutex
-)
-
-func getExtensionCached(name string) string {
-	extensionCacheMu.RLock()
-	if ext, ok := extensionCache[name]; ok {
-		extensionCacheMu.RUnlock()
-		return ext
-	}
-	extensionCacheMu.RUnlock()
-
-	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(name), "."))
-
-	extensionCacheMu.Lock()
-	if _, ok := extensionCache[name]; !ok {
-		if len(extensionCache) < 10000 {
-			extensionCache[name] = ext
-		}
-	}
-	extensionCacheMu.Unlock()
-
-	return ext
-}
-
-// listDirectoryBasicEnhanced uses standard library to enumerate directory entries
-func listDirectoryBasicEnhanced(dir string) ([]EnhancedBasicEntry, error) {
+func enumerateDirectoryBasicEnhanced(dir string, includeHidden bool, fn func(EnhancedBasicEntry) bool) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	result := make([]EnhancedBasicEntry, 0, len(entries))
 	for _, entry := range entries {
 		name := entry.Name()
+		isHidden := strings.HasPrefix(name, ".")
+		if !includeHidden && isHidden {
+			continue
+		}
+
 		fullPath := filepath.Join(dir, name)
 		info, err := entry.Info()
 		if err != nil {
 			continue
 		}
 		isDir := entry.IsDir()
-		isHidden := strings.HasPrefix(name, ".")
-		ext := ""
+
+		var ext string
 		if !isDir {
-			ext = getExtensionCached(name)
+			if idx := strings.LastIndexByte(name, '.'); idx >= 0 && idx+1 < len(name) {
+				ext = strings.ToLower(name[idx+1:])
+			}
 		}
-		result = append(result, EnhancedBasicEntry{
+
+		enhanced := EnhancedBasicEntry{
 			BasicEntry: BasicEntry{
 				Name:      name,
 				Path:      fullPath,
 				IsDir:     isDir,
-				IsHidden:  isHidden,
 				Extension: ext,
+				IsHidden:  isHidden,
 			},
 			Size:        info.Size(),
 			ModTime:     info.ModTime().Unix(),
 			Permissions: info.Mode().String(),
-		})
+		}
+
+		if !fn(enhanced) {
+			break
+		}
 	}
 
+	return nil
+}
+
+func listDirectoryBasicEnhanced(dir string, includeHidden bool) ([]EnhancedBasicEntry, error) {
+	result := make([]EnhancedBasicEntry, 0, 256)
+	err := enumerateDirectoryBasicEnhanced(dir, includeHidden, func(entry EnhancedBasicEntry) bool {
+		result = append(result, entry)
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
 	return result, nil
 }

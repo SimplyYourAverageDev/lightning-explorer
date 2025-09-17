@@ -4,15 +4,28 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"time"
+)
+
+const (
+	driveManagerCacheTTL = 2 * time.Second
+	quickAccessCacheTTL  = 30 * time.Second
 )
 
 // NewDriveManager creates a new drive manager instance
-func NewDriveManager() *DriveManager {
-	return &DriveManager{}
+func NewDriveManager(platform PlatformManagerInterface) *DriveManager {
+	if platform == nil {
+		platform = NewPlatformManager()
+	}
+	return &DriveManager{platform: platform}
 }
 
 // GetDriveInfo returns information about available drives
 func (d *DriveManager) GetDriveInfo() []DriveInfo {
+	if cached := d.loadDriveCache(); cached != nil {
+		return cached
+	}
+
 	var drives []DriveInfo
 
 	switch runtime.GOOS {
@@ -26,14 +39,16 @@ func (d *DriveManager) GetDriveInfo() []DriveInfo {
 		logPrintf("Drive enumeration not supported on %s", runtime.GOOS)
 	}
 
+	d.storeDriveCache(drives)
 	return drives
 }
 
 // getWindowsDrives returns Windows drive information using optimized API calls
 func (d *DriveManager) getWindowsDrives() []DriveInfo {
-	// Use the optimized platform manager for drive enumeration
-	platformManager := NewPlatformManager()
-	return platformManager.GetWindowsDrivesOptimized()
+	if d.platform == nil {
+		d.platform = NewPlatformManager()
+	}
+	return d.platform.GetWindowsDrivesOptimized()
 }
 
 // getMacVolumes returns macOS volume information
@@ -105,13 +120,18 @@ func (d *DriveManager) getLinuxMountPoints() []DriveInfo {
 
 // GetSystemRoots returns system root paths for quick navigation
 func (d *DriveManager) GetSystemRoots() []string {
-	// Use the optimized platform manager for system roots
-	platformManager := NewPlatformManager()
-	return platformManager.GetSystemRoots()
+	if d.platform == nil {
+		d.platform = NewPlatformManager()
+	}
+	return d.platform.GetSystemRoots()
 }
 
 // GetQuickAccessPaths returns commonly accessed directories for quick navigation
 func (d *DriveManager) GetQuickAccessPaths() []DriveInfo {
+	if cached := d.loadQuickAccessCache(); cached != nil {
+		return cached
+	}
+
 	var quickPaths []DriveInfo
 
 	switch runtime.GOOS {
@@ -123,6 +143,7 @@ func (d *DriveManager) GetQuickAccessPaths() []DriveInfo {
 		quickPaths = d.getLinuxQuickAccess()
 	}
 
+	d.storeQuickAccessCache(quickPaths)
 	return quickPaths
 }
 
@@ -131,7 +152,13 @@ func (d *DriveManager) getWindowsQuickAccess() []DriveInfo {
 	var quickPaths []DriveInfo
 
 	// Get common Windows directories
-	homeDir, _ := os.UserHomeDir()
+	homeDir := ""
+	if d.platform != nil {
+		homeDir = d.platform.GetHomeDirectory()
+	}
+	if homeDir == "" {
+		homeDir, _ = os.UserHomeDir()
+	}
 
 	commonPaths := []struct {
 		path string
@@ -166,7 +193,13 @@ func (d *DriveManager) getWindowsQuickAccess() []DriveInfo {
 func (d *DriveManager) getMacQuickAccess() []DriveInfo {
 	var quickPaths []DriveInfo
 
-	homeDir, _ := os.UserHomeDir()
+	homeDir := ""
+	if d.platform != nil {
+		homeDir = d.platform.GetHomeDirectory()
+	}
+	if homeDir == "" {
+		homeDir, _ = os.UserHomeDir()
+	}
 
 	commonPaths := []struct {
 		path string
@@ -201,7 +234,13 @@ func (d *DriveManager) getMacQuickAccess() []DriveInfo {
 func (d *DriveManager) getLinuxQuickAccess() []DriveInfo {
 	var quickPaths []DriveInfo
 
-	homeDir, _ := os.UserHomeDir()
+	homeDir := ""
+	if d.platform != nil {
+		homeDir = d.platform.GetHomeDirectory()
+	}
+	if homeDir == "" {
+		homeDir, _ = os.UserHomeDir()
+	}
 
 	commonPaths := []struct {
 		path string
@@ -231,4 +270,69 @@ func (d *DriveManager) getLinuxQuickAccess() []DriveInfo {
 	}
 
 	return quickPaths
+}
+
+func (d *DriveManager) loadDriveCache() []DriveInfo {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if len(d.driveCache) == 0 || time.Now().After(d.driveCacheExpiry) {
+		return nil
+	}
+	cached := make([]DriveInfo, len(d.driveCache))
+	copy(cached, d.driveCache)
+	return cached
+}
+
+func (d *DriveManager) storeDriveCache(drives []DriveInfo) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(drives) == 0 {
+		d.driveCache = nil
+		d.driveCacheExpiry = time.Time{}
+		return
+	}
+	d.driveCache = make([]DriveInfo, len(drives))
+	copy(d.driveCache, drives)
+	d.driveCacheExpiry = time.Now().Add(driveManagerCacheTTL)
+}
+
+func (d *DriveManager) loadQuickAccessCache() []DriveInfo {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if len(d.quickAccessCache) == 0 || time.Now().After(d.quickAccessCacheExpiry) {
+		return nil
+	}
+	cached := make([]DriveInfo, len(d.quickAccessCache))
+	copy(cached, d.quickAccessCache)
+	return cached
+}
+
+func (d *DriveManager) storeQuickAccessCache(paths []DriveInfo) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(paths) == 0 {
+		d.quickAccessCache = nil
+		d.quickAccessCacheExpiry = time.Time{}
+		return
+	}
+	d.quickAccessCache = make([]DriveInfo, len(paths))
+	copy(d.quickAccessCache, paths)
+	d.quickAccessCacheExpiry = time.Now().Add(quickAccessCacheTTL)
+}
+
+// InvalidateCaches clears cached drive and quick access data.
+func (d *DriveManager) InvalidateCaches() {
+	d.mu.Lock()
+	d.driveCache = nil
+	d.driveCacheExpiry = time.Time{}
+	d.quickAccessCache = nil
+	d.quickAccessCacheExpiry = time.Time{}
+	d.mu.Unlock()
+
+	if d.platform == nil {
+		return
+	}
+	if concrete, ok := d.platform.(*PlatformManager); ok {
+		concrete.invalidateDriveCaches()
+	}
 }

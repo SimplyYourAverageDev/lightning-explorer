@@ -3,6 +3,7 @@ module lightning_explorer
 go 1.23
 
 require (
+	github.com/go-ole/go-ole v1.3.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/wailsapp/wails/v2 v2.10.2
 	golang.org/x/sys v0.30.0
@@ -10,7 +11,6 @@ require (
 
 require (
 	github.com/bep/debounce v1.2.1 // indirect
-	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect

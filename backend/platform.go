@@ -31,7 +31,9 @@ var (
 
 // NewPlatformManager creates a new platform manager instance
 func NewPlatformManager() *PlatformManager {
-	return &PlatformManager{}
+	return &PlatformManager{
+		volumeCache: make(map[string]volumeLabelCacheEntry),
+	}
 }
 
 // GetHomeDirectory returns the user's home directory

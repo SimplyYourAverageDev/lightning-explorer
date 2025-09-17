@@ -15,6 +15,30 @@ import {
     PushPinIcon,
 } from '@phosphor-icons/react';
 import { schedulePrefetch } from "../utils/prefetch.js";
+import { serializationUtils, EnhancedAPI } from "../utils/serialization";
+
+const QUICK_ACCESS_ICON_MAP = new Map([
+	["home", HouseIcon],
+	["desktop", DesktopIcon],
+	["documents", FolderIcon],
+	["downloads", DownloadIcon],
+	["music", MusicNotesIcon],
+	["pictures", ImageIcon],
+	["videos", HardDriveIcon],
+	["program files", HardDriveIcon],
+	["program files (x86)", HardDriveIcon],
+	["windows", HardDriveIcon],
+]);
+
+const resolveQuickAccessIcon = (name = "", path = "") => {
+	const key = name.toLowerCase();
+	if (QUICK_ACCESS_ICON_MAP.has(key)) {
+		return QUICK_ACCESS_ICON_MAP.get(key);
+	}
+	if (path.toLowerCase().includes("desktop")) return DesktopIcon;
+	if (path.toLowerCase().includes("download")) return DownloadIcon;
+	return FolderIcon;
+};
 
 // Memoized Sidebar component
 const Sidebar = memo(({
@@ -37,48 +61,117 @@ const Sidebar = memo(({
     const [drivesExpanded, setDrivesExpanded] = useState(false);
     const [loadingDrives, setLoadingDrives] = useState(false);
     
-    // Build the fixed list of Quick-Access folders we want (Home, Desktop, Documents…)
-    // then ask the backend which ones actually exist.
-    useEffect(() => {
-        const buildQuickAccess = async () => {
-            try {
-                const { GetHomeDirectory, FileExists } = await import('../../wailsjs/go/backend/App');
+	// Build Quick Access list via backend API (optimized messagepack path with fallback)
+	useEffect(() => {
+		let cancelled = false;
 
-                const homeDir = await GetHomeDirectory();
-                if (!homeDir) return;
+		const legacyBuild = async () => {
+			try {
+				const { GetHomeDirectory, FileExists } = await import('../../wailsjs/go/backend/App');
+				const homeDir = await GetHomeDirectory();
+				if (!homeDir || cancelled) return;
 
-                const pathSep = homeDir.includes('\\') ? '\\' : '/';
+				const pathSep = homeDir.includes('\\') ? '\\' : '/';
+				const candidates = [
+					{ name: 'Home', path: homeDir },
+					{ name: 'Desktop', path: `${homeDir}${pathSep}Desktop` },
+					{ name: 'Documents', path: `${homeDir}${pathSep}Documents` },
+					{ name: 'Downloads', path: `${homeDir}${pathSep}Downloads` },
+					{ name: 'Music', path: `${homeDir}${pathSep}Music` },
+					{ name: 'Pictures', path: `${homeDir}${pathSep}Pictures` },
+				];
 
-                const candidates = [
-                    { name: 'Home',      path: homeDir,                               icon: HouseIcon },
-                    { name: 'Desktop',   path: `${homeDir}${pathSep}Desktop`,         icon: DesktopIcon },
-                    { name: 'Documents', path: `${homeDir}${pathSep}Documents`,       icon: FolderIcon },
-                    { name: 'Downloads', path: `${homeDir}${pathSep}Downloads`,       icon: DownloadIcon },
-                    { name: 'Music',     path: `${homeDir}${pathSep}Music`,           icon: MusicNotesIcon },
-                    { name: 'Pictures',  path: `${homeDir}${pathSep}Pictures`,        icon: ImageIcon },
-                ];
+				const filtered = [];
+				for (const item of candidates) {
+					try {
+						const exists = await FileExists(item.path);
+						if (exists) {
+							filtered.push({
+								path: item.path,
+								name: item.name,
+								icon: resolveQuickAccessIcon(item.name, item.path),
+							});
+						}
+					} catch {
+						// ignore failures in fallback path
+					}
+				}
 
-                // Ask backend which of these actually exist
-                const filtered = [];
-                for (const item of candidates) {
-                    try {
-                        const exists = await FileExists(item.path);
-                        if (exists) {
-                            filtered.push(item);
-                        }
-                    } catch (e) {
-                        // If the check fails, skip that folder silently
-                    }
-                }
+				if (!cancelled) {
+					const unique = new Map();
+					for (const item of filtered) {
+						if (!unique.has(item.path)) {
+							unique.set(item.path, item);
+						}
+					}
+					setQuickAccessItems([...unique.values()]);
+				}
+			} catch (err) {
+				console.error('Legacy quick access build failed:', err);
+			}
+		};
 
-                setQuickAccessItems(filtered);
-            } catch (err) {
-                console.error('Failed to build quick access list:', err);
-            }
-        };
+		const buildQuickAccess = async () => {
+			try {
+				const wailsAPI = await import('../../wailsjs/go/backend/App');
+				let items = [];
+				try {
+					const enhancedAPI = new EnhancedAPI(wailsAPI, serializationUtils);
+					const result = await enhancedAPI.getQuickAccessPaths();
+					if (Array.isArray(result)) {
+						items = result;
+					}
+				} catch (enhancedErr) {
+					if (wailsAPI.GetQuickAccessPaths) {
+						const fallback = await wailsAPI.GetQuickAccessPaths();
+						if (Array.isArray(fallback)) {
+							items = fallback;
+						}
+					} else {
+						throw enhancedErr;
+					}
+				}
 
-        buildQuickAccess();
-    }, []);
+				if (cancelled) {
+					return;
+				}
+
+				if (!Array.isArray(items)) {
+					items = [];
+				}
+
+				const normalized = items
+					.map((item) => {
+						const path = item?.path || item?.Path || '';
+						if (!path) return null;
+						const name = item?.name || item?.Name || (path.split(/[\\/]/).pop() || path);
+						const IconComponent = resolveQuickAccessIcon(name, path);
+						return { path, name, icon: IconComponent };
+					})
+					.filter(Boolean);
+
+				const unique = new Map();
+				for (const item of normalized) {
+					if (!unique.has(item.path)) {
+						unique.set(item.path, item);
+					}
+				}
+
+				setQuickAccessItems([...unique.values()]);
+			} catch (err) {
+				console.error('Failed to build quick access list via backend:', err);
+				if (!cancelled) {
+					legacyBuild();
+				}
+			}
+		};
+
+		buildQuickAccess();
+
+		return () => {
+			cancelled = true;
+		};
+	}, []);
     
     const handleQuickAccessClick = useCallback((path) => {
         onNavigate(path);

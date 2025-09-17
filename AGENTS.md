@@ -1,33 +1,34 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- backend/: Go + Wails backend (filesystem, platform, events, app_* modules). Example: `backend/filesystem.go`, `backend/platform_windows.go`.
-- frontend/: Preact + Tailwind app. Key folders: `src/components/`, `src/hooks/`, `src/utils/`, `src/styles/`. Entry points: `src/main.jsx`, `src/app.jsx`.
-- main.go: Wails bootstrap; embeds `frontend/dist/`.
-- build/: Compiled artifacts (e.g., Windows exe under `build/bin/`).
-- wails.json: Wails config and Bun scripts.
+- `backend/` — Go code (Wails bindings, filesystem, platform shims). Platform files use suffixes like `_windows.go`, `_unix.go`.
+- `frontend/` — Preact + Tailwind app (`src/`, `public/`, `vite.config.js`).
+- `main.go` — Wails bootstrap; `wails.json` wires Bun/Vite to Wails.
+- `build/` — Output artifacts after `wails build`.
+- `.env` — Optional local configuration (not required for dev).
 
 ## Build, Test, and Development Commands
-- `wails dev`: Run the full app with hot reload (frontend + Go).
-- `wails build -clean`: Production build (outputs `build/bin/lightning_explorer.exe`).
-- `bun install`: Install frontend deps (Wails runs this automatically on build/dev).
-- `bun run build:optimized`: Optimized frontend bundle (used by Wails build).
-- `go fmt ./... && go vet ./...`: Format and basic static checks for Go code.
+- Install deps: `bun install` (root triggers frontend install via Wails) or run inside `frontend/`.
+- Dev (hot reload): `wails dev` (spawns Vite + Wails).
+- Frontend only dev: `cd frontend && bun run dev`.
+- Production build (Windows): `wails build -clean` → `build/bin/lightning_explorer.exe`.
+- Backend tests (if present): `go test ./backend/...` or `go test ./...`.
 
 ## Coding Style & Naming Conventions
-- Go: Use `gofmt` (tabs), idiomatic names (exported identifiers in PascalCase), small cohesive files (see existing `app_*` and `fileops_*` patterns).
-- JS/JSX: 4‑space indent, semicolons, double quotes. Components in PascalCase (e.g., `StreamingVirtualizedFileList.jsx`); hooks start with `use*` in `src/hooks/`; utilities camelCase in `src/utils/`.
-- CSS: Prefer Tailwind utilities; keep Neo‑Brutalist look (1px borders, no shadows/gradients).
+- Go: run `gofmt`/`go fmt ./...` and `go vet ./...`. Use PascalCase for exported symbols; keep packages lower-case. Match existing file names (e.g., `app_files.go`), and platform suffixes (`*_windows.go`, `*_unix.go`).
+- Frontend: Preact + Vite, JavaScript/JSX. Keep components in `frontend/src/components/`, hooks in `src/hooks/`, utilities in `src/utils/`. Tailwind utility-first classes; avoid custom global CSS where possible.
+- General: Prefer small, focused modules and pure helpers in `utils`.
 
 ## Testing Guidelines
-- No formal suite yet. For backend helpers, add Go unit tests (`*_test.go`) and run `go test ./...`.
-- For UI changes, provide a manual test plan and verify via `wails dev` (navigation, selection, context menus, DnD, clipboard, drives).
+- Backend: Table-driven tests in `_test.go`. Aim for coverage on critical filesystem helpers and serialization.
+- Frontend: No test runner configured. If adding tests, prefer Vitest and colocate under `src/` with `.test.jsx` files.
 
 ## Commit & Pull Request Guidelines
-- Use Conventional Commits: `feat:`, `fix:`, `chore:`, optional scopes (e.g., `feat(fs): …`).
-- PRs must include: clear description, linked issues, screenshots/GIFs for UI, manual test steps, and impact notes.
-- Before submitting: `go fmt ./...`, `go vet ./...`, `bun run build:optimized`, `wails build -clean` (ensure no errors).
+- Use Conventional Commits (observed): `feat:`, `fix:`, `refactor(backend):`, `chore:`. Scope with `(frontend)`/`(backend)` when useful.
+- PRs: include a clear description, linked issues, and screenshots/gifs for UI changes. Keep PRs small and atomic. Ensure `wails dev` runs and `wails build -clean` succeeds locally.
 
 ## Security & Configuration Tips
-- Do not commit secrets. Treat `.env` as local‑only; if needed, add sample keys in an `.env.example` and ignore `.env`.
-- Windows is the primary target; macOS/Linux builds are best‑effort and may lack platform features.
+- Windows-first: verify platform-specific changes compile for Windows (`*_windows.go`). Avoid privileged operations in dev code paths. Treat delete operations conservatively.
+
+## Agent-Specific Notes
+- This file applies to the repo root. Follow naming patterns and platform suffix conventions when creating new files. Keep edits minimal and aligned with existing structure.

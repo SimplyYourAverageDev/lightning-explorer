@@ -2,74 +2,60 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks"
 import { Suspense } from "preact/compat";
 
 // Import core utilities synchronously - needed for immediate file filtering and processing
-import { filterFiles} from "./utils/fileUtils";
+import { filterFiles } from "./utils/fileUtils";
 import { EventsOn } from "../wailsjs/runtime/runtime";
 
-// Sorting utility function - inline for immediate availability
-const sortFiles = (() => {
-    // Small cache for extension lookup to avoid repeated property access; keyed by array reference
-    const extCache = new WeakMap();
+const buildSortedIndices = (files, sortBy, sortOrder) => {
+    if (!Array.isArray(files) || files.length === 0) return [];
 
-    return (files, sortBy, sortOrder) => {
-        if (!files || files.length === 0) return files;
+    const order = sortOrder === 'desc' ? -1 : 1;
 
-        const getExt = (file) => {
-            if (file.isDir) return 'folder';
-            if (file.extension) return file.extension.toLowerCase();
-
-            // Fallback: compute once per file instance
-            let ext = extCache.get(file);
-            if (!ext) {
-                const idx = file.name.lastIndexOf('.');
-                ext = idx !== -1 ? file.name.slice(idx + 1).toLowerCase() : '';
-                extCache.set(file, ext);
-            }
-            return ext;
-        };
-
-        const sorted = [...files].sort((a, b) => {
-            let aValue, bValue;
-
-            switch (sortBy) {
-                case 'name':
-                    aValue = a.name.toLowerCase();
-                    bValue = b.name.toLowerCase();
-                    break;
-                case 'size':
-                    // Directories get size 0 for sorting
-                    aValue = a.isDir ? 0 : (a.size || 0);
-                    bValue = b.isDir ? 0 : (b.size || 0);
-                    break;
-                case 'type':
-                    // Preserve original behaviour: directories first
-                    if (a.isDir !== b.isDir) {
-                        return a.isDir ? -1 : 1;
-                    }
-                    aValue = getExt(a);
-                    bValue = getExt(b);
-                    break;
-                case 'modified':
-                    if (typeof a.modTime === 'number' && typeof b.modTime === 'number') {
-                        aValue = a.modTime;
-                        bValue = b.modTime;
-                    } else {
-                        aValue = new Date(a.modTime).getTime();
-                        bValue = new Date(b.modTime).getTime();
-                    }
-                    break;
-                default:
-                    aValue = a.name.toLowerCase();
-                    bValue = b.name.toLowerCase();
-            }
-
-            if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-            if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-            return 0;
-        });
-
-        return sorted;
+    const getExt = (file) => {
+        if (file.isDir) return 'folder';
+        if (file.extension) return String(file.extension).toLowerCase();
+        const name = file.name || '';
+        const idx = name.lastIndexOf('.');
+        return idx !== -1 ? name.slice(idx + 1).toLowerCase() : '';
     };
-})();
+
+    const toTs = (m) => (typeof m === 'number' ? m : Date.parse(m) || 0);
+
+    const indices = files.map((_, idx) => idx);
+    indices.sort((ia, ib) => {
+        const a = files[ia];
+        const b = files[ib];
+        switch (sortBy) {
+            case 'size': {
+                const as = a.isDir ? 0 : (a.size || 0);
+                const bs = b.isDir ? 0 : (b.size || 0);
+                if (as === bs) return ia - ib;
+                return as < bs ? -order : order;
+            }
+            case 'type': {
+                if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+                const ta = getExt(a);
+                const tb = getExt(b);
+                if (ta === tb) return ia - ib;
+                return ta < tb ? -order : order;
+            }
+            case 'modified': {
+                const am = toTs(a.modTime);
+                const bm = toTs(b.modTime);
+                if (am === bm) return ia - ib;
+                return am < bm ? -order : order;
+            }
+            case 'name':
+            default: {
+                const an = String(a.name || '').toLowerCase();
+                const bn = String(b.name || '').toLowerCase();
+                if (an === bn) return ia - ib;
+                return an < bn ? -order : order;
+            }
+        }
+    });
+
+    return indices;
+};
 
 // Import utilities
 import { log, error as logError } from "./utils/logger";
@@ -216,7 +202,8 @@ export function App() {
         handleFileSelect: originalHandleFileSelect,
         clearSelection,
         selectAll,
-        handleArrowNavigation
+        handleArrowNavigation,
+        updateTotalCount
     } = useSelection(scrollToItem);
 
     const {
@@ -249,9 +236,11 @@ export function App() {
     } = useFolderCreation(currentPath, handleRefresh, showErrorNotification);
 
     // This is the combined, filtered, and potentially sorted list of files.
-    // Worker-driven sorting to offload CPU from main thread
     const sortWorkerRef = useRef(null);
-    const [workerSortedFiles, setWorkerSortedFiles] = useState(null);
+    const sortJobIdRef = useRef(0);
+    const [sortedIndices, setSortedIndices] = useState(null);
+
+    const filteredFiles = useMemo(() => filterFiles(files, showHiddenFiles), [files, showHiddenFiles]);
 
     // Start/stop the worker lifecycle
     useEffect(() => {
@@ -259,12 +248,17 @@ export function App() {
             try {
                 sortWorkerRef.current = new Worker(new URL('./workers/sortWorker.js', import.meta.url), { type: 'module' });
                 sortWorkerRef.current.onmessage = (e) => {
-                    const { ok, files: sorted, error } = e.data || {};
-                    if (ok) setWorkerSortedFiles(sorted || []);
-                    else console.error('Sort worker error:', error);
+                    const { ok, indices, error, jobId } = e.data || {};
+                    if (!ok) {
+                        console.error('Sort worker error:', error);
+                        return;
+                    }
+                    if (jobId && jobId !== sortJobIdRef.current) {
+                        return;
+                    }
+                    setSortedIndices(Array.isArray(indices) ? indices : []);
                 };
             } catch (e) {
-                // Worker not available; fall back to main-thread sorting
                 sortWorkerRef.current = null;
             }
         }
@@ -276,30 +270,56 @@ export function App() {
         };
     }, []);
 
-    // Submit sorting to worker when streaming completes
     useEffect(() => {
-        if (!files) {
-            setWorkerSortedFiles([]);
-            return;
-        }
-        const filtered = filterFiles(files, showHiddenFiles);
-        if (loading) {
-            // During streaming, show filtered-unsorted for responsiveness
-            setWorkerSortedFiles(filtered);
-            return;
-        }
-        if (sortWorkerRef.current) {
-            sortWorkerRef.current.postMessage({ files: filtered, sortBy, sortOrder });
-        } else {
-            // Fallback local sort if worker unavailable
-            setWorkerSortedFiles(sortFiles(filtered, sortBy, sortOrder));
-        }
-    }, [files, showHiddenFiles, sortBy, sortOrder, loading]);
+        const length = filteredFiles.length;
+        updateTotalCount(length);
 
-    const allFiles = workerSortedFiles || [];
+        if (length === 0) {
+            setSortedIndices([]);
+            return;
+        }
+
+        if (loading) {
+            setSortedIndices(null);
+            return;
+        }
+
+        if (sortWorkerRef.current) {
+            const jobId = sortJobIdRef.current + 1;
+            sortJobIdRef.current = jobId;
+            try {
+                sortWorkerRef.current.postMessage({ jobId, files: filteredFiles, sortBy, sortOrder });
+            } catch (err) {
+                console.error('Failed to post sort job to worker:', err);
+                setSortedIndices(buildSortedIndices(filteredFiles, sortBy, sortOrder));
+            }
+        } else {
+            setSortedIndices(buildSortedIndices(filteredFiles, sortBy, sortOrder));
+        }
+    }, [filteredFiles, sortBy, sortOrder, loading, updateTotalCount]);
+
+    const allFiles = useMemo(() => {
+        if (!sortedIndices) {
+            return filteredFiles;
+        }
+        if (sortedIndices.length === 0) {
+            return [];
+        }
+        if (sortedIndices.length !== filteredFiles.length) {
+            return filteredFiles;
+        }
+        const projected = [];
+        for (const idx of sortedIndices) {
+            const file = filteredFiles[idx];
+            if (file) {
+                projected.push(file);
+            }
+        }
+        return projected;
+    }, [filteredFiles, sortedIndices]);
     
     // Split into directories/files in a single pass to avoid two extra iterations on large lists
-    const { filteredDirectories, filteredFiles } = useMemo(() => {
+    const { filteredDirectories, filteredFiles: filteredFileEntries } = useMemo(() => {
         const out = { filteredDirectories: [], filteredFiles: [] };
         for (const f of allFiles) {
             if (f.isDir) out.filteredDirectories.push(f);
@@ -794,7 +814,7 @@ export function App() {
                 isInspectMode={isInspectMode}
                 currentPath={currentPath}
                 filteredDirectoriesCount={filteredDirectories.length}
-                filteredFilesCount={filteredFiles.length}
+                filteredFilesCount={filteredFileEntries.length}
                 showHiddenFiles={showHiddenFiles}
                 selectedCount={selectedFiles.size}
                 isAppInitialized={isAppInitialized}
@@ -1027,3 +1047,7 @@ export function App() {
         </div>
     );
 }
+
+
+
+

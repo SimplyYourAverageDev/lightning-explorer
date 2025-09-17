@@ -17,14 +17,14 @@ export const useDragAndDrop = (currentPath, selectedFiles, allFiles, setError, c
     const dragTimeoutRef = useRef(null);
 
     // Simplified drag start for internal-only operations
-    const handleDragStart = useCallback((event, file) => {
+    const handleDragStart = useCallback((event, file, fileIndex) => {
         log('🎯 Internal drag started for:', file.name);
 
         // Get all selected files or just the dragged file
         let draggedFiles = [];
         let draggedPaths = [];
 
-        if (selectedFiles.has(allFiles.findIndex(f => f.path === file.path))) {
+        if (selectedFiles.has(fileIndex)) {
             // Dragging selected files
             draggedFiles = Array.from(selectedFiles).map(index => allFiles[index]);
         } else {

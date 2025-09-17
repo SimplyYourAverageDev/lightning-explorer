@@ -22,10 +22,11 @@ const pollInterval = 3 * time.Second
 
 // NewApp creates a new App application struct - simplified
 func NewApp() *App {
+	platform := NewPlatformManager()
 	return &App{
-		filesystem: NewFileSystemManager(NewPlatformManager()),
-		fileOps:    NewFileOperationsManager(NewPlatformManager()),
-		platform:   NewPlatformManager(),
+		filesystem: NewFileSystemManager(platform),
+		fileOps:    NewFileOperationsManager(platform),
+		platform:   platform,
 		// drives & terminal are expensive; initialize on first use
 	}
 }
@@ -223,7 +224,7 @@ func (a *App) DeletePath(path string) NavigationResponse {
 // GetDriveInfo returns information about system drives
 func (a *App) GetDriveInfo() []DriveInfo {
 	a.drivesOnce.Do(func() {
-		a.drives = NewDriveManager()
+		a.drives = NewDriveManager(a.platform)
 	})
 	return a.drives.GetDriveInfo()
 }
@@ -248,7 +249,7 @@ func (a *App) FormatFileSize(size int64) string {
 // GetQuickAccessPaths returns commonly accessed directories
 func (a *App) GetQuickAccessPaths() []DriveInfo {
 	a.drivesOnce.Do(func() {
-		a.drives = NewDriveManager()
+		a.drives = NewDriveManager(a.platform)
 	})
 	return a.drives.GetQuickAccessPaths()
 }

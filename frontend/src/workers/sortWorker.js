@@ -4,9 +4,9 @@
 
 self.onmessage = (e) => {
   try {
-    const { files, sortBy, sortOrder } = e.data || {};
+    const { files, sortBy, sortOrder, jobId } = e.data || {};
     if (!Array.isArray(files) || files.length === 0) {
-      self.postMessage({ ok: true, files: files || [] });
+      self.postMessage({ ok: true, indices: [], jobId });
       return;
     }
 
@@ -22,39 +22,42 @@ self.onmessage = (e) => {
 
     const toTs = (m) => (typeof m === 'number' ? m : Date.parse(m) || 0);
 
-    const out = files.slice().sort((a, b) => {
+    const indices = files.map((_, idx) => idx);
+    indices.sort((ia, ib) => {
+      const a = files[ia];
+      const b = files[ib];
       switch (sortBy) {
         case 'size': {
           const as = a.isDir ? 0 : (a.size || 0);
           const bs = b.isDir ? 0 : (b.size || 0);
-          return as === bs ? 0 : (as < bs ? -order : order);
+          if (as === bs) return ia - ib;
+          return as < bs ? -order : order;
         }
         case 'type': {
           if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
           const ta = getExt(a);
           const tb = getExt(b);
-          if (ta === tb) return 0;
+          if (ta === tb) return ia - ib;
           return ta < tb ? -order : order;
         }
         case 'modified': {
           const am = toTs(a.modTime);
           const bm = toTs(b.modTime);
-          if (am === bm) return 0;
+          if (am === bm) return ia - ib;
           return am < bm ? -order : order;
         }
         case 'name':
         default: {
           const an = String(a.name || '').toLowerCase();
           const bn = String(b.name || '').toLowerCase();
-          if (an === bn) return 0;
+          if (an === bn) return ia - ib;
           return an < bn ? -order : order;
         }
       }
     });
 
-    self.postMessage({ ok: true, files: out });
+    self.postMessage({ ok: true, indices, jobId });
   } catch (err) {
-    self.postMessage({ ok: false, error: String(err) });
+    self.postMessage({ ok: false, error: String(err), jobId });
   }
 };
-

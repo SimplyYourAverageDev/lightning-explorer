@@ -12,14 +12,15 @@ import (
 )
 
 // Drive hot-plug is user-visible but not latency-critical – poll every 3 s to cut idle CPU
-const pollInterval = 3 * time.Second
+const fallbackDrivePollInterval = 30 * time.Second
 
 // NewApp creates a new App application struct - simplified
 func NewApp() *App {
+	platform := NewPlatformManager()
 	return &App{
-		filesystem: NewFileSystemManager(NewPlatformManager()),
-		fileOps:    NewFileOperationsManager(NewPlatformManager()),
-		platform:   NewPlatformManager(),
+		filesystem: NewFileSystemManager(platform),
+		fileOps:    NewFileOperationsManager(platform),
+		platform:   platform,
 		// drives & terminal are expensive; initialize on first use
 	}
 }
@@ -50,26 +51,47 @@ func (a *App) monitorDrives() {
 		return
 	}
 
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-
 	var prevJSON string
+	sendUpdate := func() {
+		drives := a.GetDriveInfo()
+		data, err := json.Marshal(drives)
+		if err != nil {
+			return
+		}
+		current := string(data)
+		if current != prevJSON {
+			prevJSON = current
+			wruntime.EventsEmit(a.ctx, "driveListUpdated", drives)
+		}
+	}
+
+	updates, err := a.platform.WatchDriveChanges(a.ctx)
+	if err != nil {
+		ticker := time.NewTicker(fallbackDrivePollInterval)
+		defer ticker.Stop()
+		sendUpdate()
+		for {
+			select {
+			case <-a.ctx.Done():
+				return
+			case <-ticker.C:
+				sendUpdate()
+			}
+		}
+	}
+
+	sendUpdate()
+
 	for {
 		select {
 		case <-a.ctx.Done():
 			return
-		case <-ticker.C:
-			drives := a.GetDriveInfo()
-			data, err := json.Marshal(drives)
-			if err != nil {
-				continue
+		case _, ok := <-updates:
+			if !ok {
+				return
 			}
-
-			current := string(data)
-			if current != prevJSON {
-				prevJSON = current
-				wruntime.EventsEmit(a.ctx, "driveListUpdated", drives)
-			}
+			a.driveMgr().InvalidateCaches()
+			sendUpdate()
 		}
 	}
 }

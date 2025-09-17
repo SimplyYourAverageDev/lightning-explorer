@@ -7,15 +7,16 @@ import (
 )
 
 // FileInfo represents file/directory information
+// ModTime is stored as Unix seconds to minimise allocations and payload sizes.
 type FileInfo struct {
-	Name        string    `json:"name" msgpack:"name"`
-	Path        string    `json:"path" msgpack:"path"`
-	IsDir       bool      `json:"isDir" msgpack:"isDir"`
-	Size        int64     `json:"size" msgpack:"size"`
-	ModTime     time.Time `json:"modTime" msgpack:"modTime" ts_type:"string"`
-	Permissions string    `json:"permissions" msgpack:"permissions"`
-	Extension   string    `json:"extension" msgpack:"extension"`
-	IsHidden    bool      `json:"isHidden" msgpack:"isHidden"`
+	Name        string `json:"name" msgpack:"name"`
+	Path        string `json:"path" msgpack:"path"`
+	IsDir       bool   `json:"isDir" msgpack:"isDir"`
+	Size        int64  `json:"size" msgpack:"size"`
+	ModTime     int64  `json:"modTime" msgpack:"modTime"`
+	Permissions string `json:"permissions" msgpack:"permissions"`
+	Extension   string `json:"extension" msgpack:"extension"`
+	IsHidden    bool   `json:"isHidden" msgpack:"isHidden"`
 }
 
 // DirectoryContents represents the contents of a directory
@@ -57,8 +58,6 @@ type Settings struct {
 	PinnedFolders     []string `json:"pinnedFolders,omitempty" msgpack:"pinnedFolders"`
 }
 
-// Interfaces for dependency injection and better testability
-
 // FileSystemManagerInterface defines the file system operations contract
 type FileSystemManagerInterface interface {
 	ListDirectory(path string) NavigationResponse
@@ -69,6 +68,8 @@ type FileSystemManagerInterface interface {
 	CreateDirectory(path, name string) NavigationResponse
 	ValidatePath(path string) error
 	FileExists(path string) bool
+	StreamDirectory(dir string)
+	SetShowHidden(includeHidden bool)
 }
 
 // FileOperationsManagerInterface defines file operations contract
@@ -87,22 +88,23 @@ type PlatformManagerInterface interface {
 	GetHomeDirectory() string
 	GetCurrentWorkingDirectory() string
 	GetSystemRoots() []string
+	GetWindowsDrivesOptimized() []DriveInfo
 	OpenInSystemExplorer(path string) bool
 	IsHidden(filePath string) bool
 	GetExtension(name string) string
 	HideFile(filePath string) bool
 	OpenFile(filePath string) bool
 	FormatFileSize(size int64) string
-	// Copies absolute file paths into the OS clipboard (CF_HDROP)
 	SetClipboardFilePaths(paths []string) bool
-	// Drive ejection methods
 	EjectDriveWindows(drivePath string) bool
+	WatchDriveChanges(ctx context.Context) (<-chan struct{}, error)
 }
 
 // DriveManagerInterface defines drive management contract
 type DriveManagerInterface interface {
 	GetDriveInfo() []DriveInfo
 	GetQuickAccessPaths() []DriveInfo
+	InvalidateCaches()
 }
 
 // TerminalManagerInterface defines terminal operations contract
@@ -121,17 +123,15 @@ type App struct {
 	platform   PlatformManagerInterface
 	drives     DriveManagerInterface
 	terminal   TerminalManagerInterface
-	// Lazy initialization sync.Once fields
+
 	drivesOnce   sync.Once
 	terminalOnce sync.Once
 
-	// Warm startup caches
 	homeDirCache string
 	drivesCache  []DriveInfo
 	warmReady    bool
 	warmOnce     sync.Once
 
-	// Settings management
 	settings     Settings
 	settingsOnce sync.Once
 }
@@ -141,10 +141,9 @@ type FileSystemManager struct {
 	platform     PlatformManagerInterface
 	ctx          context.Context
 	eventEmitter *EventEmitter
-	// dirCache stores recently enumerated directory contents keyed by absolute path.
-	// Bounded LRU with TTL and last write time validation for fast repeat navigations
-	// without unbounded memory growth.
-	dirCache *lruDirCache
+	dirCache     *lruDirCache
+	showHidden   bool
+	purgeOnce    sync.Once
 }
 
 // FileOperationsManager implementation
@@ -153,10 +152,31 @@ type FileOperationsManager struct {
 }
 
 // PlatformManager implementation
-type PlatformManager struct{}
+type PlatformManager struct {
+	driveCacheMu     sync.RWMutex
+	driveCache       []DriveInfo
+	driveCacheExpiry time.Time
+
+	volumeCacheMu sync.RWMutex
+	volumeCache   map[string]volumeLabelCacheEntry
+}
 
 // DriveManager implementation
-type DriveManager struct{}
+type DriveManager struct {
+	platform PlatformManagerInterface
+	mu       sync.RWMutex
+
+	driveCache       []DriveInfo
+	driveCacheExpiry time.Time
+
+	quickAccessCache       []DriveInfo
+	quickAccessCacheExpiry time.Time
+}
 
 // TerminalManager implementation
 type TerminalManager struct{}
+
+type volumeLabelCacheEntry struct {
+	label   string
+	expires time.Time
+}

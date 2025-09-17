@@ -5,7 +5,7 @@ export namespace backend {
 	    path: string;
 	    isDir: boolean;
 	    size: number;
-	    modTime: string;
+	    modTime: number;
 	    permissions: string;
 	    extension: string;
 	    isHidden: boolean;

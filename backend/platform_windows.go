@@ -3,13 +3,23 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/go-ole/go-ole"
+	"github.com/go-ole/go-ole/oleutil"
+)
+
+const (
+	driveInfoCacheTTL   = 2 * time.Second
+	volumeLabelCacheTTL = 30 * time.Second
 )
 
 var (
@@ -95,6 +105,9 @@ const (
 	// Configuration Manager constants
 	CR_SUCCESS          = 0x00000000
 	PNP_VetoTypeUnknown = 0
+
+	// COM success codes we treat as non-fatal results
+	coInitSFalse = 0x00000001
 )
 
 // Device interface GUIDs
@@ -506,20 +519,26 @@ func (p *PlatformManager) getSystemRootsFallback() []string {
 }
 
 // GetWindowsDrivesOptimized uses Windows API for faster drive enumeration with detailed info
-func (p *PlatformManager) GetWindowsDrivesOptimized() []DriveInfo {
-	var drives []DriveInfo
 
-	// Get all logical drives first
+func (p *PlatformManager) GetWindowsDrivesOptimized() []DriveInfo {
+	if cached := p.loadDriveCache(); cached != nil {
+		return cached
+	}
+
 	driveStrings := p.GetSystemRootsWindows()
+	drives := make([]DriveInfo, 0, len(driveStrings))
 
 	for _, driveString := range driveStrings {
+		if len(driveString) == 0 {
+			continue
+		}
+
 		driveInfo := DriveInfo{
 			Path:   driveString,
 			Letter: string(driveString[0]),
 			Name:   "",
 		}
 
-		// Try to get volume information using GetVolumeInformationW
 		if volumeLabel := p.getVolumeLabel(driveString); volumeLabel != "" {
 			driveInfo.Name = volumeLabel + " (" + driveString[:2] + ")"
 		} else {
@@ -529,11 +548,23 @@ func (p *PlatformManager) GetWindowsDrivesOptimized() []DriveInfo {
 		drives = append(drives, driveInfo)
 	}
 
+	p.storeDriveCache(drives)
 	return drives
 }
 
-// getVolumeLabel gets the volume label for a drive using GetVolumeInformationW
+// getVolumeLabel gets the volume label for a drive using GetVolumeInformationW with caching
 func (p *PlatformManager) getVolumeLabel(drivePath string) string {
+	key := strings.ToUpper(drivePath)
+	if label, ok := p.cachedVolumeLabel(key); ok {
+		return label
+	}
+
+	label := p.queryVolumeLabel(drivePath)
+	p.storeVolumeLabel(key, label)
+	return label
+}
+
+func (p *PlatformManager) queryVolumeLabel(drivePath string) string {
 	// Convert drive path to UTF16 pointer
 	drivePathPtr, err := syscall.UTF16PtrFromString(drivePath)
 	if err != nil {
@@ -563,6 +594,63 @@ func (p *PlatformManager) getVolumeLabel(drivePath string) string {
 
 	// Convert UTF16 buffer to string
 	return syscall.UTF16ToString(volumeNameBuffer)
+}
+
+func (p *PlatformManager) loadDriveCache() []DriveInfo {
+	p.driveCacheMu.RLock()
+	defer p.driveCacheMu.RUnlock()
+	if len(p.driveCache) == 0 || time.Now().After(p.driveCacheExpiry) {
+		return nil
+	}
+	cached := make([]DriveInfo, len(p.driveCache))
+	copy(cached, p.driveCache)
+	return cached
+}
+
+func (p *PlatformManager) storeDriveCache(drives []DriveInfo) {
+	p.driveCacheMu.Lock()
+	defer p.driveCacheMu.Unlock()
+	if len(drives) == 0 {
+		p.driveCache = nil
+		p.driveCacheExpiry = time.Time{}
+		return
+	}
+	p.driveCache = make([]DriveInfo, len(drives))
+	copy(p.driveCache, drives)
+	p.driveCacheExpiry = time.Now().Add(driveInfoCacheTTL)
+}
+
+func (p *PlatformManager) cachedVolumeLabel(key string) (string, bool) {
+	p.volumeCacheMu.RLock()
+	entry, ok := p.volumeCache[key]
+	p.volumeCacheMu.RUnlock()
+	if !ok || time.Now().After(entry.expires) {
+		return "", false
+	}
+	return entry.label, true
+}
+
+func (p *PlatformManager) storeVolumeLabel(key, label string) {
+	p.volumeCacheMu.Lock()
+	if p.volumeCache == nil {
+		p.volumeCache = make(map[string]volumeLabelCacheEntry)
+	}
+	p.volumeCache[key] = volumeLabelCacheEntry{
+		label:   label,
+		expires: time.Now().Add(volumeLabelCacheTTL),
+	}
+	p.volumeCacheMu.Unlock()
+}
+
+func (p *PlatformManager) invalidateDriveCaches() {
+	p.driveCacheMu.Lock()
+	p.driveCache = nil
+	p.driveCacheExpiry = time.Time{}
+	p.driveCacheMu.Unlock()
+
+	p.volumeCacheMu.Lock()
+	p.volumeCache = make(map[string]volumeLabelCacheEntry)
+	p.volumeCacheMu.Unlock()
 }
 
 // IsHiddenWindowsNative checks if a file has the Windows hidden attribute using native API
@@ -889,4 +977,97 @@ func (p *PlatformManager) SetClipboardFilePaths(paths []string) bool {
 
 	logPrintf("SetClipboard: Successfully set %d file paths to Windows clipboard", len(paths))
 	return true
+}
+func (p *PlatformManager) WatchDriveChanges(ctx context.Context) (<-chan struct{}, error) {
+	updates := make(chan struct{}, 1)
+
+	go func() {
+		defer close(updates)
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
+		if err := ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); err != nil {
+			if oleErr, ok := err.(*ole.OleError); ok {
+				code := oleErr.Code()
+				if code != ole.S_OK && code != coInitSFalse {
+					logPrintf("WatchDriveChanges: CoInitializeEx failed: %v", err)
+					return
+				}
+			} else {
+				logPrintf("WatchDriveChanges: CoInitializeEx failed: %v", err)
+				return
+			}
+		}
+		defer ole.CoUninitialize()
+
+		locatorObj, err := oleutil.CreateObject("WbemScripting.SWbemLocator")
+		if err != nil {
+			logPrintf("WatchDriveChanges: CreateObject failed: %v", err)
+			return
+		}
+		defer locatorObj.Release()
+
+		locator, err := locatorObj.QueryInterface(ole.IID_IDispatch)
+		if err != nil {
+			logPrintf("WatchDriveChanges: QueryInterface failed: %v", err)
+			return
+		}
+		defer locator.Release()
+
+		serviceVariant, err := oleutil.CallMethod(locator, "ConnectServer", nil, "root\\cimv2")
+		if err != nil {
+			logPrintf("WatchDriveChanges: ConnectServer failed: %v", err)
+			return
+		}
+		service := serviceVariant.ToIDispatch()
+		if service == nil {
+			logPrintf("WatchDriveChanges: ConnectServer returned nil")
+			return
+		}
+		defer service.Release()
+
+		eventSrcVariant, err := oleutil.CallMethod(service, "ExecNotificationQuery", "SELECT * FROM Win32_VolumeChangeEvent")
+		if err != nil {
+			logPrintf("WatchDriveChanges: ExecNotificationQuery failed: %v", err)
+			return
+		}
+		eventSrc := eventSrcVariant.ToIDispatch()
+		if eventSrc == nil {
+			logPrintf("WatchDriveChanges: ExecNotificationQuery returned nil")
+			return
+		}
+		defer eventSrc.Release()
+
+		select {
+		case updates <- struct{}{}:
+		default:
+		}
+
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+
+			result, err := oleutil.CallMethod(eventSrc, "NextEvent", int32(2000))
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				continue
+			}
+			if result != nil {
+				if dispatch := result.ToIDispatch(); dispatch != nil {
+					dispatch.Release()
+				}
+				result.Clear()
+				p.invalidateDriveCaches()
+				select {
+				case updates <- struct{}{}:
+				default:
+				}
+			}
+		}
+	}()
+
+	return updates, nil
 }

@@ -14,15 +14,18 @@ type WireEntry struct {
 func toWireEntries(in []FileInfo) []WireEntry {
 	out := make([]WireEntry, 0, len(in))
 	for i := range in {
-		fi := &in[i]
-		we := WireEntry{N: fi.Name, D: fi.IsDir, M: fi.ModTime.Unix()}
-		if !fi.IsDir {
-			we.S = fi.Size
-		}
-		if fi.IsHidden {
-			we.H = true
-		}
-		out = append(out, we)
+		out = append(out, wireFromFileInfo(in[i]))
 	}
 	return out
+}
+
+func wireFromFileInfo(fi FileInfo) WireEntry {
+	we := WireEntry{N: fi.Name, D: fi.IsDir, M: fi.ModTime}
+	if !fi.IsDir {
+		we.S = fi.Size
+	}
+	if fi.IsHidden {
+		we.H = true
+	}
+	return we
 }

@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 )
 
-// GetSettings returns the current application settings
 func (a *App) GetSettings() Settings {
 	a.settingsOnce.Do(func() {
 		a.loadSettings()
@@ -16,22 +15,21 @@ func (a *App) GetSettings() Settings {
 	return a.settings
 }
 
-// SaveSettings saves the application settings to disk
 func (a *App) SaveSettings(newSettings Settings) error {
 	a.settings = newSettings
+	if fs, ok := a.filesystem.(*FileSystemManager); ok {
+		fs.SetShowHidden(newSettings.ShowHiddenFiles)
+	}
 	return a.saveSettingsToFile()
 }
 
-// loadSettings loads settings from file or creates defaults
 func (a *App) loadSettings() {
-	// Default settings
 	a.settings = Settings{
-		BackgroundStartup: true, // Default to enabled for better UX
+		BackgroundStartup: true,
 		Theme:             "system",
 		ShowHiddenFiles:   false,
 	}
 
-	// Try to load from file
 	settingsPath := a.getSettingsPath()
 	if data, err := os.ReadFile(settingsPath); err == nil {
 		if err := json.Unmarshal(data, &a.settings); err != nil {
@@ -41,13 +39,15 @@ func (a *App) loadSettings() {
 			a.settings.PinnedFolders = []string{}
 		}
 	}
+
+	if fs, ok := a.filesystem.(*FileSystemManager); ok {
+		fs.SetShowHidden(a.settings.ShowHiddenFiles)
+	}
 }
 
-// saveSettingsToFile saves settings to the user's config directory
 func (a *App) saveSettingsToFile() error {
 	settingsPath := a.getSettingsPath()
 
-	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(settingsPath), 0755); err != nil {
 		return fmt.Errorf("failed to create settings directory: %w", err)
 	}
@@ -65,11 +65,9 @@ func (a *App) saveSettingsToFile() error {
 	return nil
 }
 
-// getSettingsPath returns the path to the settings file
 func (a *App) getSettingsPath() string {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		// Fallback to user home directory
 		homeDir, _ := os.UserHomeDir()
 		configDir = filepath.Join(homeDir, ".config")
 	}
@@ -77,7 +75,6 @@ func (a *App) getSettingsPath() string {
 	return filepath.Join(configDir, "lightning-explorer", "settings.json")
 }
 
-// HealthCheck returns application health status
 func (a *App) HealthCheck() map[string]interface{} {
 	return map[string]interface{}{
 		"status":  "healthy",
@@ -86,7 +83,6 @@ func (a *App) HealthCheck() map[string]interface{} {
 	}
 }
 
-// GetContext exposes the internal context for use in main.go
 func (a *App) GetContext() context.Context {
 	return a.ctx
 }

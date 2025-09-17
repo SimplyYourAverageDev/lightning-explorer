@@ -3,6 +3,7 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,7 +14,19 @@ import (
 
 // NewPlatformManager creates a new platform manager instance
 func NewPlatformManager() *PlatformManager {
-	return &PlatformManager{}
+	return &PlatformManager{
+		volumeCache: make(map[string]volumeLabelCacheEntry),
+	}
+}
+
+func (p *PlatformManager) GetWindowsDrivesOptimized() []DriveInfo {
+	return nil
+}
+
+func (p *PlatformManager) invalidateDriveCaches() {}
+
+func (p *PlatformManager) WatchDriveChanges(ctx context.Context) (<-chan struct{}, error) {
+	return nil, fmt.Errorf("drive change monitoring not supported on %s", runtime.GOOS)
 }
 
 // GetHomeDirectory returns the user's home directory
@@ -110,9 +123,4 @@ func (p *PlatformManager) FormatFileSize(size int64) string {
 
 	units := []string{"KB", "MB", "GB", "TB", "PB"}
 	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
-}
-
-// GetWindowsDrivesOptimized is a Windows-specific helper. On non-Windows platforms it returns nil.
-func (p *PlatformManager) GetWindowsDrivesOptimized() []DriveInfo {
-	return nil
 }

@@ -6,23 +6,23 @@ import (
 	"time"
 )
 
-// dirCacheEntry represents a cached directory listing along with the directory
-// modification timestamp. Kept small and copy-friendly.
 type dirCacheEntry struct {
-	files   []FileInfo
-	modTime int64 // seconds since epoch
-	at      int64 // access time (unix seconds) for TTL
+	files      []FileInfo
+	modTime    int64
+	at         int64
+	entryBytes int64
 }
 
-// lruDirCache is a bounded LRU cache with TTL semantics for directory listings.
-// - capacity: maximum number of distinct directories to retain
-// - ttl: entries older than this (since last access) are considered expired
 type lruDirCache struct {
-	mu    sync.Mutex
-	cap   int
-	ttl   time.Duration
-	ll    *list.List               // holds *lruItem with key
-	items map[string]*list.Element // key -> element
+	mu               sync.Mutex
+	cap              int
+	ttl              time.Duration
+	ll               *list.List
+	items            map[string]*list.Element
+	maxEntriesPerDir int
+	maxBytes         int64
+	approxEntrySize  int64
+	currentBytes     int64
 }
 
 type lruItem struct {
@@ -38,32 +38,57 @@ func newLRUDirCache(capacity int, ttl time.Duration) *lruDirCache {
 		ttl = 60 * time.Second
 	}
 	return &lruDirCache{
-		cap:   capacity,
-		ttl:   ttl,
-		ll:    list.New(),
-		items: make(map[string]*list.Element, capacity),
+		cap:              capacity,
+		ttl:              ttl,
+		ll:               list.New(),
+		items:            make(map[string]*list.Element, capacity),
+		maxEntriesPerDir: 8000,
+		maxBytes:         64 << 20, // ~64MiB total cache budget by default
+		approxEntrySize:  160,      // rough estimate per entry (bytes)
 	}
 }
 
-// Get returns the cached entry if present, not expired, and modTime matches.
-// ok is false if not found/expired/modTime mismatch.
+func (c *lruDirCache) shouldCache(lenEntries int) bool {
+	if c == nil {
+		return false
+	}
+	if c.maxEntriesPerDir > 0 && lenEntries > c.maxEntriesPerDir {
+		return false
+	}
+	return true
+}
+
+func (c *lruDirCache) entryCost(files []FileInfo) int64 {
+	if c == nil {
+		return 0
+	}
+	if len(files) == 0 {
+		return 0
+	}
+	size := int64(len(files)) * c.approxEntrySize
+	if size == 0 {
+		size = int64(len(files)) * 64
+	}
+	return size
+}
+
 func (c *lruDirCache) Get(key string, modTime int64) (entry dirCacheEntry, ok bool) {
+	if c == nil {
+		return dirCacheEntry{}, false
+	}
 	now := time.Now().Unix()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if ele, exists := c.items[key]; exists {
 		it := ele.Value.(*lruItem)
-		// TTL check
-		if now-it.value.at > int64(c.ttl/time.Second) {
+		if c.ttl > 0 && now-it.value.at > int64(c.ttl/time.Second) {
 			c.removeElement(ele)
 			return dirCacheEntry{}, false
 		}
-		// modtime must match to be valid
 		if it.value.modTime != modTime {
 			c.removeElement(ele)
 			return dirCacheEntry{}, false
 		}
-		// refresh access, move to front
 		it.value.at = now
 		c.ll.MoveToFront(ele)
 		return it.value, true
@@ -71,20 +96,44 @@ func (c *lruDirCache) Get(key string, modTime int64) (entry dirCacheEntry, ok bo
 	return dirCacheEntry{}, false
 }
 
-// Put inserts/updates an entry. Caller provides files and modTime.
 func (c *lruDirCache) Put(key string, files []FileInfo, modTime int64) {
+	if c == nil {
+		return
+	}
+	if !c.shouldCache(len(files)) {
+		return
+	}
 	now := time.Now().Unix()
+	entryBytes := c.entryCost(files)
+	if c.maxBytes > 0 && entryBytes > c.maxBytes {
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if entryBytes > 0 && c.maxBytes > 0 {
+		for c.currentBytes+entryBytes > c.maxBytes && c.ll.Len() > 0 {
+			c.removeOldest()
+		}
+		if entryBytes > c.maxBytes {
+			return
+		}
+	}
+
 	if ele, exists := c.items[key]; exists {
 		it := ele.Value.(*lruItem)
-		it.value = dirCacheEntry{files: files, modTime: modTime, at: now}
+		c.currentBytes -= it.value.entryBytes
+		it.value = dirCacheEntry{files: files, modTime: modTime, at: now, entryBytes: entryBytes}
+		c.currentBytes += entryBytes
 		c.ll.MoveToFront(ele)
 		return
 	}
-	it := &lruItem{key: key, value: dirCacheEntry{files: files, modTime: modTime, at: now}}
+
+	it := &lruItem{key: key, value: dirCacheEntry{files: files, modTime: modTime, at: now, entryBytes: entryBytes}}
 	ele := c.ll.PushFront(it)
 	c.items[key] = ele
+	c.currentBytes += entryBytes
 	if c.ll.Len() > c.cap {
 		c.removeOldest()
 	}
@@ -98,21 +147,38 @@ func (c *lruDirCache) removeOldest() {
 }
 
 func (c *lruDirCache) removeElement(e *list.Element) {
-	c.ll.Remove(e)
 	it := e.Value.(*lruItem)
+	c.ll.Remove(e)
 	delete(c.items, it.key)
+	c.currentBytes -= it.value.entryBytes
+	if c.currentBytes < 0 {
+		c.currentBytes = 0
+	}
 }
 
-// PurgeExpired removes entries past TTL. Optional periodic housekeeping.
 func (c *lruDirCache) PurgeExpired() {
+	if c == nil {
+		return
+	}
 	now := time.Now().Unix()
 	c.mu.Lock()
 	for key, ele := range c.items {
 		it := ele.Value.(*lruItem)
-		if now-it.value.at > int64(c.ttl/time.Second) {
+		if c.ttl > 0 && now-it.value.at > int64(c.ttl/time.Second) {
 			c.ll.Remove(ele)
 			delete(c.items, key)
+			c.currentBytes -= it.value.entryBytes
 		}
 	}
+	if c.currentBytes < 0 {
+		c.currentBytes = 0
+	}
 	c.mu.Unlock()
+}
+
+func (c *lruDirCache) maxEntriesLimit() int {
+	if c == nil {
+		return 0
+	}
+	return c.maxEntriesPerDir
 }
